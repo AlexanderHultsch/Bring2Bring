@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { requestLogger } from './middleware/request-logger.js';
 import { notFoundHandler, errorHandler } from './middleware/error-handler.js';
-import { sessionMiddleware } from './middleware/session.js';
+import { sessionMiddleware, warnIfSessionCookieSuppressed } from './middleware/session.js';
 import { csrfProtection, csrfTokenLocals } from './middleware/csrf.js';
 import { loadCurrentUser } from './middleware/auth.js';
 import { healthRouter } from './routes/health.js';
@@ -64,6 +64,7 @@ export function createApp({ db, config }) {
   app.use(express.urlencoded({ extended: true, parameterLimit: 5000 }));
   app.use(cookieParser(config.sessionSecret));
   app.use(sessionMiddleware(db, config));
+  app.use(warnIfSessionCookieSuppressed(config));
   app.use(loadCurrentUser(db));
   app.use(csrfProtection(config));
   app.use(csrfTokenLocals());

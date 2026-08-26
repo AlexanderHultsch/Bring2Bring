@@ -37,3 +37,38 @@ export function sessionMiddleware(db, config) {
     },
   });
 }
+
+// session() above is called without a `proxy` option, so express-session's own
+// issecure(req, trustProxy) receives trustProxy === undefined: that's neither
+// `=== false` nor `=== true`, so it falls through to `return req.secure === true`
+// — Express's own getter, which honours the numeric `trust proxy` app.js sets
+// from config.trustProxy (app.js: `app.set('trust proxy', config.trustProxy)`)
+// and reads X-Forwarded-Proto accordingly. When the cookie is `secure` and that
+// comes back false, express-session drops Set-Cookie silently (index.js:242) —
+// no throw, no log unless DEBUG happens to be set. Mirroring that exact branch
+// here means checking `req.secure` directly, the same value express-session
+// itself falls back to in this app's configuration.
+let warned = false;
+
+export function warnIfSessionCookieSuppressed(config) {
+  return function (req, res, next) {
+    if (config.nodeEnv !== 'test' && config.isProduction && !req.secure && !warned) {
+      warned = true;
+      console.warn(
+        'Session cookie is configured `secure: true` (NODE_ENV=production) but this request was ' +
+          'not seen as secure (req.secure is false): express-session will silently withhold ' +
+          'Set-Cookie, so logins will appear to do nothing. Make the reverse proxy in front of ' +
+          'Dishlist send "X-Forwarded-Proto: https" on every request.'
+      );
+    }
+    next();
+  };
+}
+
+// Test-only: the once-per-process warning above is deliberately a module-level
+// flag (same shape as the cached dummy hash in src/services/auth.js), which
+// would make tests order-dependent if they shared it — this lets each test
+// start from a clean slate.
+export function resetSessionCookieWarning() {
+  warned = false;
+}

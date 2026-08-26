@@ -6,23 +6,25 @@ import { loadConfig } from '../src/config.js';
 import { createApp } from '../src/app.js';
 import { hashPassword } from '../src/services/auth.js';
 import { insertUser, findUserByUsername } from '../src/repositories/users.js';
+import { resetSessionCookieWarning } from '../src/middleware/session.js';
 
 const KNOWN_USERNAME = 'alex';
 const KNOWN_PASSWORD = 'correct-horse-battery';
 const LOGIN_ERROR_MESSAGE = 'Invalid username or password.';
 
-const testEnv = () => ({
+const testEnv = (overrides = {}) => ({
   SESSION_SECRET: 'a'.repeat(16),
   ADMIN_USER: 'admin',
   ADMIN_PASSWORD: 'super-secret-password',
   PUBLIC_BASE_URL: 'https://dishlist.example.com',
   NODE_ENV: 'test',
+  ...overrides,
 });
 
-async function withApp(fn) {
+async function withApp(fn, envOverrides = {}) {
   const { db, cleanup } = createTestDb();
   try {
-    const config = loadConfig(testEnv());
+    const config = loadConfig(testEnv(envOverrides));
     const app = createApp({ db, config });
     await fn(app, db);
   } finally {
@@ -290,5 +292,85 @@ test('the 11th login attempt from the same client within the window returns 429'
       .send({ _csrf: csrfToken, username: KNOWN_USERNAME, password: 'wrong-password' });
 
     assert.equal(res.status, 429);
+  });
+});
+
+function captureWarnings(fn) {
+  const warnings = [];
+  const originalWarn = console.warn;
+  console.warn = (...args) => warnings.push(args.join(' '));
+  return fn(warnings).finally(() => {
+    console.warn = originalWarn;
+  });
+}
+
+test('in production, with no X-Forwarded-Proto reaching the app, the session-cookie-suppressed warning is logged exactly once per process, even across several requests and separate app instances', async () => {
+  resetSessionCookieWarning();
+
+  await captureWarnings(async (warnings) => {
+    const dbA = createTestDb();
+    const dbB = createTestDb();
+    try {
+      const config = loadConfig(testEnv({ NODE_ENV: 'production' }));
+      const appA = createApp({ db: dbA.db, config });
+      const appB = createApp({ db: dbB.db, config });
+
+      await request(appA).get('/login');
+      await request(appA).get('/login');
+      await request(appB).get('/login');
+
+      assert.equal(warnings.length, 1);
+    } finally {
+      dbA.cleanup();
+      dbB.cleanup();
+    }
+  });
+});
+
+test('in production, with X-Forwarded-Proto: https present, no warning is emitted (the healthy production case stays quiet)', async () => {
+  resetSessionCookieWarning();
+
+  await captureWarnings(async (warnings) => {
+    await withApp(async (app) => {
+      await request(app).get('/login').set('X-Forwarded-Proto', 'https');
+      await request(app).get('/login').set('X-Forwarded-Proto', 'https');
+
+      assert.equal(warnings.length, 0);
+    }, { NODE_ENV: 'production' });
+  });
+});
+
+test('in NODE_ENV test, no warning is emitted regardless of X-Forwarded-Proto', async () => {
+  resetSessionCookieWarning();
+
+  await captureWarnings(async (warnings) => {
+    await withApp(async (app) => {
+      await request(app).get('/login');
+
+      assert.equal(warnings.length, 0);
+    });
+  });
+});
+
+test('the session-cookie-suppressed warning names X-Forwarded-Proto and carries no cookie value, session id, or username', async () => {
+  resetSessionCookieWarning();
+
+  await captureWarnings(async (warnings) => {
+    const { db, cleanup } = createTestDb();
+    try {
+      const config = loadConfig(testEnv({ NODE_ENV: 'production' }));
+      const app = createApp({ db, config });
+
+      await request(app).get('/login');
+
+      assert.equal(warnings.length, 1);
+      const [message] = warnings;
+      assert.match(message, /X-Forwarded-Proto/);
+      assert.ok(!message.includes('dishlist.sid'));
+      assert.ok(!message.includes(KNOWN_USERNAME));
+      assert.ok(!/[A-Za-z0-9]{24,}/.test(message));
+    } finally {
+      cleanup();
+    }
   });
 });

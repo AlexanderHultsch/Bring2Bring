@@ -55,17 +55,28 @@ dishlist:
   build: ./apps/dishlist
   restart: unless-stopped
   env_file: ./apps/dishlist/.env
+  environment:
+    PORT: "3000"
+    DB_PATH: /data/dishlist.db
+    UPLOAD_DIR: /data/uploads
+    PUBLIC_BASE_URL: https://dishlist.${DOMAIN}
   volumes:
-    - ./data/dishlist:/app/data
+    - ./data/dishlist:/data
   networks: [edge]
 ```
+
+The `DB_PATH` and `UPLOAD_DIR` environment variables are set explicitly because the
+app's defaults are relative to its working directory, so the mount point and the
+paths must agree.
 
 Caddyfile block:
 
 ```
 @dishlist host dishlist.{$DOMAIN}
 handle @dishlist {
-    reverse_proxy dishlist:3000
+    reverse_proxy dishlist:3000 {
+        header_up X-Forwarded-Proto https
+    }
 }
 ```
 
@@ -77,6 +88,13 @@ credentials get seeded), a Cloudflare Published Application route
 `PUBLIC_BASE_URL` is set in the compose file's `environment:` block, **not**
 in `apps/dishlist/.env` — the Pi's `scripts/deploy.sh` rewrites that `.env` on
 every run and would drop it.
+
+Any reverse proxy in front of Dishlist **must** pass `X-Forwarded-Proto: https`
+through to the app, or the session cookie (which is marked `secure` in
+production) never gets set: express-session silently withholds `Set-Cookie`
+when it doesn't see the request as secure, so login accepts credentials, 302s,
+and then just bounces back to the login form — this is shown in the Caddyfile
+block above.
 
 The Pi's nightly backup already covers `data/`, so once the SQLite file and
 uploads live under `data/dishlist/` on the host they are backed up
