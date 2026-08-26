@@ -43,6 +43,12 @@ URL might contain one; a log file is not a place for a capability URL.
 
 Never commit `.env` or `data/` — this repository is public.
 
+## Docker
+
+The Dockerfile must not rely on the build context's file permissions — the
+Raspberry Pi's deploy script may clone this repo under a restrictive umask.
+Copied files are given to the `node` user explicitly via `--chown` on COPY.
+
 ## Content Security Policy
 
 No inline scripts, anywhere. The CSP (`src/app.js`) has no nonces and must

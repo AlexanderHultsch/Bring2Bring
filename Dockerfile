@@ -17,8 +17,10 @@ WORKDIR /app
 
 RUN mkdir -p /app/data && chown node:node /app/data
 
-COPY --from=build /app/node_modules ./node_modules
-COPY . .
+# Build context permissions aren't ours to trust (e.g. a restrictive umask
+# on the host); chown explicitly so USER node can read what it's given.
+COPY --from=build --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node . .
 
 USER node
 
