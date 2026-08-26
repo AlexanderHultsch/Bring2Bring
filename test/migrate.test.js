@@ -1,0 +1,197 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { openDatabase } from '../src/db/index.js';
+import { runMigrations } from '../src/db/migrate.js';
+
+const EXPECTED_TABLES = [
+  'ingredient_groups',
+  'ingredients',
+  'invites',
+  'recipe_shares',
+  'recipe_tags',
+  'recipes',
+  'schema_migrations',
+  'steps',
+  'tags',
+  'users',
+].sort();
+
+function withTempDir(fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dishlist-'));
+  try {
+    return fn(dir);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('openDatabase creates a missing parent directory', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'nested', 'deeper', 'dishlist.db');
+    const db = openDatabase(dbPath);
+    assert.ok(fs.existsSync(path.dirname(dbPath)));
+    db.close();
+  });
+});
+
+test('pragma foreign_keys is 1 and journal_mode is wal after openDatabase', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'dishlist.db');
+    const db = openDatabase(dbPath);
+    assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
+    assert.equal(db.pragma('journal_mode', { simple: true }), 'wal');
+    db.close();
+  });
+});
+
+test('runMigrations on a fresh db returns 001_init.sql and creates every table', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'dishlist.db');
+    const db = openDatabase(dbPath);
+    const applied = runMigrations(db);
+    assert.deepEqual(applied, ['001_init.sql']);
+
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+      .all()
+      .map((row) => row.name)
+      .sort();
+    assert.deepEqual(tables, EXPECTED_TABLES);
+    db.close();
+  });
+});
+
+test('runMigrations called a second time returns [] and leaves schema_migrations with one row', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'dishlist.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+    const secondRun = runMigrations(db);
+    assert.deepEqual(secondRun, []);
+
+    const count = db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count;
+    assert.equal(count, 1);
+    db.close();
+  });
+});
+
+test('deleting a recipe cascades to its ingredient_groups, ingredients, steps, recipe_tags and recipe_shares', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'dishlist.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+
+    const ownerId = db
+      .prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
+      .run('owner', 'hash').lastInsertRowid;
+    const otherUserId = db
+      .prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
+      .run('other', 'hash').lastInsertRowid;
+    const recipeId = db
+      .prepare('INSERT INTO recipes (owner_id, title) VALUES (?, ?)')
+      .run(ownerId, 'Test recipe').lastInsertRowid;
+    const groupId = db
+      .prepare('INSERT INTO ingredient_groups (recipe_id, position) VALUES (?, ?)')
+      .run(recipeId, 0).lastInsertRowid;
+    db.prepare(
+      'INSERT INTO ingredients (group_id, name, position) VALUES (?, ?, ?)'
+    ).run(groupId, 'Flour', 0);
+    db.prepare('INSERT INTO steps (recipe_id, position, text) VALUES (?, ?, ?)').run(
+      recipeId,
+      0,
+      'Mix it'
+    );
+    const tagId = db.prepare('INSERT INTO tags (name) VALUES (?)').run('quick').lastInsertRowid;
+    db.prepare('INSERT INTO recipe_tags (recipe_id, tag_id) VALUES (?, ?)').run(recipeId, tagId);
+    db.prepare('INSERT INTO recipe_shares (recipe_id, user_id) VALUES (?, ?)').run(
+      recipeId,
+      otherUserId
+    );
+
+    db.prepare('DELETE FROM recipes WHERE id = ?').run(recipeId);
+
+    assert.equal(
+      db.prepare('SELECT COUNT(*) AS count FROM ingredient_groups WHERE recipe_id = ?').get(recipeId)
+        .count,
+      0
+    );
+    assert.equal(
+      db.prepare('SELECT COUNT(*) AS count FROM ingredients WHERE group_id = ?').get(groupId).count,
+      0
+    );
+    assert.equal(
+      db.prepare('SELECT COUNT(*) AS count FROM steps WHERE recipe_id = ?').get(recipeId).count,
+      0
+    );
+    assert.equal(
+      db.prepare('SELECT COUNT(*) AS count FROM recipe_tags WHERE recipe_id = ?').get(recipeId)
+        .count,
+      0
+    );
+    assert.equal(
+      db.prepare('SELECT COUNT(*) AS count FROM recipe_shares WHERE recipe_id = ?').get(recipeId)
+        .count,
+      0
+    );
+    db.close();
+  });
+});
+
+test("inserting a user with role 'superuser' throws", () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'dishlist.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+
+    assert.throws(() => {
+      db.prepare('INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)').run(
+        'baduser',
+        'hash',
+        'superuser'
+      );
+    });
+    db.close();
+  });
+});
+
+test('inserting two users with the same username throws', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'dishlist.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('dupe', 'hash');
+    assert.throws(() => {
+      db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('dupe', 'hash');
+    });
+    db.close();
+  });
+});
+
+test('inserting two recipes with the same share_token throws', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'dishlist.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+
+    const ownerId = db
+      .prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
+      .run('owner', 'hash').lastInsertRowid;
+    db.prepare('INSERT INTO recipes (owner_id, title, share_token) VALUES (?, ?, ?)').run(
+      ownerId,
+      'Recipe one',
+      'shared-token'
+    );
+    assert.throws(() => {
+      db.prepare('INSERT INTO recipes (owner_id, title, share_token) VALUES (?, ?, ?)').run(
+        ownerId,
+        'Recipe two',
+        'shared-token'
+      );
+    });
+    db.close();
+  });
+});
