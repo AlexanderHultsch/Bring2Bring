@@ -1,3 +1,5 @@
+import { redactTokens } from './request-logger.js';
+
 function titleFor(status) {
   if (status === 404) return 'Not found';
   if (status >= 400 && status < 500) return 'Error';
@@ -26,8 +28,8 @@ export function errorHandler(config) {
     const message = config.isProduction ? genericMessageFor(status) : err.message;
 
     if (status >= 500) {
-      console.error(err.message);
-      console.error(err.stack);
+      console.error(redactTokens(err.message));
+      console.error(redactTokens(err.stack));
     }
 
     if (req.accepts(['html', 'json']) === 'json') {
