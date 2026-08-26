@@ -1,4 +1,4 @@
-# Dishlist — Specification v1.0
+# Dishlist — Specification v1.1
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
 > source of truth for the `Dishlist` repository
@@ -11,6 +11,28 @@
 > Tunnel. It is listed on the homepage `AlexanderHultsch/ProjectIndex`
 > (ahultsch.com) and is bound by the ecosystem-wide standard defined in that
 > repo's `SPECIFICATION.md` §13.
+
+---
+
+## Changes in v1.1
+
+The recipe editor was too heavy for real kitchen use. Everything not needed
+to get correctly scaled ingredients into Bring! has been cut.
+
+A recipe is now exactly: a name, a servings count, a flat list of
+ingredients (amount + unit + name), and an optional free-text method.
+
+Removed entirely — from the editor, the recipe page, the list, the search
+and the share page: tags and tag filtering, prep/cook/total times, notes,
+source name and URL, subtitle, description, ingredient groups, the
+per-ingredient `scales`/`exclude_from_shopping` toggles, the free-text
+quick-add line and its parser, and drag/move reordering. Multi-entry steps
+with section titles are replaced by a single method textarea, stored and
+shown exactly as typed.
+
+The database schema (§5) is unchanged — removed columns/tables sit unused at
+their defaults; nothing migrates, nothing is destroyed, and any of this can
+come back later by adding a form field.
 
 ---
 
@@ -54,22 +76,27 @@ platform. There are no cooking tips, no comments, no ratings — just recipes.
 | Additional outputs | Copy ingredients as text, JSON export, print view. |
 | Hosting | Own Docker container on the Pi, behind Caddy + Cloudflare Tunnel. |
 
-### 2.1 Assumptions made in the absence of an explicit answer
+### 2.1 Ingredient and yield model — decided in v1.1
 
-These were chosen by the author of this spec and should be confirmed or
-corrected before or during implementation. They are called out again in §16.
+A1–A4 were originally assumptions, to be confirmed before implementation.
+v1.1 confirms — and cuts down — most of them; see "Changes in v1.1" above
+for why. This resolves open question 1 (§16).
 
-- **A1 — Ingredient entry:** structured fields (`amount | unit | name | note`)
-  with a free-text quick-add line that is *parsed into* those fields and stays
-  fully editable. Parsing is a convenience, never the storage format.
-- **A2 — Non-linear ingredients:** every ingredient has a `scales` boolean
-  (default `true`). Ingredients marked `scales = false` keep their amount at
-  any serving count. Scaled results are rounded by the rules in §7.3.
-- **A3 — Yield:** a recipe has a numeric `yield_amount` and a `yield_unit`
-  chosen from a small set (`servings`, `pieces`, `portions`, `glasses`,
-  `liters`) — free text label allowed as an override.
-- **A4 — Ingredient groups:** supported (e.g. "For the dough", "For the
-  sauce"). A recipe with no explicit groups uses a single implicit group.
+- **A1 — Ingredient entry:** structured fields only — `amount | unit | name`.
+  No `note` field, no free-text quick-add line, no parser. An ingredient
+  amount may be left blank ("Salz" with no number); a non-numeric amount is
+  still a validation error, per §11's "reject rather than coerce".
+- **A2 — Non-linear ingredients:** the `scales` and `exclude_from_shopping`
+  columns still exist and the export logic that reads them still works
+  (§13 criterion 6), but the editor has no UI to set either — every
+  ingredient entered through the editor scales normally and ships to
+  Bring!. Scaled results are rounded by the rules in §7.3.
+- **A3 — Yield:** a recipe has a numeric servings count and nothing else —
+  no unit choice, no free-text label override. The `yield_unit` and
+  `yield_label` columns remain in the schema at their defaults (§5).
+- **A4 — Ingredient groups:** removed. Every recipe has exactly one flat
+  ingredient list — the schema still has `ingredient_groups`, but every
+  recipe now gets exactly one such row, with `name = NULL` (§5).
 
 ---
 
@@ -153,8 +180,7 @@ Dishlist/
 │   │   └── migrations/001_init.sql        # …002_…, numbered, never edited after release
 │   ├── domain/
 │   │   ├── scaling.js                     # PURE functions, no db, no express
-│   │   ├── units.js                       # unit table, normalization, formatting
-│   │   └── ingredient-parser.js           # free-text line -> {amount, unit, name, note}
+│   │   └── units.js                       # unit table, normalization, formatting
 │   ├── repositories/                      # all SQL lives here, one file per aggregate
 │   ├── services/                          # use cases: recipes, auth, sharing, export
 │   ├── routes/                            # thin: parse, authorize, call service, render
@@ -248,6 +274,26 @@ recipe_shares (                          -- explicit sharing to a logged-in user
 sessions (…)                             -- managed by the session store
 ```
 
+**Schema note (v1.1):** the schema above is unchanged from v1.0 — see
+"Changes in v1.1". The product now only writes a subset of it; the rest
+sits unused at its defaults, and there is no migration:
+
+- `recipes`: `subtitle`, `description`, `prep_minutes`, `cook_minutes`,
+  `total_minutes`, `source_name`, `source_url`, `notes`, `image_path` are
+  always `NULL`. `yield_unit` is always `'servings'`, `yield_label` always
+  `NULL`.
+- `ingredient_groups`: every recipe has exactly **one** row, `name = NULL`.
+- `ingredients`: `note`, `amount_max`, `is_optional` are always `NULL`/`0`;
+  `scales` is always `1`; `exclude_from_shopping` is always `0`. The
+  columns and the export logic that reads them still work (§13 criterion
+  6) — there is just no editor UI to set them to anything else.
+- `steps`: exactly **one** row per recipe, `position = 0`,
+  `section_title = NULL`, holding the method text verbatim.
+- `tags` / `recipe_tags`: unused, always empty.
+
+Any of this can come back later by adding a form field, not by changing the
+schema.
+
 ### 5.1 Authorization rules
 
 A user may **read** a recipe if they own it, or it is in `recipe_shares` for
@@ -314,9 +360,32 @@ For each ingredient:
 
 ### 7.2 Unit normalization
 
-`src/domain/units.js` holds one table of known units with: canonical key,
-display label, dimension (`mass`, `volume`, `count`, `spoon`, `pinch`,
-`none`), base factor, and whether the unit may be auto-converted.
+`src/domain/units.js` holds the table of known units, each with: canonical
+key, display label, dimension (`mass`, `volume`, `count`, `spoon`,
+`pinch`), base factor, and whether the unit may be auto-converted.
+
+Since v1.1 (§2.1 A1) the unit field in the editor is a closed dropdown, not
+free text, so the table is deliberately small — exactly:
+
+| key | label | dimension |
+| --- | --- | --- |
+| `piece` | (empty string) | count |
+| `g` | g | mass |
+| `kg` | kg | mass |
+| `ml` | ml | volume |
+| `l` | l | volume |
+| `tsp` | TL | spoon |
+| `tbsp` | EL | spoon |
+| `pinch` | Prise | pinch |
+| `stueck` | Stück | count |
+
+"No unit" is stored as the `piece` unit (count dimension with empty label), so
+`2 Eier` renders without a unit word while still getting the count rounding
+rule (§7.3: nearest 0.5, never below 0.5). This is a deliberate internal
+representation, not an accident — it lets `piece` (displayed as "2 Eier")
+and the new `stueck` unit (displayed as "2 Stück Butter") share the count
+rounding and conversion rules while differing only in the label shown.
+The `stueck` unit is new in v1.1.
 
 Rules:
 - Convert **up** when the scaled amount gets unwieldy: `1500 g → 1.5 kg`,
@@ -324,9 +393,10 @@ Rules:
 - Convert **down** when it gets fiddly: `0.25 kg → 250 g`, `0.5 l → 500 ml`.
 - Never convert across dimensions (no ml→g; that needs densities and is
   explicitly out of scope).
-- Never convert `tsp`/`tbsp`/`pinch`/`clove`/`slice`/`can`/`bunch` into
-  anything else. `3.5 tbsp` stays `3.5 tbsp`.
-- Unknown/free-text units pass through untouched.
+- `tsp`, `tbsp`, `pinch` and both count units (`piece`, `stueck`) never convert
+  into anything else.
+- There is no free-text or unknown unit any more — the dropdown is closed,
+  so every stored `unit` value is one of the keys above.
 
 ### 7.3 Rounding rules
 
@@ -356,8 +426,9 @@ setting in `config.js`, not scattered through templates.
 - Server render always honours the `yield` query parameter, so the page is
   correct with JavaScript disabled and correct for any external parser.
 - Scaled values that were rounded show the exact value in a `title` tooltip.
-- Ingredients with `scales = false` get a subtle marker so it is obvious that
-  they did not change.
+- The editor has no UI to mark an ingredient `scales = false` (§2.1 A2), so
+  in practice every ingredient scales — there is no "unchanged" marker to
+  show.
 
 ---
 
@@ -402,7 +473,8 @@ schema.org/Recipe data. Consequences:
   A 32-byte token is not brute-forceable anyway; the limit protects the Pi's
   CPU, not the secret.
 - The page contains **only** the recipe: no navigation into the app, no user
-  name, no links to other recipes, no login form.
+  name, no links to other recipes, no login form. Since v1.1 that "only" is
+  narrower still — see §8.4.
 
 ### 8.4 Markup for the parser
 
@@ -411,31 +483,32 @@ Google and every modern importer prefer — **and** matching microdata
 attributes (`itemprop`) in the visible HTML, since Bring's documented example
 is microdata-based. Both describing the same, already-scaled values.
 
+Since v1.1 the share page carries only the name, the servings and the
+ingredients — Bring! only ever reads `recipeIngredient` to build a shopping
+list, and the method is for the cook, not the public internet (this is the
+one route exposed to it). There is no `recipeInstructions`, and no
+`recipeCategory`, `totalTime`, `prepTime`, `cookTime`, `description` or
+`image` either, since the recipe model no longer carries any of them (§5).
+
 ```jsonc
 {
   "@context": "https://schema.org",
   "@type": "Recipe",
   "name": "...",
-  "image": "https://.../uploads/....jpg",     // absolute URL
   "recipeYield": "6 servings",                 // the REQUESTED yield
-  "recipeCategory": "...",
-  "recipeCuisine": "...",
-  "totalTime": "PT45M",                        // ISO 8601 duration
   "recipeIngredient": [
     "250 g Mehl",                              // one flat string per ingredient
     "2 Eier"
-  ],
-  "recipeInstructions": [
-    { "@type": "HowToStep", "text": "..." }
   ]
 }
 ```
 
 Ingredient strings are built as `amount unit name` in that order, in the
-recipe's content language, with the note appended after a comma. Ingredients
-with `exclude_from_shopping = 1` are **omitted** from `recipeIngredient` but
-still shown in the visible HTML — this is how "water" and "salt" stay out of
-the shopping list.
+recipe's content language. Ingredients with `exclude_from_shopping = 1` are
+**omitted** from `recipeIngredient` but still shown in the visible HTML —
+this is how "water" and "salt" stay out of the shopping list. The column and
+this builder behaviour remain even though the editor has no UI to set the
+flag (§2.1 A2, §13 criterion 6).
 
 ### 8.5 The deeplink, and the double-scaling trap
 
@@ -481,7 +554,9 @@ than building integrations.
   the app's own schema, versioned with `"formatVersion": 1`, importable via
   `POST /import` (see §12 milestones — import is phase 3).
 - **Print view** — `?print=1` or a dedicated print stylesheet: recipe at the
-  chosen yield, no navigation, no buttons, page-break-safe.
+  chosen yield including the method, no navigation, no buttons,
+  page-break-safe. Unlike the share page (§8.4), the print view is
+  authenticated and includes the method — it's for the cook, not for Bring!.
 
 ---
 
@@ -491,7 +566,7 @@ Authenticated unless marked public.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/` | Recipe list (own + shared), search, tag filter, sort |
+| GET | `/` | Recipe list (own + shared), search (title, ingredient name), sort |
 | GET | `/login`, POST `/login` | *public* |
 | GET | `/register`, POST `/register` | *public*, invite code required |
 | POST | `/logout` | |
@@ -505,7 +580,7 @@ Authenticated unless marked public.
 | GET | `/recipes/:id/export.json` | |
 | GET | `/export/all.json` | |
 | GET | `/r/:token` | **public** share page (§8.3) |
-| GET | `/uploads/:file` | **public** images — only reachable via unguessable filename; referenced from the share page, so it must be public |
+| GET | `/uploads/:file` | **public** images — only reachable via unguessable filename. `image_path` is always `NULL` in v1.1 (§5), so this route is currently unused, kept for when images come back |
 | GET | `/account`, POST `/account/password` | |
 | GET | `/admin/invites`, POST `/admin/invites` | admin only |
 | GET | `/healthz` | **public**, returns 200 + version, for Uptime Kuma |
@@ -522,19 +597,20 @@ wet hands.
 
 ### 10.1 Pages
 
-- **List** — cards or compact rows: title, image thumbnail, tags, total time.
-  Search box (title, ingredient name, tag). Tag filter chips. Sort by recently
-  added / title / last cooked. Empty state that links straight to "New recipe".
-- **Recipe** — title, image, meta line (time, yield), yield control,
-  ingredients (grouped, with checkboxes that survive scrolling), steps
-  (tappable to strike through), notes, source. Action bar: **Send to Bring!**,
-  copy, print, edit.
-- **Editor** — one page, no wizard. Ingredient rows are drag-reorderable, with
-  quick-add free-text line (A1), per-row `scales` and `exclude_from_shopping`
-  toggles behind a small "…" control so the common case stays uncluttered.
-  Steps as a textarea list. Autosave draft to `localStorage` so a dropped
-  connection never loses a half-typed recipe.
-- **Share page** — recipe only, stripped down (§8.3).
+- **List** — cards or compact rows: title. Search box (title, ingredient
+  name). Sort by recently added / title / last cooked. Empty state that
+  links straight to "New recipe".
+- **Recipe** — title, meta line (yield), yield control, ingredients (flat
+  list, with checkboxes that survive scrolling), method (shown exactly as
+  typed, line breaks preserved). Action bar: **Send to Bring!**, copy,
+  print, edit.
+- **Editor** — one page, no wizard. Ingredient rows: amount, unit (the
+  fixed dropdown, §7.2), name — add or remove a row, no drag reordering, no
+  quick-add line, no per-row toggles. Method is a single, optional
+  textarea, stored and shown exactly as typed. Autosave draft to
+  `localStorage` so a dropped connection never loses a half-typed recipe.
+- **Share page** — recipe only, stripped down further than the app view:
+  name, servings and ingredients only, no method (§8.4).
 
 ### 10.2 Design
 
@@ -643,11 +719,11 @@ while the site looks perfectly fine in a browser.
 | Phase | Content |
 | --- | --- |
 | **0** | Repo skeleton, Dockerfile, config, migrations, `seed:admin`, `/healthz`, login. Deployable and reachable, nothing else. |
-| **1** | Recipe CRUD, list, view, ingredient groups, steps, tags. Single user, no scaling yet. |
+| **1** | Recipe CRUD, list, view — flat ingredient list, single method field. Single user, no scaling yet. |
 | **2** | Scaling engine + unit/rounding logic with full unit tests, yield control. |
 | **3** | Share tokens, public share page with JSON-LD + microdata, Bring! button. **Verified on a real phone with the real Bring! app before the phase is called done.** |
 | **4** | Registration by invite, per-user sharing, account management. |
-| **5** | Images, text/JSON export, print view, JSON import. |
+| **5** | Text/JSON export, print view, JSON import. |
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
@@ -658,8 +734,8 @@ Dishlist (Bring! is the shopping list — duplicating it defeats the purpose).
 ## 13. Testing and acceptance
 
 Unit tests (`node:test`) are mandatory for `domain/scaling.js`,
-`domain/units.js`, `domain/ingredient-parser.js` and the JSON-LD builder.
-Route-level tests with `supertest` for auth and authorization.
+`domain/units.js` and the JSON-LD builder. Route-level tests with
+`supertest` for auth and authorization.
 
 Explicit acceptance criteria:
 
@@ -675,7 +751,10 @@ Explicit acceptance criteria:
 5. The Bring! deeplink built for yield 6 carries `baseQuantity=6` and
    `requestedQuantity=6` and a URL-encoded share URL containing `yield=6`.
 6. Ingredients with `exclude_from_shopping = 1` appear on the page but not in
-   `recipeIngredient`.
+   `recipeIngredient`. The editor has no UI to set this flag any more (§2.1
+   A2) — the column and the builder behaviour it drives are retained, so
+   this criterion is verified at the repository/builder level, not through
+   the editor.
 7. `docker build` succeeds for `linux/arm64` and the container starts with only
    the variables from `.env.example` set.
 8. **Manual, non-negotiable:** a real import into the real Bring! app on a real
@@ -708,8 +787,10 @@ Explicit acceptance criteria:
 
 ## 16. Open questions for Alex
 
-1. Confirm assumptions **A1–A4** in §2.1 (ingredient entry, `scales` flag,
-   yield units, ingredient groups).
+1. ~~Confirm assumptions A1–A4 in §2.1~~ — **Answered in v1.1.** §2.1 now
+   states the decided model directly: structured `amount | unit | name`
+   only, no per-ingredient `scales`/`exclude_from_shopping` UI, numeric
+   servings with no unit choice, and no ingredient groups.
 2. Recipe content language: German content in an English UI — confirm that
    date/number formatting should follow `de-DE` (§7.3). Bring's catalog
    matching also works best when ingredient names are in one consistent
@@ -717,6 +798,8 @@ Explicit acceptance criteria:
 3. Subdomain: `dishlist.ahultsch.com`, or something more cookbook-like?
 4. Should shared users be able to *edit*, or only read? (`can_edit` exists in
    the schema either way.)
-5. Images: worth the `sharp`/upload complexity in v1, or defer to phase 5 as
-   planned here?
+5. ~~Images: worth the `sharp`/upload complexity in v1, or defer to phase 5
+   as planned here?~~ — **Answered in v1.1.** Images are out of the recipe
+   model entirely for now (§5); `image_path` stays dormant. Revisit by
+   adding an image field back later, not by a schema change.
 6. Anything from §12.3 "explicitly not in v1" that you actually want early?
