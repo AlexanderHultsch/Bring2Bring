@@ -170,14 +170,6 @@
       }
     }
 
-    function clearDraft() {
-      try {
-        localStorage.removeItem(draftKey);
-      } catch {
-        // localStorage unavailable — nothing to clear
-      }
-    }
-
     function ensureCapacity(entries) {
       var maxGroupIndex = -1;
       var maxIngredientIndexByGroup = {};

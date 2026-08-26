@@ -7,8 +7,14 @@ import {
   deleteRecipe,
   loadRecipeAggregate,
 } from '../repositories/recipes.js';
+import { findOrCreateTag } from '../repositories/tags.js';
 
 export const YIELD_UNITS = ['servings', 'pieces', 'portions', 'glasses', 'liters'];
+
+export const LIST_SORTS = ['recent', 'title', 'updated'];
+
+const MAX_TAGS = 12;
+const MAX_TAG_LENGTH = 40;
 
 const COPYABLE_RECIPE_FIELDS = [
   'subtitle',
@@ -63,6 +69,39 @@ function trimmedOrNull(value) {
 
 function isChecked(value) {
   return value !== undefined && value !== null;
+}
+
+function toQueryArray(value) {
+  if (value === undefined || value === null) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function normalizeTagNames(raw) {
+  const seen = new Set();
+  const names = [];
+  for (const piece of asString(raw).split(',')) {
+    const trimmed = piece.trim().replace(/\s+/g, ' ');
+    if (trimmed === '') continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    names.push(trimmed);
+  }
+  return names;
+}
+
+export function parseListOptions(query) {
+  const sort = LIST_SORTS.includes(query?.sort) ? query.sort : 'recent';
+  const tagIds = toQueryArray(query?.tag)
+    .map((raw) => Number(raw))
+    .filter((id) => Number.isInteger(id));
+
+  return {
+    includeArchived: query?.archived === '1',
+    search: asString(query?.q),
+    tagIds,
+    sort,
+  };
 }
 
 function emptyIngredientRow() {
@@ -201,6 +240,16 @@ export function parseRecipeForm(body) {
     .map((step) => parseStep(step))
     .filter((step) => step !== null);
 
+  const tagNames = normalizeTagNames(body?.tags);
+  if (tagNames.length > MAX_TAGS) {
+    issues.push(`tags: at most ${MAX_TAGS} tags allowed`);
+  }
+  for (const name of tagNames) {
+    if (name.length > MAX_TAG_LENGTH) {
+      issues.push(`tags: "${name}" must be at most ${MAX_TAG_LENGTH} characters`);
+    }
+  }
+
   if (issues.length > 0) {
     return { success: false, errors: issues };
   }
@@ -208,7 +257,7 @@ export function parseRecipeForm(body) {
   return {
     success: true,
     fields: scalarResult.data,
-    content: { groups, steps, tagIds: [] },
+    content: { groups, steps, tagNames },
   };
 }
 
@@ -234,6 +283,7 @@ export function rawFormValues(body) {
 
   return {
     ...scalars,
+    tags: asString(body?.tags),
     groups: groups.length > 0 ? groups : [{ name: '', ingredients: [emptyIngredientRow()] }],
     steps: steps.length > 0 ? steps : [{ section_title: '', text: '' }],
   };
@@ -253,13 +303,14 @@ export function emptyFormValues() {
     source_name: '',
     source_url: '',
     notes: '',
+    tags: '',
     groups: [{ name: '', ingredients: [emptyIngredientRow()] }],
     steps: [{ section_title: '', text: '' }],
   };
 }
 
 export function formValuesFromAggregate(aggregate) {
-  const { recipe, groups, steps } = aggregate;
+  const { recipe, groups, steps, tags } = aggregate;
 
   return {
     title: recipe.title ?? '',
@@ -274,6 +325,7 @@ export function formValuesFromAggregate(aggregate) {
     source_name: recipe.source_name ?? '',
     source_url: recipe.source_url ?? '',
     notes: recipe.notes ?? '',
+    tags: (tags ?? []).map((tag) => tag.name).join(', '),
     groups:
       groups.length > 0
         ? groups.map((group) => ({
@@ -300,14 +352,21 @@ export function formValuesFromAggregate(aggregate) {
   };
 }
 
+function resolveTagIds(db, tagNames, actingUserId) {
+  return tagNames.map((name) => findOrCreateTag(db, name, actingUserId).id);
+}
+
 export function createRecipe(db, ownerId, body) {
   const parsed = parseRecipeForm(body);
   if (!parsed.success) {
     return { success: false, errors: parsed.errors, values: rawFormValues(body) };
   }
 
+  const { groups, steps, tagNames } = parsed.content;
+  const tagIds = resolveTagIds(db, tagNames, ownerId);
+
   const recipe = insertRecipe(db, ownerId, parsed.fields);
-  replaceRecipeContent(db, recipe.id, ownerId, parsed.content);
+  replaceRecipeContent(db, recipe.id, ownerId, { groups, steps, tagIds });
   return { success: true, recipeId: recipe.id };
 }
 
@@ -317,8 +376,11 @@ export function updateRecipeFromForm(db, recipeId, actingUserId, body) {
     return { success: false, errors: parsed.errors, values: rawFormValues(body) };
   }
 
+  const { groups, steps, tagNames } = parsed.content;
+  const tagIds = resolveTagIds(db, tagNames, actingUserId);
+
   updateRecipe(db, recipeId, actingUserId, parsed.fields);
-  replaceRecipeContent(db, recipeId, actingUserId, parsed.content);
+  replaceRecipeContent(db, recipeId, actingUserId, { groups, steps, tagIds });
   return { success: true, recipeId };
 }
 

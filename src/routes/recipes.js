@@ -1,6 +1,7 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { findRecipeForWrite, loadRecipeAggregate, listRecipesForUser } from '../repositories/recipes.js';
+import { listTagsVisibleToUser } from '../repositories/tags.js';
 import {
   YIELD_UNITS,
   createRecipe,
@@ -10,6 +11,7 @@ import {
   hardDeleteRecipe,
   emptyFormValues,
   formValuesFromAggregate,
+  parseListOptions,
 } from '../services/recipes.js';
 
 function notFoundError() {
@@ -27,14 +29,21 @@ export function recipesRouter(db) {
   const router = express.Router();
 
   router.get('/', requireAuth(), (req, res) => {
-    const showArchived = req.query.archived === '1';
-    const recipes = showArchived
-      ? listRecipesForUser(db, req.currentUser.id, { includeArchived: true }).filter(
-          (recipe) => recipe.is_archived === 1
-        )
-      : listRecipesForUser(db, req.currentUser.id);
+    const options = parseListOptions(req.query);
+    const found = listRecipesForUser(db, req.currentUser.id, options);
+    const recipes = options.includeArchived
+      ? found.filter((recipe) => recipe.is_archived === 1)
+      : found;
+    const tags = listTagsVisibleToUser(db, req.currentUser.id);
 
-    res.render('recipes/list', { recipes, archived: showArchived });
+    res.render('recipes/list', {
+      recipes,
+      archived: options.includeArchived,
+      tags,
+      selectedTagIds: options.tagIds,
+      sort: options.sort,
+      search: options.search,
+    });
   });
 
   router.get('/recipes/new', requireAuth(), (req, res) => {
@@ -81,6 +90,7 @@ export function recipesRouter(db) {
       recipe: aggregate.recipe,
       groups: aggregate.groups,
       steps: aggregate.steps,
+      tags: aggregate.tags,
       saved,
     });
   });

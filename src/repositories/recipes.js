@@ -14,7 +14,7 @@ const RECIPE_COLUMNS = [
   'image_path',
 ];
 
-const READ_PREDICATE = `
+export const READ_PREDICATE = `
   (owner_id = ? OR EXISTS (
     SELECT 1 FROM recipe_shares s WHERE s.recipe_id = recipes.id AND s.user_id = ?
   ))
@@ -38,15 +38,61 @@ export function findRecipeForWrite(db, recipeId, actingUserId) {
     .get(recipeId, actingUserId, actingUserId);
 }
 
+const LIST_SORT_CLAUSES = {
+  title: 'title COLLATE NOCASE ASC, id ASC',
+  updated: 'updated_at DESC, id DESC',
+};
+
+function escapeLikeTerm(value) {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
+
 export function listRecipesForUser(db, actingUserId, options = {}) {
-  const { includeArchived = false } = options;
+  const { includeArchived = false, search = '', tagIds = [], sort = 'recent' } = options;
   const archivedClause = includeArchived ? '' : 'AND is_archived = 0';
+  const params = [actingUserId, actingUserId];
+
+  let searchClause = '';
+  const trimmedSearch = search.trim();
+  if (trimmedSearch !== '') {
+    const likeTerm = `%${escapeLikeTerm(trimmedSearch)}%`;
+    searchClause = `
+      AND (
+        title LIKE ? ESCAPE '\\'
+        OR EXISTS (
+          SELECT 1 FROM ingredients i
+          JOIN ingredient_groups g ON g.id = i.group_id
+          WHERE g.recipe_id = recipes.id AND i.name LIKE ? ESCAPE '\\'
+        )
+        OR EXISTS (
+          SELECT 1 FROM recipe_tags rt
+          JOIN tags t ON t.id = rt.tag_id
+          WHERE rt.recipe_id = recipes.id AND t.name LIKE ? ESCAPE '\\'
+        )
+      )
+    `;
+    params.push(likeTerm, likeTerm, likeTerm);
+  }
+
+  const numericTagIds = tagIds.map(Number).filter((id) => Number.isInteger(id));
+  const tagClause = numericTagIds
+    .map(
+      () => `
+        AND EXISTS (
+          SELECT 1 FROM recipe_tags rt WHERE rt.recipe_id = recipes.id AND rt.tag_id = ?
+        )
+      `
+    )
+    .join('');
+  params.push(...numericTagIds);
+
+  const orderClause = LIST_SORT_CLAUSES[sort] || 'created_at DESC, id DESC';
 
   return db
     .prepare(
-      `SELECT * FROM recipes WHERE ${READ_PREDICATE} ${archivedClause} ORDER BY created_at DESC, id DESC`
+      `SELECT * FROM recipes WHERE ${READ_PREDICATE} ${archivedClause} ${searchClause} ${tagClause} ORDER BY ${orderClause}`
     )
-    .all(actingUserId, actingUserId);
+    .all(...params);
 }
 
 export function loadRecipeAggregate(db, recipeId, actingUserId) {

@@ -14,6 +14,14 @@
         </p>
         <% if (recipe.description) { %><p class="recipe-page__description"><%= recipe.description %></p><% } %>
 
+        <% if (tags.length > 0) { %>
+          <ul class="tag-chips">
+            <% tags.forEach((tag) => { %>
+              <li><span class="tag-chip"><%= tag.name %></span></li>
+            <% }) %>
+          </ul>
+        <% } %>
+
         <% groups.forEach((group) => { %>
           <section class="ingredient-group">
             <% if (group.name) { %><h2><%= group.name %></h2><% } %>

@@ -430,6 +430,166 @@ test('GET /recipes/:id with no query renders HTML containing data-saved=""', asy
   });
 });
 
+test("creating a recipe with tags: 'Pasta, quick , Pasta' stores exactly two tags, trimmed and de-duplicated", async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+
+    const body = basicRecipeBody({ tags: 'Pasta, quick , Pasta' });
+    const createRes = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
+    assert.equal(createRes.status, 302);
+    const recipeId = recipeIdFromLocation(createRes.headers.location);
+
+    const tagNames = db
+      .prepare(
+        `SELECT t.name FROM tags t
+         JOIN recipe_tags rt ON rt.tag_id = t.id
+         WHERE rt.recipe_id = ?
+         ORDER BY t.name`
+      )
+      .all(recipeId)
+      .map((row) => row.name);
+    assert.deepEqual(tagNames, ['Pasta', 'quick']);
+  });
+});
+
+test('GET /?q=<ingredient name> finds a recipe by an ingredient name, not just a title', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const listRes = await agent.get('/?q=Basil');
+    assert.equal(listRes.status, 200);
+    assert.match(listRes.text, /Tomato Soup/);
+  });
+});
+
+test('GET /?q=<tag name> finds a recipe by a tag name', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+
+    await agent
+      .post('/recipes')
+      .type('form')
+      .send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody({ tags: 'weeknight' }) }));
+
+    const listRes = await agent.get('/?q=weeknight');
+    assert.equal(listRes.status, 200);
+    assert.match(listRes.text, /Tomato Soup/);
+  });
+});
+
+test('GET /?q=<term matching another user\'s recipe> does not return that recipe', async () => {
+  await withApp(async (app, db) => {
+    const owner = await seedUser(db, 'owner');
+    insertRecipe(db, owner.id, { title: 'Secret Chili' });
+
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const listRes = await agent.get('/?q=Secret Chili');
+    assert.equal(listRes.status, 200);
+    assert.ok(!listRes.text.includes('recipe-list__title">Secret Chili'));
+  });
+});
+
+test("GET /?q=100%25 does not match a recipe titled 'Plain' (the LIKE wildcard is escaped)", async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent
+      .post('/recipes')
+      .type('form')
+      .send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody({ title: 'Plain' }) }));
+
+    const listRes = await agent.get('/?q=100%25');
+    assert.equal(listRes.status, 200);
+    assert.ok(!listRes.text.includes('Plain'));
+  });
+});
+
+test('GET /?tag=<id> filters to recipes carrying that tag; two tag params return only recipes carrying both', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const csrf1 = await csrfFor(agent, '/recipes/new');
+    await agent
+      .post('/recipes')
+      .type('form')
+      .send(encodeForm({ _csrf: csrf1, ...basicRecipeBody({ title: 'Soup A', tags: 'quick, italian' }) }));
+
+    const csrf2 = await csrfFor(agent, '/recipes/new');
+    await agent
+      .post('/recipes')
+      .type('form')
+      .send(encodeForm({ _csrf: csrf2, ...basicRecipeBody({ title: 'Soup B', tags: 'quick' }) }));
+
+    const quickTag = db.prepare("SELECT id FROM tags WHERE name = 'quick'").get();
+    const italianTag = db.prepare("SELECT id FROM tags WHERE name = 'italian'").get();
+
+    const quickRes = await agent.get(`/?tag=${quickTag.id}`);
+    assert.match(quickRes.text, /Soup A/);
+    assert.match(quickRes.text, /Soup B/);
+
+    const bothRes = await agent.get(`/?tag=${quickTag.id}&tag=${italianTag.id}`);
+    assert.match(bothRes.text, /Soup A/);
+    assert.ok(!bothRes.text.includes('Soup B'));
+  });
+});
+
+test('GET /?sort=title orders alphabetically ignoring case; GET /?sort=nonsense behaves like the default', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const csrf1 = await csrfFor(agent, '/recipes/new');
+    await agent
+      .post('/recipes')
+      .type('form')
+      .send(encodeForm({ _csrf: csrf1, ...basicRecipeBody({ title: 'zucchini bake' }) }));
+
+    const csrf2 = await csrfFor(agent, '/recipes/new');
+    await agent
+      .post('/recipes')
+      .type('form')
+      .send(encodeForm({ _csrf: csrf2, ...basicRecipeBody({ title: 'Apple Pie' }) }));
+
+    const titleRes = await agent.get('/?sort=title');
+    const applePos = titleRes.text.indexOf('Apple Pie');
+    const zucchiniPos = titleRes.text.indexOf('zucchini bake');
+    assert.ok(applePos !== -1 && zucchiniPos !== -1);
+    assert.ok(applePos < zucchiniPos);
+
+    const defaultRes = await agent.get('/');
+    const nonsenseRes = await agent.get('/?sort=nonsense');
+    assert.equal(nonsenseRes.text, defaultRes.text);
+  });
+});
+
+test('a search matching nothing renders the "no recipes match" state, not the "no recipes at all" state', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const res = await agent.get('/?q=nonexistentterm');
+    assert.equal(res.status, 200);
+    assert.match(res.text, /no recipes match/i);
+    assert.ok(!res.text.includes('Add your first recipe'));
+  });
+});
+
 test('GET /recipes/:id?saved=<script> does not reflect the query value into the page', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
