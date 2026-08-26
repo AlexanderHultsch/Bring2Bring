@@ -73,8 +73,8 @@
                     <% } %>
                     <span class="ingredient-list__name"><%= ingredient.name %></span>
                     <% if (ingredient.note) { %><span class="ingredient-list__note">(<%= ingredient.note %>)</span><% } %>
-                    <% if (ingredient.is_optional) { %><span class="ingredient-list__marker">optional</span><% } %>
-                    <% if (ingredient.exclude_from_shopping) { %><span class="ingredient-list__marker">not on shopping list</span><% } %>
+                    <% if (scaledIngredient.isOptional) { %><span class="ingredient-list__marker">optional</span><% } %>
+                    <% if (scaledIngredient.excludeFromShopping) { %><span class="ingredient-list__marker">not on shopping list</span><% } %>
                     <% if (!scaledIngredient.scaled) { %><span class="ingredient-list__marker ingredient-list__marker--fixed">fixed amount</span><% } %>
                   </li>
                 <% }) %>
@@ -149,6 +149,16 @@
         <script src="/js/copy-share-link.js" defer></script>
 
         <div class="recipe-actions">
+          <% if (recipe.share_enabled) { %>
+            <a class="button button--bring" href="<%= bringDeeplinkUrl %>">Send to Bring!</a>
+          <% } else { %>
+            <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="bring-action">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="action" value="enable">
+              <p class="bring-action__hint">Bring! needs to fetch this recipe itself, so sending to Bring! requires a public link.</p>
+              <button type="submit" class="button button--bring">Enable public link and send to Bring!</button>
+            </form>
+          <% } %>
           <a class="button" href="/recipes/<%= recipe.id %>/edit">Edit</a>
           <form method="post" action="/recipes/<%= recipe.id %>/duplicate" class="recipe-actions__form">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">

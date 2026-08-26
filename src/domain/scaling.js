@@ -53,6 +53,8 @@ export function scaleIngredient(ingredient, factor, options = {}) {
   const unitEntry = findUnit(rawUnit);
   const dimension = unitEntry?.dimension;
   const scaled = Boolean(ingredient?.scales);
+  const isOptional = Boolean(ingredient?.is_optional);
+  const excludeFromShopping = Boolean(ingredient?.exclude_from_shopping);
   const effectiveFactor = scaled ? factor : 1;
 
   const hasAmount = ingredient?.amount !== null && ingredient?.amount !== undefined;
@@ -71,6 +73,8 @@ export function scaleIngredient(ingredient, factor, options = {}) {
       exactAmountMax: null,
       wasRounded: false,
       scaled,
+      isOptional,
+      excludeFromShopping,
       text,
       amountText: null,
       exactText: null,
@@ -136,6 +140,8 @@ export function scaleIngredient(ingredient, factor, options = {}) {
     exactAmountMax: hasMax ? exactMax : null,
     wasRounded,
     scaled,
+    isOptional,
+    excludeFromShopping,
     text,
     amountText,
     exactText,

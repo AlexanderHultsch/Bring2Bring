@@ -2,6 +2,7 @@ import express from 'express';
 import { rateLimit } from 'express-rate-limit';
 import { findRecipeByShareToken, loadRecipeContentById } from '../repositories/recipes.js';
 import { computeFactor, scaleGroups } from '../domain/scaling.js';
+import { buildRecipeJsonLd, serializeJsonLdForScriptTag } from '../domain/recipe-jsonld.js';
 import { parseYieldParam } from '../services/recipes.js';
 
 function notFoundError() {
@@ -38,6 +39,19 @@ export function shareRouter(db, config) {
     const factor = computeFactor(requestedYield, recipe.yield_amount);
     const scaledGroups = scaleGroups(groups, factor, { locale: config.numberLocale });
 
+    // D3: the JSON-LD builder reads excludeFromShopping straight off the
+    // already-scaled ingredients (D1) — scaleIngredient carries it through.
+    const jsonLd = buildRecipeJsonLd({
+      recipe,
+      groups: scaledGroups,
+      steps,
+      tags,
+      requestedYield,
+      baseUrl: config.publicBaseUrl,
+      locale: config.numberLocale,
+    });
+    const jsonLdScript = serializeJsonLdForScriptTag(jsonLd);
+
     res.set({
       'X-Robots-Tag': 'noindex, nofollow',
       'Referrer-Policy': 'no-referrer',
@@ -51,6 +65,8 @@ export function shareRouter(db, config) {
       steps,
       tags,
       requestedYield,
+      jsonLdScript,
+      isoTotalTime: jsonLd.totalTime,
     });
   });
 

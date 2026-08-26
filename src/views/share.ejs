@@ -7,17 +7,18 @@
     <title><%= recipe.title %></title>
     <link rel="stylesheet" href="/css/tokens.css">
     <link rel="stylesheet" href="/css/share.css">
+    <script type="application/ld+json"><%- jsonLdScript %></script>
   </head>
   <body>
     <div class="share-container">
-      <main class="share-recipe">
-        <h1><%= recipe.title %></h1>
+      <main class="share-recipe" itemscope itemtype="https://schema.org/Recipe">
+        <h1 itemprop="name"><%= recipe.title %></h1>
         <% if (recipe.subtitle) { %><p class="share-recipe__subtitle"><%= recipe.subtitle %></p><% } %>
         <p class="share-recipe__meta">
           <% if (recipe.prep_minutes != null) { %>Prep <%= recipe.prep_minutes %> min · <% } %>
           <% if (recipe.cook_minutes != null) { %>Cook <%= recipe.cook_minutes %> min · <% } %>
-          <% if (recipe.total_minutes != null) { %>Total <%= recipe.total_minutes %> min · <% } %>
-          <%= requestedYield %> <%= recipe.yield_label || recipe.yield_unit %>
+          <% if (recipe.total_minutes != null) { %><span itemprop="totalTime" content="<%= isoTotalTime %>">Total <%= recipe.total_minutes %> min</span> · <% } %>
+          <span itemprop="recipeYield"><%= requestedYield %> <%= recipe.yield_label || recipe.yield_unit %></span>
         </p>
         <% if (recipe.description) { %><p class="share-recipe__description"><%= recipe.description %></p><% } %>
 
@@ -37,14 +38,14 @@
                 <% group.ingredients.forEach((ingredient, ingredientIndex) => {
                      const scaledIngredient = scaledGroups[groupIndex].ingredients[ingredientIndex];
                 %>
-                  <li class="ingredient-list__item">
+                  <li class="ingredient-list__item"<% if (!scaledIngredient.excludeFromShopping) { %> itemprop="recipeIngredient"<% } %>>
                     <% if (scaledIngredient.amountText != null) { %>
                       <span class="ingredient-list__amount"><%= scaledIngredient.amountText %></span>
                     <% } %>
                     <span class="ingredient-list__name"><%= ingredient.name %></span>
                     <% if (ingredient.note) { %><span class="ingredient-list__note">(<%= ingredient.note %>)</span><% } %>
-                    <% if (ingredient.is_optional) { %><span class="ingredient-list__marker">optional</span><% } %>
-                    <% if (ingredient.exclude_from_shopping) { %><span class="ingredient-list__marker">not on shopping list</span><% } %>
+                    <% if (scaledIngredient.isOptional) { %><span class="ingredient-list__marker">optional</span><% } %>
+                    <% if (scaledIngredient.excludeFromShopping) { %><span class="ingredient-list__marker">not on shopping list</span><% } %>
                   </li>
                 <% }) %>
               </ul>
@@ -57,7 +58,7 @@
             <h2>Steps</h2>
             <ol class="step-list">
               <% steps.forEach((step) => { %>
-                <li class="step-list__item">
+                <li class="step-list__item" itemprop="recipeInstructions">
                   <% if (step.section_title) { %><strong class="step-list__section"><%= step.section_title %></strong><% } %>
                   <p><%= step.text %></p>
                 </li>

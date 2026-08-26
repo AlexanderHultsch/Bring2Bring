@@ -114,6 +114,22 @@ function shareRow(db, recipeId) {
   return db.prepare('SELECT share_token, share_enabled FROM recipes WHERE id = ?').get(recipeId);
 }
 
+function extractJsonLd(html) {
+  const match = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  assert.ok(match, 'expected a <script type="application/ld+json"> block');
+  return JSON.parse(match[1]);
+}
+
+function visibleIngredientTexts(html) {
+  const items = [...html.matchAll(/<li class="ingredient-list__item"[^>]*>([\s\S]*?)<\/li>/g)];
+  return items.map(([, inner]) =>
+    inner
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+}
+
 test('ACCEPTANCE 2: GET /r/:token returns 200 when sent with no cookies at all', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
@@ -286,4 +302,179 @@ test('redactPath applied to the real share route path shape redacts the token', 
   const redacted = redactPath(`/r/${token}`);
   assert.equal(redacted, '/r/[redacted]');
   assert.ok(!redacted.includes(token));
+});
+
+test('GET /r/:token contains a <script type="application/ld+json"> block whose content JSON.parse()s successfully', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createRecipe(agent);
+    await shareAction(agent, recipeId, 'enable');
+    const { share_token } = shareRow(db, recipeId);
+
+    const res = await request(app).get(`/r/${share_token}`);
+    const jsonLd = extractJsonLd(res.text);
+    assert.equal(jsonLd['@context'], 'https://schema.org');
+    assert.equal(jsonLd['@type'], 'Recipe');
+  });
+});
+
+test('ACCEPTANCE 2 (completing it): the ingredient strings in the JSON-LD match what the visible HTML shows', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createRecipe(agent);
+    await shareAction(agent, recipeId, 'enable');
+    const { share_token } = shareRow(db, recipeId);
+
+    const res = await request(app).get(`/r/${share_token}`);
+    const jsonLd = extractJsonLd(res.text);
+    const visible = visibleIngredientTexts(res.text);
+
+    assert.deepEqual(jsonLd.recipeIngredient, visible);
+  });
+});
+
+test('GET /r/:token?yield=6 has recipeYield reflecting 6 and ingredient strings scaled to 6', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createRecipe(agent);
+    await shareAction(agent, recipeId, 'enable');
+    const { share_token } = shareRow(db, recipeId);
+
+    const res = await request(app).get(`/r/${share_token}?yield=6`);
+    const jsonLd = extractJsonLd(res.text);
+    assert.equal(jsonLd.recipeYield, '6 servings');
+    assert.ok(jsonLd.recipeIngredient[0].includes('375'));
+  });
+});
+
+test('a recipe whose TITLE contains </script><script>alert(1)</script> does not break out of the ld+json block', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const maliciousTitle = 'Cake</script><script>alert(1)</script>';
+    const recipeId = await createRecipe(agent, { title: maliciousTitle });
+    await shareAction(agent, recipeId, 'enable');
+    const { share_token } = shareRow(db, recipeId);
+
+    const res = await request(app).get(`/r/${share_token}`);
+    assert.ok(!res.text.includes('</script><script>'));
+    const jsonLd = extractJsonLd(res.text);
+    assert.equal(jsonLd.name, maliciousTitle);
+  });
+});
+
+test('the visible HTML carries itemtype="https://schema.org/Recipe" and at least one itemprop="recipeIngredient"', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createRecipe(agent);
+    await shareAction(agent, recipeId, 'enable');
+    const { share_token } = shareRow(db, recipeId);
+
+    const res = await request(app).get(`/r/${share_token}`);
+    assert.match(res.text, /itemtype="https:\/\/schema\.org\/Recipe"/);
+    assert.match(res.text, /itemprop="recipeIngredient"/);
+  });
+});
+
+test('REGRESSION (no index-zip): the excluded ingredient FIRST of three is the only one missing from the JSON-LD, all three visible', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createRecipe(agent, {
+      groups: [
+        {
+          name: 'Base',
+          ingredients: [
+            { name: 'Water', amount: '', unit: '', scales: true, exclude_from_shopping: true },
+            { name: 'Flour', amount: '250', unit: 'g', scales: true },
+            { name: 'Sugar', amount: '100', unit: 'g', scales: true },
+          ],
+        },
+      ],
+    });
+    await shareAction(agent, recipeId, 'enable');
+    const { share_token } = shareRow(db, recipeId);
+
+    const res = await request(app).get(`/r/${share_token}?yield=6`);
+    const jsonLd = extractJsonLd(res.text);
+    const visible = visibleIngredientTexts(res.text);
+
+    assert.equal(visible.length, 3, 'all three ingredients are visible in the HTML');
+    assert.ok(visible.some((text) => text.includes('Water')));
+    assert.ok(visible.some((text) => text.includes('Flour')));
+    assert.ok(visible.some((text) => text.includes('Sugar')));
+
+    assert.equal(jsonLd.recipeIngredient.length, 2);
+    assert.ok(!jsonLd.recipeIngredient.some((entry) => entry.includes('Water')));
+    assert.ok(jsonLd.recipeIngredient.some((entry) => entry.includes('Flour')));
+    assert.ok(jsonLd.recipeIngredient.some((entry) => entry.includes('Sugar')));
+  });
+});
+
+test('REGRESSION (no index-zip): the excluded ingredient LAST of three is the only one missing from the JSON-LD, all three visible', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createRecipe(agent, {
+      groups: [
+        {
+          name: 'Base',
+          ingredients: [
+            { name: 'Flour', amount: '250', unit: 'g', scales: true },
+            { name: 'Sugar', amount: '100', unit: 'g', scales: true },
+            { name: 'Water', amount: '', unit: '', scales: true, exclude_from_shopping: true },
+          ],
+        },
+      ],
+    });
+    await shareAction(agent, recipeId, 'enable');
+    const { share_token } = shareRow(db, recipeId);
+
+    const res = await request(app).get(`/r/${share_token}?yield=6`);
+    const jsonLd = extractJsonLd(res.text);
+    const visible = visibleIngredientTexts(res.text);
+
+    assert.equal(visible.length, 3, 'all three ingredients are visible in the HTML');
+    assert.ok(visible.some((text) => text.includes('Water')));
+    assert.ok(visible.some((text) => text.includes('Flour')));
+    assert.ok(visible.some((text) => text.includes('Sugar')));
+
+    assert.equal(jsonLd.recipeIngredient.length, 2);
+    assert.ok(!jsonLd.recipeIngredient.some((entry) => entry.includes('Water')));
+    assert.ok(jsonLd.recipeIngredient.some((entry) => entry.includes('Flour')));
+    assert.ok(jsonLd.recipeIngredient.some((entry) => entry.includes('Sugar')));
+  });
+});
+
+test('ACCEPTANCE 6 on the visible page (D4): an excluded ingredient\'s name is shown but its element has no itemprop="recipeIngredient"', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createRecipe(agent, {
+      groups: [
+        {
+          name: 'Base',
+          ingredients: [
+            { name: 'Flour', amount: '250', unit: 'g', scales: true },
+            { name: 'Water', amount: '', unit: '', scales: true, exclude_from_shopping: true },
+          ],
+        },
+      ],
+    });
+    await shareAction(agent, recipeId, 'enable');
+    const { share_token } = shareRow(db, recipeId);
+
+    const res = await request(app).get(`/r/${share_token}`);
+    const items = [...res.text.matchAll(/<li class="ingredient-list__item"([^>]*)>([\s\S]*?)<\/li>/g)];
+    const waterItem = items.find(([, , inner]) => inner.includes('Water'));
+    assert.ok(waterItem, 'expected a list item for the excluded ingredient');
+    assert.ok(!waterItem[1].includes('itemprop="recipeIngredient"'));
+
+    const jsonLd = extractJsonLd(res.text);
+    assert.ok(!jsonLd.recipeIngredient.some((entry) => entry.includes('Water')));
+  });
 });

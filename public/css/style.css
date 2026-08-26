@@ -431,6 +431,27 @@ a.tag-chip:focus {
   margin: 0;
 }
 
+.button--bring {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: 600;
+}
+
+.bring-action {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.bring-action__hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
 .button--danger {
   border-color: var(--color-danger);
   background: var(--color-surface);

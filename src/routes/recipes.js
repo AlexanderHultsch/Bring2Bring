@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { findRecipeForWrite, loadRecipeAggregate, listRecipesForUser } from '../repositories/recipes.js';
 import { listTagsVisibleToUser } from '../repositories/tags.js';
 import { computeFactor, scaleGroups } from '../domain/scaling.js';
+import { buildBringDeeplinkUrl } from '../domain/recipe-jsonld.js';
 import {
   YIELD_UNITS,
   createRecipe,
@@ -98,6 +99,17 @@ export function recipesRouter(db, config) {
     const factor = computeFactor(requestedYield, aggregate.recipe.yield_amount);
     const scaledGroups = scaleGroups(aggregate.groups, factor, { locale: config.numberLocale });
 
+    // D6: baseQuantity and requestedQuantity are both set to requestedYield —
+    // the exact yield this page is rendered with — so Bring's multiplier is
+    // always 1.0 against our already-scaled amounts (the double-scaling trap).
+    const bringDeeplinkUrl = aggregate.recipe.share_enabled
+      ? buildBringDeeplinkUrl({
+          baseUrl: config.publicBaseUrl,
+          token: aggregate.recipe.share_token,
+          requestedYield,
+        })
+      : null;
+
     res.render('recipes/show', {
       recipe: aggregate.recipe,
       groups: aggregate.groups,
@@ -108,6 +120,7 @@ export function recipesRouter(db, config) {
       requestedYield,
       locale: config.numberLocale,
       publicBaseUrl: config.publicBaseUrl,
+      bringDeeplinkUrl,
     });
   });
 

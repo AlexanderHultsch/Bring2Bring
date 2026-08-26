@@ -176,6 +176,41 @@ test('count dimension: an egg x0.1 -> 0.5, never below 0.5 and never 0', () => {
   assert.notEqual(result.amount, 0);
 });
 
+test('flags: isOptional and excludeFromShopping pass through as booleans, true when 1 and false when 0', () => {
+  const factor = computeFactor(6, 4);
+  const trueResult = scaleIngredient(
+    ingredient({ amount: 250, unit: 'g', is_optional: 1, exclude_from_shopping: 1 }),
+    factor
+  );
+  assert.equal(trueResult.isOptional, true);
+  assert.equal(trueResult.excludeFromShopping, true);
+
+  const falseResult = scaleIngredient(
+    ingredient({ amount: 250, unit: 'g', is_optional: 0, exclude_from_shopping: 0 }),
+    factor
+  );
+  assert.equal(falseResult.isOptional, false);
+  assert.equal(falseResult.excludeFromShopping, false);
+});
+
+test('flags: isOptional and excludeFromShopping are present and correct on the no-amount branch', () => {
+  const result = scaleIngredient(
+    ingredient({ amount: null, name: 'Salz nach Geschmack', is_optional: 1, exclude_from_shopping: 1 }),
+    2
+  );
+  assert.equal(result.isOptional, true);
+  assert.equal(result.excludeFromShopping, true);
+});
+
+test('flags: isOptional and excludeFromShopping are present and correct on the pinch branch', () => {
+  const result = scaleIngredient(
+    ingredient({ amount: 1, unit: 'pinch', name: 'Salz', is_optional: 1, exclude_from_shopping: 1 }),
+    5
+  );
+  assert.equal(result.isOptional, true);
+  assert.equal(result.excludeFromShopping, true);
+});
+
 test('nulls: amount null stays null', () => {
   const result = scaleIngredient(ingredient({ amount: null, name: 'Salz nach Geschmack' }), 2);
   assert.equal(result.amount, null);
@@ -335,8 +370,8 @@ test('text: still starts with amountText for a numeric ingredient, proving it is
   assert.ok(result.text.startsWith(result.amountText));
 });
 
-test('PURITY: units.js and scaling.js import nothing outside src/domain', () => {
-  for (const file of ['units.js', 'scaling.js']) {
+test('PURITY: units.js, scaling.js and recipe-jsonld.js import nothing outside src/domain', () => {
+  for (const file of ['units.js', 'scaling.js', 'recipe-jsonld.js']) {
     const src = fs.readFileSync(domainDir + file, 'utf8');
     const importSpecifiers = [...src.matchAll(/import\s[^'"]*['"]([^'"]+)['"]/g)].map((m) => m[1]);
     assert.ok(importSpecifiers.every((spec) => spec.startsWith('./')), `${file} imports: ${importSpecifiers}`);
