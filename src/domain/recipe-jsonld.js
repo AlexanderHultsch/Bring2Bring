@@ -7,62 +7,28 @@
 // (the direct output of scaling.js's scaleGroups, which carries each
 // ingredient's excludeFromShopping flag through) — this module never scales
 // anything itself, so there is exactly one scaling implementation.
+//
+// Since v1.1 the share page carries only the name, the servings and the
+// ingredients (§8.4) — there is no description, image, recipeCategory,
+// totalTime, prepTime, cookTime or recipeInstructions, since the recipe
+// model no longer carries any of them.
 
 import { formatAmount } from './units.js';
 
-function absoluteUrl(baseUrl, relativePath) {
-  if (!baseUrl || !relativePath) return undefined;
-  const trimmedBase = String(baseUrl).replace(/\/+$/, '');
-  const trimmedPath = String(relativePath).replace(/^\/+/, '');
-  return `${trimmedBase}/${trimmedPath}`;
-}
-
-function toIsoDuration(minutes) {
-  return `PT${minutes}M`;
-}
-
-export function buildRecipeJsonLd({ recipe, groups, steps, tags, requestedYield, baseUrl, locale }) {
+export function buildRecipeJsonLd({ recipe, groups, requestedYield, locale }) {
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Recipe',
     name: recipe.title,
   };
 
-  if (recipe.description) {
-    jsonLd.description = recipe.description;
-  }
-
-  const image = absoluteUrl(baseUrl, recipe.image_path);
-  if (image) {
-    jsonLd.image = image;
-  }
-
   const yieldUnitLabel = recipe.yield_label || recipe.yield_unit;
   jsonLd.recipeYield = [formatAmount(requestedYield, locale), yieldUnitLabel].filter(Boolean).join(' ');
-
-  if (recipe.total_minutes != null) {
-    jsonLd.totalTime = toIsoDuration(recipe.total_minutes);
-  }
-  if (recipe.prep_minutes != null) {
-    jsonLd.prepTime = toIsoDuration(recipe.prep_minutes);
-  }
-  if (recipe.cook_minutes != null) {
-    jsonLd.cookTime = toIsoDuration(recipe.cook_minutes);
-  }
-
-  if (tags && tags.length > 0) {
-    jsonLd.recipeCategory = tags.map((tag) => tag.name).join(', ');
-  }
 
   jsonLd.recipeIngredient = (groups ?? [])
     .flatMap((group) => group.ingredients ?? [])
     .filter((ingredient) => !ingredient.excludeFromShopping)
     .map((ingredient) => ingredient.text);
-
-  jsonLd.recipeInstructions = (steps ?? []).map((step) => ({
-    '@type': 'HowToStep',
-    text: step.text,
-  }));
 
   return jsonLd;
 }

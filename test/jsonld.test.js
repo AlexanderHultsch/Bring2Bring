@@ -25,14 +25,9 @@ function ingredient(overrides = {}) {
 function recipe(overrides = {}) {
   return {
     title: 'Testkuchen',
-    description: null,
-    image_path: null,
     yield_amount: 4,
     yield_unit: 'servings',
     yield_label: null,
-    prep_minutes: null,
-    cook_minutes: null,
-    total_minutes: null,
     ...overrides,
   };
 }
@@ -50,14 +45,30 @@ test('has @context https://schema.org and @type Recipe', () => {
   const jsonLd = buildRecipeJsonLd({
     recipe: recipe(),
     groups: scaledGroupsForJsonLd(groups, 4, 4),
-    steps: [],
-    tags: [],
     requestedYield: 4,
-    baseUrl: BASE_URL,
     locale: 'de-DE',
   });
   assert.equal(jsonLd['@context'], 'https://schema.org');
   assert.equal(jsonLd['@type'], 'Recipe');
+});
+
+test('SPECIFICATION.md §8.4: the built object has EXACTLY these five keys, no more', () => {
+  const groups = [
+    {
+      name: 'Base',
+      ingredients: [ingredient({ amount: 250, unit: 'g', name: 'Mehl' })],
+    },
+  ];
+  const jsonLd = buildRecipeJsonLd({
+    recipe: recipe(),
+    groups: scaledGroupsForJsonLd(groups, 4, 4),
+    requestedYield: 4,
+    locale: 'de-DE',
+  });
+  assert.deepEqual(
+    Object.keys(jsonLd).sort(),
+    ['@context', '@type', 'name', 'recipeIngredient', 'recipeYield'].sort()
+  );
 });
 
 test('recipeYield reflects the REQUESTED yield, not the stored base yield', () => {
@@ -65,10 +76,7 @@ test('recipeYield reflects the REQUESTED yield, not the stored base yield', () =
   const jsonLd = buildRecipeJsonLd({
     recipe: recipe({ yield_amount: 4, yield_unit: 'servings' }),
     groups: scaledGroupsForJsonLd(groups, 6, 4),
-    steps: [],
-    tags: [],
     requestedYield: 6,
-    baseUrl: BASE_URL,
     locale: 'de-DE',
   });
   assert.equal(jsonLd.recipeYield, '6 servings');
@@ -79,110 +87,27 @@ test('recipeYield uses yield_label when set, in place of yield_unit', () => {
   const jsonLd = buildRecipeJsonLd({
     recipe: recipe({ yield_amount: 4, yield_unit: 'servings', yield_label: 'muffins' }),
     groups: scaledGroupsForJsonLd(groups, 4, 4),
-    steps: [],
-    tags: [],
     requestedYield: 4,
-    baseUrl: BASE_URL,
     locale: 'de-DE',
   });
   assert.equal(jsonLd.recipeYield, '4 muffins');
 });
 
-test('totalTime, prepTime and cookTime render as ISO 8601 durations', () => {
+test('description, image, recipeCategory, totalTime, prepTime, cookTime and recipeInstructions are not keys of the built object', () => {
   const groups = [{ name: null, ingredients: [] }];
   const jsonLd = buildRecipeJsonLd({
-    recipe: recipe({ total_minutes: 45, prep_minutes: 15, cook_minutes: 30 }),
+    recipe: recipe(),
     groups: scaledGroupsForJsonLd(groups, 4, 4),
-    steps: [],
-    tags: [],
     requestedYield: 4,
-    baseUrl: BASE_URL,
     locale: 'de-DE',
   });
-  assert.equal(jsonLd.totalTime, 'PT45M');
-  assert.equal(jsonLd.prepTime, 'PT15M');
-  assert.equal(jsonLd.cookTime, 'PT30M');
-});
-
-test('totalTime, prepTime and cookTime are OMITTED (key absent, not null) when the column is null', () => {
-  const groups = [{ name: null, ingredients: [] }];
-  const jsonLd = buildRecipeJsonLd({
-    recipe: recipe({ total_minutes: null, prep_minutes: null, cook_minutes: null }),
-    groups: scaledGroupsForJsonLd(groups, 4, 4),
-    steps: [],
-    tags: [],
-    requestedYield: 4,
-    baseUrl: BASE_URL,
-    locale: 'de-DE',
-  });
+  assert.equal('description' in jsonLd, false);
+  assert.equal('image' in jsonLd, false);
+  assert.equal('recipeCategory' in jsonLd, false);
   assert.equal('totalTime' in jsonLd, false);
   assert.equal('prepTime' in jsonLd, false);
   assert.equal('cookTime' in jsonLd, false);
-});
-
-test('description and image are OMITTED when absent, description present when set', () => {
-  const groups = [{ name: null, ingredients: [] }];
-  const withoutThem = buildRecipeJsonLd({
-    recipe: recipe(),
-    groups: scaledGroupsForJsonLd(groups, 4, 4),
-    steps: [],
-    tags: [],
-    requestedYield: 4,
-    baseUrl: BASE_URL,
-    locale: 'de-DE',
-  });
-  assert.equal('description' in withoutThem, false);
-  assert.equal('image' in withoutThem, false);
-
-  const withDescription = buildRecipeJsonLd({
-    recipe: recipe({ description: 'Ein Klassiker.' }),
-    groups: scaledGroupsForJsonLd(groups, 4, 4),
-    steps: [],
-    tags: [],
-    requestedYield: 4,
-    baseUrl: BASE_URL,
-    locale: 'de-DE',
-  });
-  assert.equal(withDescription.description, 'Ein Klassiker.');
-});
-
-test('image is built as an ABSOLUTE url from baseUrl + recipe.image_path', () => {
-  const groups = [{ name: null, ingredients: [] }];
-  const jsonLd = buildRecipeJsonLd({
-    recipe: recipe({ image_path: '/uploads/abc123.jpg' }),
-    groups: scaledGroupsForJsonLd(groups, 4, 4),
-    steps: [],
-    tags: [],
-    requestedYield: 4,
-    baseUrl: BASE_URL,
-    locale: 'de-DE',
-  });
-  assert.equal(jsonLd.image, 'https://dishlist.example.com/uploads/abc123.jpg');
-});
-
-test('recipeCategory joins tag names with ", " and is omitted when there are none', () => {
-  const groups = [{ name: null, ingredients: [] }];
-  const withTags = buildRecipeJsonLd({
-    recipe: recipe(),
-    groups: scaledGroupsForJsonLd(groups, 4, 4),
-    steps: [],
-    tags: [{ name: 'Dessert' }, { name: 'Vegetarian' }],
-    requestedYield: 4,
-    baseUrl: BASE_URL,
-    locale: 'de-DE',
-  });
-  assert.equal(withTags.recipeCategory, 'Dessert, Vegetarian');
-
-  const withoutTags = buildRecipeJsonLd({
-    recipe: recipe(),
-    groups: scaledGroupsForJsonLd(groups, 4, 4),
-    steps: [],
-    tags: [],
-    requestedYield: 4,
-    baseUrl: BASE_URL,
-    locale: 'de-DE',
-  });
-  assert.equal('recipeCategory' in withoutTags, false);
+  assert.equal('recipeInstructions' in jsonLd, false);
 });
 
 test('recipeIngredient entries are flat strings equal to the `text` field of the corresponding scaled ingredient', () => {
@@ -202,10 +127,7 @@ test('recipeIngredient entries are flat strings equal to the `text` field of the
   const jsonLd = buildRecipeJsonLd({
     recipe: recipe(),
     groups: jsonLdGroups,
-    steps: [],
-    tags: [],
     requestedYield: 6,
-    baseUrl: BASE_URL,
     locale: 'de-DE',
   });
 
@@ -233,10 +155,7 @@ test('ACCEPTANCE 6: an ingredient with exclude_from_shopping = 1 is absent from 
   const jsonLd = buildRecipeJsonLd({
     recipe: recipe(),
     groups: jsonLdGroups,
-    steps: [],
-    tags: [],
     requestedYield: 4,
-    baseUrl: BASE_URL,
     locale: 'de-DE',
   });
 
@@ -255,30 +174,10 @@ test('an ingredient with a null amount appears as just its name', () => {
   const jsonLd = buildRecipeJsonLd({
     recipe: recipe(),
     groups: jsonLdGroups,
-    steps: [],
-    tags: [],
     requestedYield: 4,
-    baseUrl: BASE_URL,
     locale: 'de-DE',
   });
   assert.equal(jsonLd.recipeIngredient[0], 'Salz nach Geschmack');
-});
-
-test('recipeInstructions are HowToStep objects in order', () => {
-  const groups = [{ name: null, ingredients: [] }];
-  const jsonLd = buildRecipeJsonLd({
-    recipe: recipe(),
-    groups: scaledGroupsForJsonLd(groups, 4, 4),
-    steps: [{ text: 'Ofen vorheizen.' }, { text: 'Teig mischen.' }],
-    tags: [],
-    requestedYield: 4,
-    baseUrl: BASE_URL,
-    locale: 'de-DE',
-  });
-  assert.deepEqual(jsonLd.recipeInstructions, [
-    { '@type': 'HowToStep', text: 'Ofen vorheizen.' },
-    { '@type': 'HowToStep', text: 'Teig mischen.' },
-  ]);
 });
 
 test('PURITY: recipe-jsonld.js imports nothing outside src/domain', () => {

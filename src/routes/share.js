@@ -34,7 +34,7 @@ export function shareRouter(db, config) {
       return;
     }
 
-    const { groups, steps, tags } = loadRecipeContentById(db, recipe.id);
+    const { groups } = loadRecipeContentById(db, recipe.id);
     const requestedYield = parseYieldParam(req.query, recipe.yield_amount);
     const factor = computeFactor(requestedYield, recipe.yield_amount);
     const scaledGroups = scaleGroups(groups, factor, { locale: config.numberLocale });
@@ -44,10 +44,7 @@ export function shareRouter(db, config) {
     const jsonLd = buildRecipeJsonLd({
       recipe,
       groups: scaledGroups,
-      steps,
-      tags,
       requestedYield,
-      baseUrl: config.publicBaseUrl,
       locale: config.numberLocale,
     });
     const jsonLdScript = serializeJsonLdForScriptTag(jsonLd);
@@ -62,11 +59,8 @@ export function shareRouter(db, config) {
       recipe,
       groups,
       scaledGroups,
-      steps,
-      tags,
       requestedYield,
       jsonLdScript,
-      isoTotalTime: jsonLd.totalTime,
     });
   });
 

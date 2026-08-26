@@ -245,6 +245,20 @@ test('the share page contains no app chrome: no username, no link to /, no link 
   });
 });
 
+test('SPECIFICATION.md §8.4: GET /r/:token does not contain the method text of a recipe that has one', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createRecipe(agent, { method: 'Preheat the oven to 200C, then whisk vigorously.' });
+    await shareAction(agent, recipeId, 'enable');
+    const { share_token } = shareRow(db, recipeId);
+
+    const res = await request(app).get(`/r/${share_token}`);
+    assert.equal(res.status, 200);
+    assert.ok(!res.text.includes('Preheat the oven to 200C'));
+  });
+});
+
 test('enabling twice reuses the same token', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
