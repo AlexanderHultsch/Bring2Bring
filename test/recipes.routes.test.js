@@ -1,5 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import request from 'supertest';
 import { createTestDb } from './helpers/db.js';
 import { loadConfig } from '../src/config.js';
@@ -88,6 +90,34 @@ function ingredientCount(db, recipeId) {
        WHERE g.recipe_id = ?`
     )
     .get(recipeId).c;
+}
+
+function scalingRecipeBody(overrides = {}) {
+  return {
+    title: 'Scalable Soup',
+    yield_amount: '4',
+    yield_unit: 'servings',
+    groups: [
+      {
+        name: 'Base',
+        ingredients: [
+          { name: 'Flour', amount: '250', unit: 'g', scales: true },
+          { name: 'Salt', amount: '10', unit: 'g' },
+        ],
+      },
+    ],
+    steps: [{ text: 'Mix.' }],
+    ...overrides,
+  };
+}
+
+async function createScalingRecipe(agent, overrides) {
+  const csrfToken = await csrfFor(agent, '/recipes/new');
+  const createRes = await agent
+    .post('/recipes')
+    .type('form')
+    .send(encodeForm({ _csrf: csrfToken, ...scalingRecipeBody(overrides) }));
+  return recipeIdFromLocation(createRes.headers.location);
 }
 
 function basicRecipeBody(overrides = {}) {
@@ -657,5 +687,130 @@ test('GET /recipes/:id?saved=<script> does not reflect the query value into the 
     assert.equal(showRes.status, 200);
     assert.match(showRes.text, /data-saved=""/);
     assert.ok(!showRes.text.includes('alert(1)'));
+  });
+});
+
+test('GET /recipes/:id?yield=6 on a recipe with base yield 4 and a 250 g ingredient renders 375 g', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}?yield=6`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /375 g/);
+  });
+});
+
+test('GET /recipes/:id (no yield) renders 250 g', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /250 g/);
+  });
+});
+
+test('?yield=0, ?yield=-5, ?yield=abc, ?yield=99999 each fall back to the base yield and return 200', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    for (const badYield of ['0', '-5', 'abc', '99999']) {
+      const res = await agent.get(`/recipes/${recipeId}?yield=${encodeURIComponent(badYield)}`);
+      assert.equal(res.status, 200, `?yield=${badYield}`);
+      assert.match(res.text, /250 g/, `?yield=${badYield}`);
+    }
+  });
+});
+
+test('the ingredient element carries data-amount="250", the base value, not the scaled one', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}?yield=6`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /data-amount="250"/);
+  });
+});
+
+test('the ingredients container carries data-base-yield="4"', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /data-base-yield="4"/);
+  });
+});
+
+test('the ingredients container carries data-locale="de-DE"', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /data-locale="de-DE"/);
+  });
+});
+
+test('a recipe with a 1500 g ingredient at yield 1x renders "1,5 kg" with a comma decimal separator', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent, {
+      groups: [
+        {
+          name: 'Base',
+          ingredients: [{ name: 'Broth', amount: '1500', unit: 'g', scales: true }],
+        },
+      ],
+    });
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /1,5 kg/);
+  });
+});
+
+test('an ingredient with scales = 0 renders its marker and is not scaled at ?yield=6', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}?yield=6`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /10 g/);
+    assert.match(res.text, /ingredient-list__marker--fixed/);
+    assert.ok(!res.text.includes('15 g'));
+  });
+});
+
+test('GET /js/domain/scaling.js returns 200 with a JavaScript content-type and is byte-identical to the file on disk', async () => {
+  await withApp(async (app) => {
+    const res = await request(app).get('/js/domain/scaling.js');
+    assert.equal(res.status, 200);
+    assert.match(res.headers['content-type'], /javascript/);
+
+    const onDisk = fs.readFileSync(fileURLToPath(new URL('../src/domain/scaling.js', import.meta.url)), 'utf8');
+    assert.equal(res.text, onDisk);
+  });
+});
+
+test('GET /js/domain/../config.js does not escape the static mount', async () => {
+  await withApp(async (app) => {
+    const res = await request(app).get('/js/domain/../config.js');
+    assert.notEqual(res.status, 200);
   });
 });

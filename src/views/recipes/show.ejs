@@ -22,24 +22,66 @@
           </ul>
         <% } %>
 
-        <% groups.forEach((group) => { %>
-          <section class="ingredient-group">
-            <% if (group.name) { %><h2><%= group.name %></h2><% } %>
-            <ul class="ingredient-list">
-              <% group.ingredients.forEach((ingredient) => { %>
-                <li class="ingredient-list__item">
-                  <% if (ingredient.amount != null) { %>
-                    <span class="ingredient-list__amount"><%= ingredient.amount %><% if (ingredient.amount_max != null) { %>–<%= ingredient.amount_max %><% } %><% if (ingredient.unit) { %> <%= ingredient.unit %><% } %></span>
-                  <% } %>
-                  <span class="ingredient-list__name"><%= ingredient.name %></span>
-                  <% if (ingredient.note) { %><span class="ingredient-list__note">(<%= ingredient.note %>)</span><% } %>
-                  <% if (ingredient.is_optional) { %><span class="ingredient-list__marker">optional</span><% } %>
-                  <% if (ingredient.exclude_from_shopping) { %><span class="ingredient-list__marker">not on shopping list</span><% } %>
-                </li>
-              <% }) %>
-            </ul>
-          </section>
-        <% }) %>
+        <%
+          // Progressive enhancement (section 7.4): the step/preset links are real
+          // hrefs computed from the server-rendered requestedYield, so they work
+          // with JavaScript disabled; recipe-view.js intercepts clicks and
+          // recalculates without a reload.
+          const yieldStep = (delta) => {
+            const next = Math.round((requestedYield + delta) * 100) / 100;
+            return next > 0 ? next : requestedYield;
+          };
+          const yieldPreset = (multiplier) => {
+            const next = Math.round(requestedYield * multiplier * 100) / 100;
+            return next > 0 ? next : requestedYield;
+          };
+        %>
+        <form method="get" class="yield-control" data-yield-form aria-label="Adjust yield">
+          <a class="button button--ghost yield-control__step" href="?yield=<%= yieldStep(-1) %>" data-yield-step="-1" aria-label="Decrease yield">−</a>
+          <input type="number" inputmode="decimal" name="yield" id="yield" class="yield-control__input" data-yield-input min="0.01" max="1000" step="any" value="<%= requestedYield %>">
+          <span class="yield-control__unit" data-yield-unit><%= recipe.yield_label || recipe.yield_unit %></span>
+          <a class="button button--ghost yield-control__step" href="?yield=<%= yieldStep(1) %>" data-yield-step="1" aria-label="Increase yield">+</a>
+          <button type="submit" class="button button--ghost yield-control__submit">Update</button>
+          <div class="yield-control__presets">
+            <a class="button button--ghost" href="?yield=<%= yieldPreset(0.5) %>" data-yield-preset="0.5">×0.5</a>
+            <a class="button button--ghost" href="?yield=<%= yieldPreset(2) %>" data-yield-preset="2">×2</a>
+          </div>
+        </form>
+
+        <div class="recipe-ingredients" data-base-yield="<%= recipe.yield_amount %>" data-locale="<%= locale %>">
+          <% groups.forEach((group, groupIndex) => { %>
+            <section class="ingredient-group">
+              <% if (group.name) { %><h2><%= group.name %></h2><% } %>
+              <ul class="ingredient-list" data-ingredient-list>
+                <% group.ingredients.forEach((ingredient, ingredientIndex) => {
+                     const scaledIngredient = scaledGroups[groupIndex].ingredients[ingredientIndex];
+                %>
+                  <li
+                    class="ingredient-list__item"
+                    data-ingredient
+                    data-amount="<%= ingredient.amount != null ? ingredient.amount : '' %>"
+                    data-amount-max="<%= ingredient.amount_max != null ? ingredient.amount_max : '' %>"
+                    data-unit="<%= ingredient.unit || '' %>"
+                    data-name="<%= ingredient.name || '' %>"
+                    data-note="<%= ingredient.note || '' %>"
+                    data-scales="<%= ingredient.scales ? '1' : '0' %>"
+                    data-optional="<%= ingredient.is_optional ? '1' : '0' %>"
+                    data-exclude="<%= ingredient.exclude_from_shopping ? '1' : '0' %>"
+                  >
+                    <% if (scaledIngredient.amountText != null) { %>
+                      <span class="ingredient-list__amount" data-amount-display<% if (scaledIngredient.exactText) { %> title="<%= scaledIngredient.exactText %>"<% } %>><%= scaledIngredient.amountText %></span>
+                    <% } %>
+                    <span class="ingredient-list__name"><%= ingredient.name %></span>
+                    <% if (ingredient.note) { %><span class="ingredient-list__note">(<%= ingredient.note %>)</span><% } %>
+                    <% if (ingredient.is_optional) { %><span class="ingredient-list__marker">optional</span><% } %>
+                    <% if (ingredient.exclude_from_shopping) { %><span class="ingredient-list__marker">not on shopping list</span><% } %>
+                    <% if (!scaledIngredient.scaled) { %><span class="ingredient-list__marker ingredient-list__marker--fixed">fixed amount</span><% } %>
+                  </li>
+                <% }) %>
+              </ul>
+            </section>
+          <% }) %>
+        </div>
 
         <% if (steps.length > 0) { %>
           <section class="recipe-steps">

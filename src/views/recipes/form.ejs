@@ -74,6 +74,14 @@
                 <label>Group name</label>
                 <input type="text" name="groups[<%= groupIndex %>][name]" value="<%= group.name %>" placeholder="e.g. For the dough" data-group-name>
 
+                <div class="quick-add" data-quick-add>
+                  <label class="quick-add__label">Quick add</label>
+                  <div class="quick-add__row">
+                    <input type="text" class="quick-add__input" data-quick-add-input placeholder="e.g. 250 g flour" aria-label="Quick add ingredient">
+                    <button type="button" class="button button--ghost" data-quick-add-button>Add</button>
+                  </div>
+                </div>
+
                 <div class="ingredient-rows" data-ingredients>
                   <% group.ingredients.forEach((ingredient, ingredientIndex) => { %>
                     <div class="ingredient-row" data-ingredient>
@@ -170,6 +178,13 @@
             <fieldset class="editor-group" data-group>
               <label>Group name</label>
               <input type="text" name="" value="" placeholder="e.g. For the dough" data-group-name>
+              <div class="quick-add" data-quick-add>
+                <label class="quick-add__label">Quick add</label>
+                <div class="quick-add__row">
+                  <input type="text" class="quick-add__input" data-quick-add-input placeholder="e.g. 250 g flour" aria-label="Quick add ingredient">
+                  <button type="button" class="button button--ghost" data-quick-add-button>Add</button>
+                </div>
+              </div>
               <div class="ingredient-rows" data-ingredients></div>
               <div class="editor-group__actions">
                 <button type="button" class="button button--ghost" data-add-ingredient>Add ingredient</button>

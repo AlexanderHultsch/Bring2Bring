@@ -258,6 +258,12 @@
       });
     }
 
+    // Exposed so quick-add.js (a later module script) can reuse the same row
+    // markup instead of duplicating it. quick-add.js waits for DOMContentLoaded
+    // before reading this, which is guaranteed to fire after this deferred
+    // script has run and set it.
+    window.dishlistEditor = { addIngredientRow: addIngredientRow, renumber: renumber, saveDraft: saveDraft };
+
     restoreDraft();
     renumber();
 

@@ -2,6 +2,7 @@ import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { findRecipeForWrite, loadRecipeAggregate, listRecipesForUser } from '../repositories/recipes.js';
 import { listTagsVisibleToUser } from '../repositories/tags.js';
+import { computeFactor, scaleGroups } from '../domain/scaling.js';
 import {
   YIELD_UNITS,
   createRecipe,
@@ -12,6 +13,7 @@ import {
   emptyFormValues,
   formValuesFromAggregate,
   parseListOptions,
+  parseYieldParam,
 } from '../services/recipes.js';
 
 function notFoundError() {
@@ -25,7 +27,7 @@ function parseRecipeId(raw) {
   return Number(raw);
 }
 
-export function recipesRouter(db) {
+export function recipesRouter(db, config) {
   const router = express.Router();
 
   router.get('/', requireAuth(), (req, res) => {
@@ -85,13 +87,19 @@ export function recipesRouter(db) {
     }
 
     const saved = req.query.saved === 'new' ? 'new' : req.query.saved === '1' ? '1' : '';
+    const requestedYield = parseYieldParam(req.query, aggregate.recipe.yield_amount);
+    const factor = computeFactor(requestedYield, aggregate.recipe.yield_amount);
+    const scaledGroups = scaleGroups(aggregate.groups, factor, { locale: config.numberLocale });
 
     res.render('recipes/show', {
       recipe: aggregate.recipe,
       groups: aggregate.groups,
+      scaledGroups,
       steps: aggregate.steps,
       tags: aggregate.tags,
       saved,
+      requestedYield,
+      locale: config.numberLocale,
     });
   });
 

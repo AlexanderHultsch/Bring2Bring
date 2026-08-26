@@ -90,6 +90,20 @@ function normalizeTagNames(raw) {
   return names;
 }
 
+const MAX_YIELD = 1000;
+
+// SPECIFICATION.md section 7.4: the server render must honour ?yield=N so the
+// page is correct with JavaScript disabled. Anything invalid — missing, zero,
+// negative, NaN, text, out of range — falls back to the recipe's own yield,
+// never a 400.
+export function parseYieldParam(query, baseYield) {
+  const raw = query?.yield;
+  if (typeof raw !== 'string') return baseYield;
+  const value = Number(raw.trim());
+  if (!Number.isFinite(value) || value <= 0 || value > MAX_YIELD) return baseYield;
+  return value;
+}
+
 export function parseListOptions(query) {
   const sort = LIST_SORTS.includes(query?.sort) ? query.sort : 'recent';
   const tagIds = toQueryArray(query?.tag)

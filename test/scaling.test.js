@@ -235,6 +235,18 @@ test('ranges: a range that would split units ends in one unit', () => {
   assert.equal(result.text, '500-1000 g Butter');
 });
 
+test('D6: wasRounded is true when only the upper bound of a range differs after rounding', () => {
+  const result = scaleIngredient(
+    ingredient({ amount: 5, amount_max: 13.4, unit: 'g', name: 'Möhren' }),
+    1
+  );
+  assert.equal(result.amount, 5);
+  assert.equal(result.exactAmount, 5);
+  assert.equal(result.amountMax, 13);
+  assert.equal(result.exactAmountMax, 13.4);
+  assert.equal(result.wasRounded, true);
+});
+
 test('text: no double spaces, no leading space, piece contributes no label', () => {
   const result = scaleIngredient(ingredient({ amount: 2, unit: 'piece', name: 'Eier' }), 1);
   assert.equal(result.text, '2 Eier');
@@ -274,6 +286,53 @@ test('scaleGroups maps scaleIngredient over the nested groups shape without muta
   assert.equal(result[0].name, 'Teig');
   assert.equal(groups[0].ingredients[0], frozenIngredient);
   assert.equal(groups[0].ingredients[0].amount, 100);
+});
+
+test('amountText: 1500 g scaled by 1 is "1,5 kg" under the default locale', () => {
+  const result = scaleIngredient(ingredient({ amount: 1500, unit: 'g' }), 1);
+  assert.equal(result.amountText, '1,5 kg');
+});
+
+test('amountText: 375 g is "375 g"', () => {
+  const factor = computeFactor(6, 4);
+  const result = scaleIngredient(ingredient({ amount: 250, unit: 'g' }), factor);
+  assert.equal(result.amountText, '375 g');
+});
+
+test('amountText: a 2-3 range is "2-3" with no unit label duplication', () => {
+  const result = scaleIngredient(
+    ingredient({ amount: 2, amount_max: 3, unit: 'piece', name: 'Äpfel' }),
+    1
+  );
+  assert.equal(result.amountText, '2-3');
+});
+
+test('amountText: locale "en-US" is "1.5 kg", proving the locale is honoured and not hard-coded', () => {
+  const result = scaleIngredient(ingredient({ amount: 1500, unit: 'g' }), 1, { locale: 'en-US' });
+  assert.equal(result.amountText, '1.5 kg');
+});
+
+test('amountText: null when the amount is null, and for a pinch', () => {
+  const nullAmount = scaleIngredient(ingredient({ amount: null, name: 'Salz nach Geschmack' }), 2);
+  assert.equal(nullAmount.amountText, null);
+
+  const pinch = scaleIngredient(ingredient({ amount: 1, unit: 'pinch', name: 'Salz' }), 5);
+  assert.equal(pinch.amountText, null);
+});
+
+test('exactText: null when wasRounded is false, and non-null when it is true', () => {
+  const notRounded = scaleIngredient(ingredient({ amount: 3.5, unit: 'tbsp' }), 1);
+  assert.equal(notRounded.wasRounded, false);
+  assert.equal(notRounded.exactText, null);
+
+  const rounded = scaleIngredient(ingredient({ amount: 5, amount_max: 13.4, unit: 'g', name: 'Möhren' }), 1);
+  assert.equal(rounded.wasRounded, true);
+  assert.notEqual(rounded.exactText, null);
+});
+
+test('text: still starts with amountText for a numeric ingredient, proving it is built from it', () => {
+  const result = scaleIngredient(ingredient({ amount: 200, unit: 'g', name: 'Zucker' }), 1);
+  assert.ok(result.text.startsWith(result.amountText));
 });
 
 test('PURITY: units.js and scaling.js import nothing outside src/domain', () => {

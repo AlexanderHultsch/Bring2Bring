@@ -36,10 +36,9 @@ function roundInBase(value, dimension) {
   return Math.round(value * 100) / 100;
 }
 
-function buildText({ amountPart, unitLabelText, name, note }) {
+function buildText({ amountAndUnit, name, note }) {
   const parts = [];
-  if (amountPart) parts.push(amountPart);
-  if (unitLabelText) parts.push(unitLabelText);
+  if (amountAndUnit) parts.push(amountAndUnit);
   if (name) parts.push(name);
   const base = parts.join(' ');
   if (!note) return base;
@@ -62,7 +61,7 @@ export function scaleIngredient(ingredient, factor, options = {}) {
   if (!hasAmount || isPinch) {
     const finalUnitKey = unitEntry ? unitEntry.key : rawUnit;
     const finalUnitLabel = unitLabel(rawUnit);
-    const text = buildText({ amountPart: '', unitLabelText: finalUnitLabel, name, note });
+    const text = buildText({ amountAndUnit: finalUnitLabel, name, note });
     return {
       amount: null,
       amountMax: null,
@@ -73,6 +72,8 @@ export function scaleIngredient(ingredient, factor, options = {}) {
       wasRounded: false,
       scaled,
       text,
+      amountText: null,
+      exactText: null,
     };
   }
 
@@ -110,14 +111,21 @@ export function scaleIngredient(ingredient, factor, options = {}) {
 
   const finalUnitKey = displayEntry ? displayEntry.key : rawUnit;
   const finalUnitLabel = displayEntry ? displayEntry.label : unitLabel(rawUnit);
-  const wasRounded = finalAmount !== exactAmount;
+  const wasRounded = finalAmount !== exactAmount || (hasMax && finalMax !== exactMax);
 
   const amountPart =
     hasMax && finalMax !== null
       ? `${formatAmount(finalAmount, locale)}-${formatAmount(finalMax, locale)}`
       : formatAmount(finalAmount, locale);
+  const amountText = [amountPart, finalUnitLabel].filter(Boolean).join(' ');
 
-  const text = buildText({ amountPart, unitLabelText: finalUnitLabel, name, note });
+  const exactAmountPart =
+    hasMax && exactMax !== null
+      ? `${formatAmount(exactAmount, locale)}-${formatAmount(exactMax, locale)}`
+      : formatAmount(exactAmount, locale);
+  const exactText = wasRounded ? [exactAmountPart, finalUnitLabel].filter(Boolean).join(' ') : null;
+
+  const text = buildText({ amountAndUnit: amountText, name, note });
 
   return {
     amount: finalAmount,
@@ -129,6 +137,8 @@ export function scaleIngredient(ingredient, factor, options = {}) {
     wasRounded,
     scaled,
     text,
+    amountText,
+    exactText,
   };
 }
 
