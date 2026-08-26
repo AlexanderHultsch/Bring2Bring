@@ -1,11 +1,10 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { findRecipeForWrite, loadRecipeAggregate, listRecipesForUser } from '../repositories/recipes.js';
-import { listTagsVisibleToUser } from '../repositories/tags.js';
 import { computeFactor, scaleGroups } from '../domain/scaling.js';
+import { EDITOR_UNITS } from '../domain/units.js';
 import { buildBringDeeplinkUrl } from '../domain/recipe-jsonld.js';
 import {
-  YIELD_UNITS,
   createRecipe,
   updateRecipeFromForm,
   duplicateRecipe,
@@ -44,13 +43,10 @@ export function recipesRouter(db, config) {
     const recipes = options.includeArchived
       ? found.filter((recipe) => recipe.is_archived === 1)
       : found;
-    const tags = listTagsVisibleToUser(db, req.currentUser.id);
 
     res.render('recipes/list', {
       recipes,
       archived: options.includeArchived,
-      tags,
-      selectedTagIds: options.tagIds,
       sort: options.sort,
       search: options.search,
     });
@@ -62,7 +58,7 @@ export function recipesRouter(db, config) {
       recipeId: null,
       values: emptyFormValues(),
       errors: [],
-      yieldUnits: YIELD_UNITS,
+      EDITOR_UNITS,
     });
   });
 
@@ -74,7 +70,7 @@ export function recipesRouter(db, config) {
         recipeId: null,
         values: result.values,
         errors: result.errors,
-        yieldUnits: YIELD_UNITS,
+        EDITOR_UNITS,
       });
       return;
     }
@@ -115,7 +111,6 @@ export function recipesRouter(db, config) {
       groups: aggregate.groups,
       scaledGroups,
       steps: aggregate.steps,
-      tags: aggregate.tags,
       saved,
       requestedYield,
       locale: config.numberLocale,
@@ -143,7 +138,7 @@ export function recipesRouter(db, config) {
       recipeId: id,
       values: formValuesFromAggregate(aggregate),
       errors: [],
-      yieldUnits: YIELD_UNITS,
+      EDITOR_UNITS,
     });
   });
 
@@ -167,7 +162,7 @@ export function recipesRouter(db, config) {
         recipeId: id,
         values: result.values,
         errors: result.errors,
-        yieldUnits: YIELD_UNITS,
+        EDITOR_UNITS,
       });
       return;
     }

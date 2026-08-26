@@ -1,11 +1,10 @@
 <%
   function listUrl(overrides) {
-    const state = Object.assign({ search, sort, archived, tagIds: selectedTagIds }, overrides);
+    const state = Object.assign({ search, sort, archived }, overrides);
     const params = new URLSearchParams();
     if (state.search) params.set('q', state.search);
     if (state.sort !== 'recent') params.set('sort', state.sort);
     if (state.archived) params.set('archived', '1');
-    state.tagIds.forEach((id) => params.append('tag', id));
     const query = params.toString();
     return query ? '/?' + query : '/';
   }
@@ -23,12 +22,9 @@
 
         <form method="get" action="/" class="list-controls" role="search">
           <% if (archived) { %><input type="hidden" name="archived" value="1"><% } %>
-          <% selectedTagIds.forEach((tagId) => { %>
-            <input type="hidden" name="tag" value="<%= tagId %>">
-          <% }) %>
           <div class="list-controls__search">
             <label for="q">Search</label>
-            <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search title, ingredient or tag">
+            <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search title or ingredient">
           </div>
           <div class="list-controls__sort">
             <label for="sort">Sort</label>
@@ -41,27 +37,7 @@
           <button type="submit" class="button">Apply</button>
         </form>
 
-        <% if (tags.length > 0) { %>
-          <ul class="tag-chips">
-            <% tags.forEach((tag) => {
-                 const isSelected = selectedTagIds.includes(tag.id);
-                 const nextTagIds = isSelected
-                   ? selectedTagIds.filter((id) => id !== tag.id)
-                   : selectedTagIds.concat(tag.id);
-                 const chipHref = listUrl({ tagIds: nextTagIds });
-            %>
-              <li>
-                <a
-                  class="tag-chip <%= isSelected ? 'tag-chip--selected' : '' %>"
-                  href="<%= chipHref %>"
-                  aria-pressed="<%= isSelected ? 'true' : 'false' %>"
-                ><%= tag.name %></a>
-              </li>
-            <% }) %>
-          </ul>
-        <% } %>
-
-        <% const hasActiveFilter = search.trim() !== '' || selectedTagIds.length > 0; %>
+        <% const hasActiveFilter = search.trim() !== ''; %>
         <% if (recipes.length === 0) { %>
           <p class="empty-state">
             <% if (hasActiveFilter) { %>
@@ -82,7 +58,7 @@
                     <% if (recipe.share_enabled) { %><span class="share-badge" title="Public link enabled">🔗</span><% } %>
                   </span>
                   <span class="recipe-list__meta">
-                    <% if (recipe.total_minutes != null) { %><%= recipe.total_minutes %> min · <% } %><%= recipe.yield_amount %> <%= recipe.yield_label || recipe.yield_unit %>
+                    <%= recipe.yield_amount %> <%= recipe.yield_unit %>
                   </span>
                 </a>
               </li>

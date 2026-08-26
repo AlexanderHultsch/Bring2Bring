@@ -23,184 +23,45 @@
           <label for="title">Title</label>
           <input type="text" id="title" name="title" value="<%= values.title %>" required maxlength="200">
 
-          <label for="subtitle">Subtitle</label>
-          <input type="text" id="subtitle" name="subtitle" value="<%= values.subtitle %>">
-
-          <label for="description">Description</label>
-          <textarea id="description" name="description"><%= values.description %></textarea>
-
-          <label for="tags">Tags</label>
-          <input type="text" id="tags" name="tags" value="<%= values.tags %>" placeholder="e.g. quick, pasta, weeknight">
-
-
-          <div class="form-row">
-            <div>
-              <label for="yield_amount">Yield amount</label>
-              <input type="text" inputmode="decimal" id="yield_amount" name="yield_amount" value="<%= values.yield_amount %>" required>
-            </div>
-            <div>
-              <label for="yield_unit">Yield unit</label>
-              <select id="yield_unit" name="yield_unit">
-                <% yieldUnits.forEach((unit) => { %>
-                  <option value="<%= unit %>" <%= values.yield_unit === unit ? 'selected' : '' %>><%= unit %></option>
-                <% }) %>
-              </select>
-            </div>
-            <div>
-              <label for="yield_label">Yield label override</label>
-              <input type="text" id="yield_label" name="yield_label" value="<%= values.yield_label %>">
-            </div>
-          </div>
-
-          <div class="form-row">
-            <div>
-              <label for="prep_minutes">Prep minutes</label>
-              <input type="text" inputmode="numeric" id="prep_minutes" name="prep_minutes" value="<%= values.prep_minutes %>">
-            </div>
-            <div>
-              <label for="cook_minutes">Cook minutes</label>
-              <input type="text" inputmode="numeric" id="cook_minutes" name="cook_minutes" value="<%= values.cook_minutes %>">
-            </div>
-            <div>
-              <label for="total_minutes">Total minutes</label>
-              <input type="text" inputmode="numeric" id="total_minutes" name="total_minutes" value="<%= values.total_minutes %>">
-            </div>
-          </div>
+          <label for="servings">Servings</label>
+          <input type="text" inputmode="decimal" id="servings" name="servings" value="<%= values.servings %>" required>
 
           <h2>Ingredients</h2>
-          <div class="ingredient-groups" data-groups>
-            <% values.groups.forEach((group, groupIndex) => { %>
-              <fieldset class="editor-group" data-group>
-                <label>Group name</label>
-                <input type="text" name="groups[<%= groupIndex %>][name]" value="<%= group.name %>" placeholder="e.g. For the dough" data-group-name>
-
-                <div class="quick-add" data-quick-add>
-                  <label class="quick-add__label">Quick add</label>
-                  <div class="quick-add__row">
-                    <input type="text" class="quick-add__input" data-quick-add-input placeholder="e.g. 250 g flour" aria-label="Quick add ingredient">
-                    <button type="button" class="button button--ghost" data-quick-add-button>Add</button>
-                  </div>
-                </div>
-
-                <div class="ingredient-rows" data-ingredients>
-                  <% group.ingredients.forEach((ingredient, ingredientIndex) => { %>
-                    <div class="ingredient-row" data-ingredient>
-                      <input type="text" inputmode="decimal" name="groups[<%= groupIndex %>][ingredients][<%= ingredientIndex %>][amount]" value="<%= ingredient.amount %>" placeholder="Amount" class="ingredient-row__amount">
-                      <input type="text" inputmode="decimal" name="groups[<%= groupIndex %>][ingredients][<%= ingredientIndex %>][amount_max]" value="<%= ingredient.amount_max %>" placeholder="to" class="ingredient-row__amount-max">
-                      <input type="text" name="groups[<%= groupIndex %>][ingredients][<%= ingredientIndex %>][unit]" value="<%= ingredient.unit %>" placeholder="Unit" class="ingredient-row__unit">
-                      <input type="text" name="groups[<%= groupIndex %>][ingredients][<%= ingredientIndex %>][name]" value="<%= ingredient.name %>" placeholder="Ingredient" class="ingredient-row__name" data-ingredient-name>
-                      <input type="text" name="groups[<%= groupIndex %>][ingredients][<%= ingredientIndex %>][note]" value="<%= ingredient.note %>" placeholder="Note" class="ingredient-row__note">
-
-                      <details class="ingredient-row__more">
-                        <summary>…</summary>
-                        <label class="checkbox-label">
-                          <input type="checkbox" name="groups[<%= groupIndex %>][ingredients][<%= ingredientIndex %>][scales]" <%= ingredient.scales ? 'checked' : '' %>>
-                          Scales with yield
-                        </label>
-                        <label class="checkbox-label">
-                          <input type="checkbox" name="groups[<%= groupIndex %>][ingredients][<%= ingredientIndex %>][is_optional]" <%= ingredient.is_optional ? 'checked' : '' %>>
-                          Optional
-                        </label>
-                        <label class="checkbox-label">
-                          <input type="checkbox" name="groups[<%= groupIndex %>][ingredients][<%= ingredientIndex %>][exclude_from_shopping]" <%= ingredient.exclude_from_shopping ? 'checked' : '' %>>
-                          Exclude from shopping list
-                        </label>
-                      </details>
-
-                      <div class="ingredient-row__actions">
-                        <button type="button" data-move-up>Move up</button>
-                        <button type="button" data-move-down>Move down</button>
-                        <button type="button" data-remove-ingredient>Remove</button>
-                      </div>
-                    </div>
+          <div class="ingredient-rows" data-ingredients>
+            <% values.ingredients.forEach((ingredient, ingredientIndex) => { %>
+              <div class="ingredient-row" data-ingredient>
+                <input type="text" inputmode="decimal" name="ingredients[<%= ingredientIndex %>][amount]" value="<%= ingredient.amount %>" placeholder="Amount" class="ingredient-row__amount">
+                <select name="ingredients[<%= ingredientIndex %>][unit]" class="ingredient-row__unit">
+                  <% EDITOR_UNITS.forEach((unit) => { %>
+                    <option value="<%= unit.key %>" <%= ingredient.unit === unit.key ? 'selected' : '' %>><%= unit.label %></option>
                   <% }) %>
-                </div>
-
-                <div class="editor-group__actions">
-                  <button type="button" class="button button--ghost" data-add-ingredient>Add ingredient</button>
-                  <button type="button" class="button button--ghost" data-remove-group>Remove group</button>
-                </div>
-              </fieldset>
-            <% }) %>
-          </div>
-          <button type="button" class="button button--ghost" data-add-group>Add ingredient group</button>
-
-          <h2>Steps</h2>
-          <div class="steps" data-steps>
-            <% values.steps.forEach((step, stepIndex) => { %>
-              <div class="step-row" data-step>
-                <input type="text" name="steps[<%= stepIndex %>][section_title]" value="<%= step.section_title %>" placeholder="Section title (optional)" class="step-row__section">
-                <textarea name="steps[<%= stepIndex %>][text]" placeholder="Step text" class="step-row__text" data-step-text><%= step.text %></textarea>
-                <div class="step-row__actions">
-                  <button type="button" data-move-up>Move up</button>
-                  <button type="button" data-move-down>Move down</button>
-                  <button type="button" data-remove-step>Remove</button>
+                </select>
+                <input type="text" name="ingredients[<%= ingredientIndex %>][name]" value="<%= ingredient.name %>" placeholder="Ingredient" class="ingredient-row__name" data-ingredient-name>
+                <div class="ingredient-row__actions">
+                  <button type="button" data-remove-ingredient>Remove</button>
                 </div>
               </div>
             <% }) %>
           </div>
-          <button type="button" class="button button--ghost" data-add-step>Add step</button>
+          <button type="button" class="button button--ghost" data-add-ingredient>Add ingredient</button>
 
-          <h2>More</h2>
-          <label for="source_name">Source name</label>
-          <input type="text" id="source_name" name="source_name" value="<%= values.source_name %>">
-
-          <label for="source_url">Source URL</label>
-          <input type="text" id="source_url" name="source_url" value="<%= values.source_url %>">
-
-          <label for="notes">Notes</label>
-          <textarea id="notes" name="notes"><%= values.notes %></textarea>
+          <h2>Method</h2>
+          <label for="method">Method (optional)</label>
+          <textarea id="method" name="method" data-method><%= values.method %></textarea>
 
           <button type="submit" class="button">Save recipe</button>
 
           <template data-ingredient-row-template>
             <div class="ingredient-row" data-ingredient>
               <input type="text" inputmode="decimal" name="" value="" placeholder="Amount" class="ingredient-row__amount">
-              <input type="text" inputmode="decimal" name="" value="" placeholder="to" class="ingredient-row__amount-max">
-              <input type="text" name="" value="" placeholder="Unit" class="ingredient-row__unit">
+              <select name="" class="ingredient-row__unit">
+                <% EDITOR_UNITS.forEach((unit) => { %>
+                  <option value="<%= unit.key %>"><%= unit.label %></option>
+                <% }) %>
+              </select>
               <input type="text" name="" value="" placeholder="Ingredient" class="ingredient-row__name" data-ingredient-name>
-              <input type="text" name="" value="" placeholder="Note" class="ingredient-row__note">
-              <details class="ingredient-row__more">
-                <summary>…</summary>
-                <label class="checkbox-label"><input type="checkbox" name="" checked> Scales with yield</label>
-                <label class="checkbox-label"><input type="checkbox" name=""> Optional</label>
-                <label class="checkbox-label"><input type="checkbox" name=""> Exclude from shopping list</label>
-              </details>
               <div class="ingredient-row__actions">
-                <button type="button" data-move-up>Move up</button>
-                <button type="button" data-move-down>Move down</button>
                 <button type="button" data-remove-ingredient>Remove</button>
-              </div>
-            </div>
-          </template>
-
-          <template data-group-template>
-            <fieldset class="editor-group" data-group>
-              <label>Group name</label>
-              <input type="text" name="" value="" placeholder="e.g. For the dough" data-group-name>
-              <div class="quick-add" data-quick-add>
-                <label class="quick-add__label">Quick add</label>
-                <div class="quick-add__row">
-                  <input type="text" class="quick-add__input" data-quick-add-input placeholder="e.g. 250 g flour" aria-label="Quick add ingredient">
-                  <button type="button" class="button button--ghost" data-quick-add-button>Add</button>
-                </div>
-              </div>
-              <div class="ingredient-rows" data-ingredients></div>
-              <div class="editor-group__actions">
-                <button type="button" class="button button--ghost" data-add-ingredient>Add ingredient</button>
-                <button type="button" class="button button--ghost" data-remove-group>Remove group</button>
-              </div>
-            </fieldset>
-          </template>
-
-          <template data-step-row-template>
-            <div class="step-row" data-step>
-              <input type="text" name="" value="" placeholder="Section title (optional)" class="step-row__section">
-              <textarea name="" placeholder="Step text" class="step-row__text" data-step-text></textarea>
-              <div class="step-row__actions">
-                <button type="button" data-move-up>Move up</button>
-                <button type="button" data-move-down>Move down</button>
-                <button type="button" data-remove-step>Remove</button>
               </div>
             </div>
           </template>

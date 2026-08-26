@@ -7,6 +7,7 @@ import { createApp } from '../src/app.js';
 import { hashPassword } from '../src/services/auth.js';
 import { insertUser } from '../src/repositories/users.js';
 import { redactPath } from '../src/middleware/request-logger.js';
+import { replaceRecipeContent } from '../src/repositories/recipes.js';
 
 const PASSWORD = 'correct-horse-battery';
 
@@ -80,15 +81,9 @@ function recipeIdFromLocation(location) {
 function scalingRecipeBody(overrides = {}) {
   return {
     title: 'Scalable Soup',
-    yield_amount: '4',
-    yield_unit: 'servings',
-    groups: [
-      {
-        name: 'Base',
-        ingredients: [{ name: 'Flour', amount: '250', unit: 'g', scales: true }],
-      },
-    ],
-    steps: [{ text: 'Mix.' }],
+    servings: '4',
+    ingredients: [{ name: 'Flour', amount: '250', unit: 'g' }],
+    method: 'Mix.',
     ...overrides,
   };
 }
@@ -380,21 +375,28 @@ test('the visible HTML carries itemtype="https://schema.org/Recipe" and at least
   });
 });
 
+// SPECIFICATION.md section 2.1 A2 / this task's §13 criterion 6: the editor
+// has no UI to set exclude_from_shopping any more, so these three tests set
+// it directly through replaceRecipeContent (the repository/builder level)
+// rather than through a form field that no longer exists.
 test('REGRESSION (no index-zip): the excluded ingredient FIRST of three is the only one missing from the JSON-LD, all three visible', async () => {
   await withApp(async (app, db) => {
-    await seedUser(db, 'alex');
+    const owner = await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
-    const recipeId = await createRecipe(agent, {
+    const recipeId = await createRecipe(agent);
+    replaceRecipeContent(db, recipeId, owner.id, {
       groups: [
         {
-          name: 'Base',
+          name: null,
           ingredients: [
-            { name: 'Water', amount: '', unit: '', scales: true, exclude_from_shopping: true },
-            { name: 'Flour', amount: '250', unit: 'g', scales: true },
-            { name: 'Sugar', amount: '100', unit: 'g', scales: true },
+            { name: 'Water', amount: null, unit: 'piece', exclude_from_shopping: 1 },
+            { name: 'Flour', amount: 250, unit: 'g' },
+            { name: 'Sugar', amount: 100, unit: 'g' },
           ],
         },
       ],
+      steps: [],
+      tagIds: [],
     });
     await shareAction(agent, recipeId, 'enable');
     const { share_token } = shareRow(db, recipeId);
@@ -417,19 +419,22 @@ test('REGRESSION (no index-zip): the excluded ingredient FIRST of three is the o
 
 test('REGRESSION (no index-zip): the excluded ingredient LAST of three is the only one missing from the JSON-LD, all three visible', async () => {
   await withApp(async (app, db) => {
-    await seedUser(db, 'alex');
+    const owner = await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
-    const recipeId = await createRecipe(agent, {
+    const recipeId = await createRecipe(agent);
+    replaceRecipeContent(db, recipeId, owner.id, {
       groups: [
         {
-          name: 'Base',
+          name: null,
           ingredients: [
-            { name: 'Flour', amount: '250', unit: 'g', scales: true },
-            { name: 'Sugar', amount: '100', unit: 'g', scales: true },
-            { name: 'Water', amount: '', unit: '', scales: true, exclude_from_shopping: true },
+            { name: 'Flour', amount: 250, unit: 'g' },
+            { name: 'Sugar', amount: 100, unit: 'g' },
+            { name: 'Water', amount: null, unit: 'piece', exclude_from_shopping: 1 },
           ],
         },
       ],
+      steps: [],
+      tagIds: [],
     });
     await shareAction(agent, recipeId, 'enable');
     const { share_token } = shareRow(db, recipeId);
@@ -452,18 +457,21 @@ test('REGRESSION (no index-zip): the excluded ingredient LAST of three is the on
 
 test('ACCEPTANCE 6 on the visible page (D4): an excluded ingredient\'s name is shown but its element has no itemprop="recipeIngredient"', async () => {
   await withApp(async (app, db) => {
-    await seedUser(db, 'alex');
+    const owner = await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
-    const recipeId = await createRecipe(agent, {
+    const recipeId = await createRecipe(agent);
+    replaceRecipeContent(db, recipeId, owner.id, {
       groups: [
         {
-          name: 'Base',
+          name: null,
           ingredients: [
-            { name: 'Flour', amount: '250', unit: 'g', scales: true },
-            { name: 'Water', amount: '', unit: '', scales: true, exclude_from_shopping: true },
+            { name: 'Flour', amount: 250, unit: 'g' },
+            { name: 'Water', amount: null, unit: 'piece', exclude_from_shopping: 1 },
           ],
         },
       ],
+      steps: [],
+      tagIds: [],
     });
     await shareAction(agent, recipeId, 'enable');
     const { share_token } = shareRow(db, recipeId);

@@ -27,7 +27,25 @@ export const UNITS = {
   bunch: { key: 'bunch', label: 'Bund', dimension: 'count', base: 1, convertible: false, numeric: true },
   pack: { key: 'pack', label: 'Packung', dimension: 'count', base: 1, convertible: false, numeric: true },
   pinch: { key: 'pinch', label: 'Prise', dimension: 'pinch', base: 1, convertible: false, numeric: false },
+  stueck: { key: 'stueck', label: 'Stück', dimension: 'count', base: 1, convertible: false, numeric: true },
 };
+
+// Closed dropdown for the editor (SPECIFICATION.md section 7.2, v1.1): exactly
+// these nine units, in this order. 'label' here is the dropdown's own label
+// for the option — for 'piece' that is "no unit", distinct from the unit's
+// own display label (UNITS.piece.label === ''), which is what renders next to
+// the ingredient amount ("2 Eier", not "2 no unit Eier").
+export const EDITOR_UNITS = [
+  { key: 'piece', label: 'no unit' },
+  { key: 'g', label: 'g' },
+  { key: 'kg', label: 'kg' },
+  { key: 'ml', label: 'ml' },
+  { key: 'l', label: 'l' },
+  { key: 'tsp', label: 'TL' },
+  { key: 'tbsp', label: 'EL' },
+  { key: 'pinch', label: 'Prise' },
+  { key: 'stueck', label: 'Stück' },
+];
 
 export function findUnit(key) {
   if (key === null || key === undefined) return undefined;

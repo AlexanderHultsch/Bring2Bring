@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { computeFactor, scaleIngredient, scaleGroups } from '../src/domain/scaling.js';
+import { EDITOR_UNITS } from '../src/domain/units.js';
 
 const domainDir = fileURLToPath(new URL('../src/domain/', import.meta.url));
 
@@ -368,6 +369,30 @@ test('exactText: null when wasRounded is false, and non-null when it is true', (
 test('text: still starts with amountText for a numeric ingredient, proving it is built from it', () => {
   const result = scaleIngredient(ingredient({ amount: 200, unit: 'g', name: 'Zucker' }), 1);
   assert.ok(result.text.startsWith(result.amountText));
+});
+
+test('V1: EDITOR_UNITS is exactly the nine keys/labels from section 7.2, in order', () => {
+  assert.deepEqual(
+    EDITOR_UNITS.map((unit) => unit.key),
+    ['piece', 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'pinch', 'stueck']
+  );
+  assert.deepEqual(
+    EDITOR_UNITS.map((unit) => unit.label),
+    ['no unit', 'g', 'kg', 'ml', 'l', 'TL', 'EL', 'Prise', 'Stück']
+  );
+});
+
+test('V1: stueck is a count-dimension unit that never converts and shows its own label', () => {
+  const result = scaleIngredient(ingredient({ amount: 2, unit: 'stueck', name: 'Butter' }), 1.5);
+  assert.equal(result.amount, 3);
+  assert.equal(result.unit, 'stueck');
+  assert.equal(result.unitLabel, 'Stück');
+  assert.equal(result.text, '3 Stück Butter');
+});
+
+test('V1: stueck rounds like the other count unit, never below 0.5', () => {
+  const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.1);
+  assert.equal(result.amount, 0.5);
 });
 
 test('PURITY: units.js, scaling.js and recipe-jsonld.js import nothing outside src/domain', () => {

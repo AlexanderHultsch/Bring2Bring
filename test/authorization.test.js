@@ -68,8 +68,8 @@ async function anonymousCsrf(agent) {
 function minimalRecipeFormBody() {
   return {
     title: 'Hijacked title',
-    yield_amount: '4',
-    yield_unit: 'servings',
+    servings: '4',
+    ingredients: [{ name: 'Salt', unit: 'piece' }],
   };
 }
 

@@ -210,39 +210,6 @@ label {
   flex: 1 1 12rem;
 }
 
-.tag-chips {
-  list-style: none;
-  margin: 0 0 var(--space-3);
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--min-tap-target);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-  text-decoration: none;
-}
-
-a.tag-chip:hover,
-a.tag-chip:focus {
-  filter: brightness(1.05);
-}
-
-.tag-chip--selected {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-}
-
 .recipe-list {
   list-style: none;
   margin: 0;
@@ -292,20 +259,9 @@ a.tag-chip:focus {
   margin-bottom: var(--space-2);
 }
 
-.recipe-page__subtitle {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-md);
-}
-
 .recipe-page__meta {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-}
-
-.ingredient-group {
-  border: none;
-  margin: 0 0 var(--space-4);
-  padding: 0;
 }
 
 .ingredient-list {
@@ -331,23 +287,6 @@ a.tag-chip:focus {
   min-width: 4rem;
 }
 
-.ingredient-list__note {
-  color: var(--color-text-muted);
-}
-
-.ingredient-list__marker {
-  font-size: var(--font-size-sm);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-muted);
-}
-
-.ingredient-list__marker--fixed {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
 .yield-control {
   display: flex;
   flex-wrap: wrap;
@@ -370,21 +309,8 @@ a.tag-chip:focus {
   gap: var(--space-2);
 }
 
-.step-list {
-  margin: 0;
-  padding-left: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.step-list__section {
-  display: block;
-  margin-bottom: var(--space-1);
-}
-
-.recipe-source {
-  color: var(--color-text-muted);
+.recipe-method__text {
+  white-space: pre-wrap;
 }
 
 .share-panel {
@@ -473,12 +399,6 @@ a.tag-chip:focus {
   resize: vertical;
 }
 
-.form-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: var(--space-3);
-}
-
 .form-errors {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-danger);
@@ -486,37 +406,6 @@ a.tag-chip:focus {
   color: var(--color-danger);
   background: var(--color-surface);
   margin: 0 0 var(--space-3);
-}
-
-.editor-group {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
-  margin-bottom: var(--space-3);
-}
-
-.editor-group__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-top: var(--space-2);
-}
-
-.quick-add {
-  margin-bottom: var(--space-2);
-}
-
-.quick-add__label {
-  margin-bottom: var(--space-1);
-}
-
-.quick-add__row {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.quick-add__input {
-  flex: 1;
 }
 
 .ingredient-rows {
@@ -535,41 +424,8 @@ a.tag-chip:focus {
   border-radius: var(--radius-md);
 }
 
-.ingredient-row__more summary {
-  cursor: pointer;
-  min-height: var(--min-tap-target);
-  display: flex;
-  align-items: center;
-  color: var(--color-text-muted);
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--min-tap-target);
-  color: var(--color-text);
-  font-size: var(--font-size-base);
-}
-
-.checkbox-label input {
-  width: auto;
-  min-width: var(--min-tap-target);
-}
-
-.ingredient-row__actions,
-.step-row__actions {
+.ingredient-row__actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-}
-
-.step-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-2);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-2);
 }

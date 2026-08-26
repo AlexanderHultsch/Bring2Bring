@@ -5,22 +5,9 @@
           <p class="recipe-page__archived-flag">Archived</p>
         <% } %>
         <h1><%= recipe.title %></h1>
-        <% if (recipe.subtitle) { %><p class="recipe-page__subtitle"><%= recipe.subtitle %></p><% } %>
         <p class="recipe-page__meta">
-          <% if (recipe.prep_minutes != null) { %>Prep <%= recipe.prep_minutes %> min · <% } %>
-          <% if (recipe.cook_minutes != null) { %>Cook <%= recipe.cook_minutes %> min · <% } %>
-          <% if (recipe.total_minutes != null) { %>Total <%= recipe.total_minutes %> min · <% } %>
-          <%= recipe.yield_amount %> <%= recipe.yield_label || recipe.yield_unit %>
+          <%= recipe.yield_amount %> <%= recipe.yield_unit %>
         </p>
-        <% if (recipe.description) { %><p class="recipe-page__description"><%= recipe.description %></p><% } %>
-
-        <% if (tags.length > 0) { %>
-          <ul class="tag-chips">
-            <% tags.forEach((tag) => { %>
-              <li><span class="tag-chip"><%= tag.name %></span></li>
-            <% }) %>
-          </ul>
-        <% } %>
 
         <%
           // Progressive enhancement (section 7.4): the step/preset links are real
@@ -39,7 +26,7 @@
         <form method="get" class="yield-control" data-yield-form aria-label="Adjust yield">
           <a class="button button--ghost yield-control__step" href="?yield=<%= yieldStep(-1) %>" data-yield-step="-1" aria-label="Decrease yield">−</a>
           <input type="number" inputmode="decimal" name="yield" id="yield" class="yield-control__input" data-yield-input min="0.01" max="1000" step="any" value="<%= requestedYield %>">
-          <span class="yield-control__unit" data-yield-unit><%= recipe.yield_label || recipe.yield_unit %></span>
+          <span class="yield-control__unit" data-yield-unit><%= recipe.yield_unit %></span>
           <a class="button button--ghost yield-control__step" href="?yield=<%= yieldStep(1) %>" data-yield-step="1" aria-label="Increase yield">+</a>
           <button type="submit" class="button button--ghost yield-control__submit">Update</button>
           <div class="yield-control__presets">
@@ -49,70 +36,32 @@
         </form>
 
         <div class="recipe-ingredients" data-base-yield="<%= recipe.yield_amount %>" data-locale="<%= locale %>">
-          <% groups.forEach((group, groupIndex) => { %>
-            <section class="ingredient-group">
-              <% if (group.name) { %><h2><%= group.name %></h2><% } %>
-              <ul class="ingredient-list" data-ingredient-list>
-                <% group.ingredients.forEach((ingredient, ingredientIndex) => {
-                     const scaledIngredient = scaledGroups[groupIndex].ingredients[ingredientIndex];
-                %>
-                  <li
-                    class="ingredient-list__item"
-                    data-ingredient
-                    data-amount="<%= ingredient.amount != null ? ingredient.amount : '' %>"
-                    data-amount-max="<%= ingredient.amount_max != null ? ingredient.amount_max : '' %>"
-                    data-unit="<%= ingredient.unit || '' %>"
-                    data-name="<%= ingredient.name || '' %>"
-                    data-note="<%= ingredient.note || '' %>"
-                    data-scales="<%= ingredient.scales ? '1' : '0' %>"
-                    data-optional="<%= ingredient.is_optional ? '1' : '0' %>"
-                    data-exclude="<%= ingredient.exclude_from_shopping ? '1' : '0' %>"
-                  >
-                    <% if (scaledIngredient.amountText != null) { %>
-                      <span class="ingredient-list__amount" data-amount-display<% if (scaledIngredient.exactText) { %> title="<%= scaledIngredient.exactText %>"<% } %>><%= scaledIngredient.amountText %></span>
-                    <% } %>
-                    <span class="ingredient-list__name"><%= ingredient.name %></span>
-                    <% if (ingredient.note) { %><span class="ingredient-list__note">(<%= ingredient.note %>)</span><% } %>
-                    <% if (scaledIngredient.isOptional) { %><span class="ingredient-list__marker">optional</span><% } %>
-                    <% if (scaledIngredient.excludeFromShopping) { %><span class="ingredient-list__marker">not on shopping list</span><% } %>
-                    <% if (!scaledIngredient.scaled) { %><span class="ingredient-list__marker ingredient-list__marker--fixed">fixed amount</span><% } %>
-                  </li>
-                <% }) %>
-              </ul>
-            </section>
-          <% }) %>
+          <ul class="ingredient-list" data-ingredient-list>
+            <% groups[0].ingredients.forEach((ingredient, ingredientIndex) => {
+                 const scaledIngredient = scaledGroups[0].ingredients[ingredientIndex];
+            %>
+              <li
+                class="ingredient-list__item"
+                data-ingredient
+                data-amount="<%= ingredient.amount != null ? ingredient.amount : '' %>"
+                data-unit="<%= ingredient.unit || '' %>"
+                data-name="<%= ingredient.name || '' %>"
+                data-scales="1"
+              >
+                <% if (scaledIngredient.amountText != null) { %>
+                  <span class="ingredient-list__amount" data-amount-display<% if (scaledIngredient.exactText) { %> title="<%= scaledIngredient.exactText %>"<% } %>><%= scaledIngredient.amountText %></span>
+                <% } %>
+                <span class="ingredient-list__name"><%= ingredient.name %></span>
+              </li>
+            <% }) %>
+          </ul>
         </div>
 
         <% if (steps.length > 0) { %>
-          <section class="recipe-steps">
-            <h2>Steps</h2>
-            <ol class="step-list">
-              <% steps.forEach((step) => { %>
-                <li class="step-list__item">
-                  <% if (step.section_title) { %><strong class="step-list__section"><%= step.section_title %></strong><% } %>
-                  <p><%= step.text %></p>
-                </li>
-              <% }) %>
-            </ol>
+          <section class="recipe-method">
+            <h2>Method</h2>
+            <p class="recipe-method__text"><%= steps[0].text %></p>
           </section>
-        <% } %>
-
-        <% if (recipe.notes) { %>
-          <section class="recipe-notes">
-            <h2>Notes</h2>
-            <p><%= recipe.notes %></p>
-          </section>
-        <% } %>
-
-        <% if (recipe.source_name || recipe.source_url) { %>
-          <p class="recipe-source">
-            Source:
-            <% if (recipe.source_url && /^https?:\/\//.test(recipe.source_url)) { %>
-              <a href="<%= recipe.source_url %>"><%= recipe.source_name || recipe.source_url %></a>
-            <% } else { %>
-              <%= recipe.source_name || recipe.source_url %>
-            <% } %>
-          </p>
         <% } %>
 
         <section class="share-panel">

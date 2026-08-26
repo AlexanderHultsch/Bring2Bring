@@ -23,15 +23,9 @@ const testEnv = (overrides = {}) => ({
 function scalingRecipeBody() {
   return {
     title: 'Scalable Soup',
-    yield_amount: '4',
-    yield_unit: 'servings',
-    groups: [
-      {
-        name: 'Base',
-        ingredients: [{ name: 'Flour', amount: '250', unit: 'g', scales: true }],
-      },
-    ],
-    steps: [{ text: 'Mix.' }],
+    servings: '4',
+    ingredients: [{ name: 'Flour', amount: '250', unit: 'g' }],
+    method: 'Mix.',
   };
 }
 

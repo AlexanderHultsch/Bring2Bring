@@ -71,7 +71,7 @@ function toFormPairs(value, prefix) {
 
 // supertest/superagent's own `.send(object)` nested-array serialization does not
 // match the qs encoding our server expects (it drops array indices), so form
-// posts carrying nested groups/ingredients/steps are encoded by hand here.
+// posts carrying nested ingredient rows are encoded by hand here.
 function encodeForm(body) {
   return toFormPairs(body, '')
     .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
@@ -95,18 +95,12 @@ function ingredientCount(db, recipeId) {
 function scalingRecipeBody(overrides = {}) {
   return {
     title: 'Scalable Soup',
-    yield_amount: '4',
-    yield_unit: 'servings',
-    groups: [
-      {
-        name: 'Base',
-        ingredients: [
-          { name: 'Flour', amount: '250', unit: 'g', scales: true },
-          { name: 'Salt', amount: '10', unit: 'g' },
-        ],
-      },
+    servings: '4',
+    ingredients: [
+      { name: 'Flour', amount: '250', unit: 'g' },
+      { name: 'Salt', amount: '10', unit: 'g' },
     ],
-    steps: [{ text: 'Mix.' }],
+    method: 'Mix.',
     ...overrides,
   };
 }
@@ -123,22 +117,13 @@ async function createScalingRecipe(agent, overrides) {
 function basicRecipeBody(overrides = {}) {
   return {
     title: 'Tomato Soup',
-    yield_amount: '4',
-    yield_unit: 'servings',
-    groups: [
-      {
-        name: 'Base',
-        ingredients: [
-          { name: 'Tomatoes', amount: '500', unit: 'g' },
-          { name: 'Onion', amount: '1' },
-        ],
-      },
-      {
-        name: 'Topping',
-        ingredients: [{ name: 'Basil' }],
-      },
+    servings: '4',
+    ingredients: [
+      { name: 'Tomatoes', amount: '500', unit: 'g' },
+      { name: 'Onion', amount: '1', unit: 'piece' },
+      { name: 'Basil', unit: 'piece' },
     ],
-    steps: [{ text: 'Chop the vegetables.' }, { text: 'Simmer for 20 minutes.' }],
+    method: 'Chop the vegetables.\nSimmer for 20 minutes.',
     ...overrides,
   };
 }
@@ -156,7 +141,7 @@ test('GET /, /recipes/new, /recipes/:id, /recipes/:id/edit unauthenticated all r
   });
 });
 
-test('POST /recipes creates a recipe with two groups, ingredients and steps; GET /recipes/:id shows them', async () => {
+test('POST /recipes creates a recipe with three ingredients and a method; GET /recipes/:id shows them', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -179,6 +164,62 @@ test('POST /recipes creates a recipe with two groups, ingredients and steps; GET
   });
 });
 
+test('V3: a recipe with three ingredients and a method stores exactly one ingredient_groups row, the ingredients in order, and one steps row holding the method verbatim', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+
+    const createRes = await agent
+      .post('/recipes')
+      .type('form')
+      .send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+    const recipeId = recipeIdFromLocation(createRes.headers.location);
+
+    const groups = db.prepare('SELECT * FROM ingredient_groups WHERE recipe_id = ?').all(recipeId);
+    assert.equal(groups.length, 1);
+    assert.equal(groups[0].name, null);
+    assert.equal(groups[0].position, 0);
+
+    const ingredients = db
+      .prepare('SELECT name, position FROM ingredients WHERE group_id = ? ORDER BY position')
+      .all(groups[0].id);
+    assert.deepEqual(
+      ingredients.map((i) => i.name),
+      ['Tomatoes', 'Onion', 'Basil']
+    );
+    assert.deepEqual(
+      ingredients.map((i) => i.position),
+      [0, 1, 2]
+    );
+
+    const steps = db.prepare('SELECT * FROM steps WHERE recipe_id = ?').all(recipeId);
+    assert.equal(steps.length, 1);
+    assert.equal(steps[0].position, 0);
+    assert.equal(steps[0].section_title, null);
+    assert.equal(steps[0].text, 'Chop the vegetables.\nSimmer for 20 minutes.');
+  });
+});
+
+test('V3: a recipe with no method stores zero steps rows and renders fine', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+
+    const body = basicRecipeBody({ method: '' });
+    const createRes = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
+    assert.equal(createRes.status, 302);
+    const recipeId = recipeIdFromLocation(createRes.headers.location);
+
+    assert.equal(db.prepare('SELECT COUNT(*) AS c FROM steps WHERE recipe_id = ?').get(recipeId).c, 0);
+
+    const showRes = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(showRes.status, 200);
+    assert.match(showRes.text, /Tomatoes/);
+  });
+});
+
 test('a submitted ingredient row with a blank name is dropped, not stored', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
@@ -186,14 +227,9 @@ test('a submitted ingredient row with a blank name is dropped, not stored', asyn
     const csrfToken = await csrfFor(agent, '/recipes/new');
 
     const body = basicRecipeBody({
-      groups: [
-        {
-          name: 'Base',
-          ingredients: [
-            { name: 'Tomatoes', amount: '500' },
-            { name: '   ', amount: '1' },
-          ],
-        },
+      ingredients: [
+        { name: 'Tomatoes', amount: '500', unit: 'g' },
+        { name: '   ', amount: '1', unit: 'piece' },
       ],
     });
 
@@ -205,19 +241,40 @@ test('a submitted ingredient row with a blank name is dropped, not stored', asyn
   });
 });
 
-test('a recipe posted with 25 ingredients in one group stores all 25', async () => {
+test('V2: a recipe of only blank-name ingredient rows is a 422 with "Add at least one ingredient."', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
     const csrfToken = await csrfFor(agent, '/recipes/new');
 
-    const ingredients = Array.from({ length: 25 }, (_, i) => ({ name: `Ingredient ${i + 1}` }));
+    const body = basicRecipeBody({
+      ingredients: [
+        { name: '', amount: '', unit: 'g' },
+        { name: '   ', amount: '1', unit: 'piece' },
+      ],
+    });
+
+    const res = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
+    assert.equal(res.status, 422);
+    assert.match(res.text, /Add at least one ingredient\./);
+  });
+});
+
+test('a recipe posted with 25 ingredients stores all 25', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+
+    const ingredients = Array.from({ length: 25 }, (_, i) => ({
+      name: `Ingredient ${i + 1}`,
+      unit: 'piece',
+    }));
     const body = {
       title: 'Big recipe',
-      yield_amount: '4',
-      yield_unit: 'servings',
-      groups: [{ name: 'All', ingredients }],
-      steps: [{ text: 'Do it.' }],
+      servings: '4',
+      ingredients,
+      method: 'Do it.',
     };
 
     const createRes = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
@@ -228,16 +285,42 @@ test('a recipe posted with 25 ingredients in one group stores all 25', async () 
   });
 });
 
-test("'1,5' in an amount field is stored as the number 1.5", async () => {
+test("'1,5' and '1.5' in an amount field both store the number 1.5", async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    for (const raw of ['1,5', '1.5']) {
+      const csrfToken = await csrfFor(agent, '/recipes/new');
+      const body = basicRecipeBody({
+        ingredients: [{ name: 'Milk', amount: raw, unit: 'l' }],
+      });
+
+      const createRes = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
+      assert.equal(createRes.status, 302, `amount ${raw}`);
+      const recipeId = recipeIdFromLocation(createRes.headers.location);
+
+      const row = db
+        .prepare(
+          `SELECT amount FROM ingredients i
+           JOIN ingredient_groups g ON g.id = i.group_id
+           WHERE g.recipe_id = ?`
+        )
+        .get(recipeId);
+      assert.equal(row.amount, 1.5, `amount ${raw}`);
+    }
+  });
+});
+
+test('V2: a blank amount stores NULL and the recipe page shows the name with no number', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
     const csrfToken = await csrfFor(agent, '/recipes/new');
 
     const body = basicRecipeBody({
-      groups: [{ name: 'Base', ingredients: [{ name: 'Milk', amount: '1,5', unit: 'l' }] }],
+      ingredients: [{ name: 'Salz', amount: '', unit: 'piece' }],
     });
-
     const createRes = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
     assert.equal(createRes.status, 302);
     const recipeId = recipeIdFromLocation(createRes.headers.location);
@@ -249,21 +332,87 @@ test("'1,5' in an amount field is stored as the number 1.5", async () => {
          WHERE g.recipe_id = ?`
       )
       .get(recipeId);
-    assert.equal(row.amount, 1.5);
+    assert.equal(row.amount, null);
+
+    const showRes = await agent.get(`/recipes/${recipeId}`);
+    assert.match(showRes.text, /Salz/);
   });
 });
 
-test('a non-numeric prep_minutes re-renders the editor with status 422 and the submitted title still present in the HTML', async () => {
+test('V2: a non-numeric amount re-renders the editor with status 422 and the submitted title still present in the HTML', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
     const csrfToken = await csrfFor(agent, '/recipes/new');
 
-    const body = basicRecipeBody({ prep_minutes: 'soon' });
+    const body = basicRecipeBody({
+      ingredients: [{ name: 'Tomatoes', amount: 'a lot', unit: 'g' }],
+    });
 
     const res = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
     assert.equal(res.status, 422);
     assert.match(res.text, /Tomato Soup/);
+  });
+});
+
+test('V2: a unit not in EDITOR_UNITS is a 422', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+
+    const body = basicRecipeBody({
+      ingredients: [{ name: 'Tomatoes', amount: '500', unit: 'clove' }],
+    });
+
+    const res = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
+    assert.equal(res.status, 422);
+  });
+});
+
+test('V7: a method with several lines round-trips byte-for-byte through save and re-edit', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+
+    const method = 'Step one.\n\nStep two, with   extra   spacing.\nStep three.';
+    const body = basicRecipeBody({ method });
+    const createRes = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
+    const recipeId = recipeIdFromLocation(createRes.headers.location);
+
+    const stored = db.prepare('SELECT text FROM steps WHERE recipe_id = ?').get(recipeId);
+    assert.equal(stored.text, method);
+
+    const editRes = await agent.get(`/recipes/${recipeId}/edit`);
+    assert.equal(editRes.status, 200);
+    assert.match(editRes.text, /Step one\.\n\nStep two, with {3}extra {3}spacing\.\nStep three\./);
+  });
+});
+
+test('V7: the recipe page renders the method with a white-space: pre-wrap class hook', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.match(res.text, /class="recipe-method__text"/);
+  });
+});
+
+test('V1: the editor page contains a <select> with exactly the nine EDITOR_UNITS options', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/recipes/new');
+    assert.equal(res.status, 200);
+
+    const selectMatch = res.text.match(/<select[^>]*class="ingredient-row__unit"[^>]*>([\s\S]*?)<\/select>/);
+    assert.ok(selectMatch, 'expected the unit <select> in the ingredient row');
+    const optionValues = [...selectMatch[1].matchAll(/<option value="([^"]*)"/g)].map((m) => m[1]);
+    assert.deepEqual(optionValues, ['piece', 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'pinch', 'stueck']);
   });
 });
 
@@ -359,7 +508,7 @@ test('POST /recipes/:id/duplicate creates a second recipe owned by the acting us
   });
 });
 
-test('POST /recipes/:id/duplicate copies the tags: a recipe with two tags produces a copy carrying the same two tag ids', async () => {
+test('V6: POST /recipes/:id/duplicate copies the ingredients and the method', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -367,25 +516,34 @@ test('POST /recipes/:id/duplicate copies the tags: a recipe with two tags produc
     const createRes = await agent
       .post('/recipes')
       .type('form')
-      .send(encodeForm({ _csrf: createCsrf, ...basicRecipeBody({ tags: 'quick, italian' }) }));
+      .send(encodeForm({ _csrf: createCsrf, ...basicRecipeBody() }));
     const recipeId = recipeIdFromLocation(createRes.headers.location);
 
     const dupCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
     const dupRes = await agent.post(`/recipes/${recipeId}/duplicate`).type('form').send({ _csrf: dupCsrf });
-    assert.equal(dupRes.status, 302);
     const dupId = recipeIdFromLocation(dupRes.headers.location);
 
-    const originalTagIds = db
-      .prepare('SELECT tag_id FROM recipe_tags WHERE recipe_id = ? ORDER BY tag_id')
+    const originalNames = db
+      .prepare(
+        `SELECT i.name FROM ingredients i
+         JOIN ingredient_groups g ON g.id = i.group_id
+         WHERE g.recipe_id = ? ORDER BY i.position`
+      )
       .all(recipeId)
-      .map((row) => row.tag_id);
-    const copyTagIds = db
-      .prepare('SELECT tag_id FROM recipe_tags WHERE recipe_id = ? ORDER BY tag_id')
+      .map((row) => row.name);
+    const copyNames = db
+      .prepare(
+        `SELECT i.name FROM ingredients i
+         JOIN ingredient_groups g ON g.id = i.group_id
+         WHERE g.recipe_id = ? ORDER BY i.position`
+      )
       .all(dupId)
-      .map((row) => row.tag_id);
+      .map((row) => row.name);
+    assert.deepEqual(copyNames, originalNames);
 
-    assert.equal(originalTagIds.length, 2);
-    assert.deepEqual(copyTagIds, originalTagIds);
+    const originalStep = db.prepare('SELECT text FROM steps WHERE recipe_id = ?').get(recipeId);
+    const copyStep = db.prepare('SELECT text FROM steps WHERE recipe_id = ?').get(dupId);
+    assert.equal(copyStep.text, originalStep.text);
   });
 });
 
@@ -512,30 +670,6 @@ test('GET /recipes/:id with no query renders HTML containing data-saved=""', asy
   });
 });
 
-test("creating a recipe with tags: 'Pasta, quick , Pasta' stores exactly two tags, trimmed and de-duplicated", async () => {
-  await withApp(async (app, db) => {
-    await seedUser(db, 'alex');
-    const agent = await loginAgent(app, 'alex');
-    const csrfToken = await csrfFor(agent, '/recipes/new');
-
-    const body = basicRecipeBody({ tags: 'Pasta, quick , Pasta' });
-    const createRes = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
-    assert.equal(createRes.status, 302);
-    const recipeId = recipeIdFromLocation(createRes.headers.location);
-
-    const tagNames = db
-      .prepare(
-        `SELECT t.name FROM tags t
-         JOIN recipe_tags rt ON rt.tag_id = t.id
-         WHERE rt.recipe_id = ?
-         ORDER BY t.name`
-      )
-      .all(recipeId)
-      .map((row) => row.name);
-    assert.deepEqual(tagNames, ['Pasta', 'quick']);
-  });
-});
-
 test('GET /?q=<ingredient name> finds a recipe by an ingredient name, not just a title', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
@@ -545,23 +679,6 @@ test('GET /?q=<ingredient name> finds a recipe by an ingredient name, not just a
     await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
 
     const listRes = await agent.get('/?q=Basil');
-    assert.equal(listRes.status, 200);
-    assert.match(listRes.text, /Tomato Soup/);
-  });
-});
-
-test('GET /?q=<tag name> finds a recipe by a tag name', async () => {
-  await withApp(async (app, db) => {
-    await seedUser(db, 'alex');
-    const agent = await loginAgent(app, 'alex');
-    const csrfToken = await csrfFor(agent, '/recipes/new');
-
-    await agent
-      .post('/recipes')
-      .type('form')
-      .send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody({ tags: 'weeknight' }) }));
-
-    const listRes = await agent.get('/?q=weeknight');
     assert.equal(listRes.status, 200);
     assert.match(listRes.text, /Tomato Soup/);
   });
@@ -596,36 +713,6 @@ test("GET /?q=100%25 does not match a recipe titled 'Plain' (the LIKE wildcard i
     const listRes = await agent.get('/?q=100%25');
     assert.equal(listRes.status, 200);
     assert.ok(!listRes.text.includes('Plain'));
-  });
-});
-
-test('GET /?tag=<id> filters to recipes carrying that tag; two tag params return only recipes carrying both', async () => {
-  await withApp(async (app, db) => {
-    await seedUser(db, 'alex');
-    const agent = await loginAgent(app, 'alex');
-
-    const csrf1 = await csrfFor(agent, '/recipes/new');
-    await agent
-      .post('/recipes')
-      .type('form')
-      .send(encodeForm({ _csrf: csrf1, ...basicRecipeBody({ title: 'Soup A', tags: 'quick, italian' }) }));
-
-    const csrf2 = await csrfFor(agent, '/recipes/new');
-    await agent
-      .post('/recipes')
-      .type('form')
-      .send(encodeForm({ _csrf: csrf2, ...basicRecipeBody({ title: 'Soup B', tags: 'quick' }) }));
-
-    const quickTag = db.prepare("SELECT id FROM tags WHERE name = 'quick'").get();
-    const italianTag = db.prepare("SELECT id FROM tags WHERE name = 'italian'").get();
-
-    const quickRes = await agent.get(`/?tag=${quickTag.id}`);
-    assert.match(quickRes.text, /Soup A/);
-    assert.match(quickRes.text, /Soup B/);
-
-    const bothRes = await agent.get(`/?tag=${quickTag.id}&tag=${italianTag.id}`);
-    assert.match(bothRes.text, /Soup A/);
-    assert.ok(!bothRes.text.includes('Soup B'));
   });
 });
 
@@ -769,31 +856,12 @@ test('a recipe with a 1500 g ingredient at yield 1x renders "1,5 kg" with a comm
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
     const recipeId = await createScalingRecipe(agent, {
-      groups: [
-        {
-          name: 'Base',
-          ingredients: [{ name: 'Broth', amount: '1500', unit: 'g', scales: true }],
-        },
-      ],
+      ingredients: [{ name: 'Broth', amount: '1500', unit: 'g' }],
     });
 
     const res = await agent.get(`/recipes/${recipeId}`);
     assert.equal(res.status, 200);
     assert.match(res.text, /1,5 kg/);
-  });
-});
-
-test('an ingredient with scales = 0 renders its marker and is not scaled at ?yield=6', async () => {
-  await withApp(async (app, db) => {
-    await seedUser(db, 'alex');
-    const agent = await loginAgent(app, 'alex');
-    const recipeId = await createScalingRecipe(agent);
-
-    const res = await agent.get(`/recipes/${recipeId}?yield=6`);
-    assert.equal(res.status, 200);
-    assert.match(res.text, /10 g/);
-    assert.match(res.text, /ingredient-list__marker--fixed/);
-    assert.ok(!res.text.includes('15 g'));
   });
 });
 
