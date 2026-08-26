@@ -2,9 +2,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { requestLogger } from './middleware/request-logger.js';
 import { notFoundHandler, errorHandler } from './middleware/error-handler.js';
+import { sessionMiddleware } from './middleware/session.js';
+import { csrfProtection, csrfTokenLocals } from './middleware/csrf.js';
+import { loadCurrentUser } from './middleware/auth.js';
 import { healthRouter } from './routes/health.js';
+import { authRouter } from './routes/auth.js';
+import { homeRouter } from './routes/home.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VIEWS_DIR = path.join(__dirname, 'views');
@@ -45,7 +51,15 @@ export function createApp({ db, config }) {
 
   // -- later: public share routes /r/:token and /uploads/:file --
 
-  // -- later: session, CSRF, authenticated routes --
+  app.use(express.urlencoded({ extended: false }));
+  app.use(cookieParser(config.sessionSecret));
+  app.use(sessionMiddleware(db, config));
+  app.use(loadCurrentUser(db));
+  app.use(csrfProtection(config));
+  app.use(csrfTokenLocals());
+
+  app.use(authRouter(db, config));
+  app.use(homeRouter());
 
   app.use(notFoundHandler());
   app.use(errorHandler(config));

@@ -1,4 +1,8 @@
 <%- include('partials/head', { title }) %>
+      <%- include('partials/header', {
+        currentUser: typeof currentUser !== 'undefined' ? currentUser : null,
+        csrfToken: typeof csrfToken !== 'undefined' ? csrfToken : null,
+      }) %>
       <div class="error-page">
         <p class="error-status"><%= status %></p>
         <h1><%= title %></h1>
