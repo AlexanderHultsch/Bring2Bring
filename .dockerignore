@@ -1,7 +1,16 @@
 node_modules
 npm-debug.log*
 .git
+.gitignore
 .env
+.env.example
 data
 test
+*.tar.gz
+*.age
+.DS_Store
 README.md
+SPECIFICATION.md
+CLAUDE.md
+Dockerfile
+.dockerignore
