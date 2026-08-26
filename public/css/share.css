@@ -1,0 +1,131 @@
+/* Standalone stylesheet for the public share page (SPECIFICATION.md section 8).
+   Reads tokens.css only — never style.css, which carries header/nav/editor
+   rules the share page must not have. */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-bg);
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+}
+
+.share-container {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-3);
+}
+
+h1,
+h2 {
+  font-family: var(--font-serif);
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: var(--font-size-xl);
+  margin: 0 0 var(--space-3);
+}
+
+h2 {
+  font-size: var(--font-size-lg);
+  margin: var(--space-5) 0 var(--space-2);
+}
+
+p {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text);
+}
+
+.share-recipe__subtitle {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
+}
+
+.share-recipe__meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.tag-chips {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--min-tap-target);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.ingredient-group {
+  margin: 0 0 var(--space-4);
+}
+
+.ingredient-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ingredient-list__item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: baseline;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ingredient-list__amount {
+  font-weight: 600;
+  min-width: 4rem;
+}
+
+.ingredient-list__note {
+  color: var(--color-text-muted);
+}
+
+.ingredient-list__marker {
+  font-size: var(--font-size-sm);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.step-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.step-list__section {
+  display: block;
+  margin-bottom: var(--space-1);
+}

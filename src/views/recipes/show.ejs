@@ -115,6 +115,39 @@
           </p>
         <% } %>
 
+        <section class="share-panel">
+          <h2>Public link</h2>
+          <% if (recipe.share_enabled) { %>
+            <%
+              const shareUrl = publicBaseUrl + '/r/' + recipe.share_token;
+            %>
+            <p class="share-panel__url" data-share-url><%= shareUrl %></p>
+            <div class="share-panel__actions">
+              <button type="button" class="button button--ghost" data-copy-share-link data-share-url="<%= shareUrl %>">Copy link</button>
+              <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="action" value="rotate">
+                <button type="submit" class="button button--ghost">Rotate link</button>
+              </form>
+              <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="action" value="disable">
+                <button type="submit" class="button button--danger">Disable</button>
+              </form>
+            </div>
+            <p class="share-panel__warning">Rotating replaces this link immediately — previously imported Bring! entries will no longer link back.</p>
+          <% } else { %>
+            <p class="share-panel__hint">Sharing is off. Enable it to get a public link Bring! can import.</p>
+            <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="action" value="enable">
+              <button type="submit" class="button">Enable public link</button>
+            </form>
+          <% } %>
+        </section>
+
+        <script src="/js/copy-share-link.js" defer></script>
+
         <div class="recipe-actions">
           <a class="button" href="/recipes/<%= recipe.id %>/edit">Edit</a>
           <form method="post" action="/recipes/<%= recipe.id %>/duplicate" class="recipe-actions__form">

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title><%= recipe.title %></title>
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/share.css">
+  </head>
+  <body>
+    <div class="share-container">
+      <main class="share-recipe">
+        <h1><%= recipe.title %></h1>
+        <% if (recipe.subtitle) { %><p class="share-recipe__subtitle"><%= recipe.subtitle %></p><% } %>
+        <p class="share-recipe__meta">
+          <% if (recipe.prep_minutes != null) { %>Prep <%= recipe.prep_minutes %> min · <% } %>
+          <% if (recipe.cook_minutes != null) { %>Cook <%= recipe.cook_minutes %> min · <% } %>
+          <% if (recipe.total_minutes != null) { %>Total <%= recipe.total_minutes %> min · <% } %>
+          <%= requestedYield %> <%= recipe.yield_label || recipe.yield_unit %>
+        </p>
+        <% if (recipe.description) { %><p class="share-recipe__description"><%= recipe.description %></p><% } %>
+
+        <% if (tags.length > 0) { %>
+          <ul class="tag-chips">
+            <% tags.forEach((tag) => { %>
+              <li><span class="tag-chip"><%= tag.name %></span></li>
+            <% }) %>
+          </ul>
+        <% } %>
+
+        <div class="recipe-ingredients">
+          <% groups.forEach((group, groupIndex) => { %>
+            <section class="ingredient-group">
+              <% if (group.name) { %><h2><%= group.name %></h2><% } %>
+              <ul class="ingredient-list">
+                <% group.ingredients.forEach((ingredient, ingredientIndex) => {
+                     const scaledIngredient = scaledGroups[groupIndex].ingredients[ingredientIndex];
+                %>
+                  <li class="ingredient-list__item">
+                    <% if (scaledIngredient.amountText != null) { %>
+                      <span class="ingredient-list__amount"><%= scaledIngredient.amountText %></span>
+                    <% } %>
+                    <span class="ingredient-list__name"><%= ingredient.name %></span>
+                    <% if (ingredient.note) { %><span class="ingredient-list__note">(<%= ingredient.note %>)</span><% } %>
+                    <% if (ingredient.is_optional) { %><span class="ingredient-list__marker">optional</span><% } %>
+                    <% if (ingredient.exclude_from_shopping) { %><span class="ingredient-list__marker">not on shopping list</span><% } %>
+                  </li>
+                <% }) %>
+              </ul>
+            </section>
+          <% }) %>
+        </div>
+
+        <% if (steps.length > 0) { %>
+          <section class="recipe-steps">
+            <h2>Steps</h2>
+            <ol class="step-list">
+              <% steps.forEach((step) => { %>
+                <li class="step-list__item">
+                  <% if (step.section_title) { %><strong class="step-list__section"><%= step.section_title %></strong><% } %>
+                  <p><%= step.text %></p>
+                </li>
+              <% }) %>
+            </ol>
+          </section>
+        <% } %>
+
+        <% if (recipe.notes) { %>
+          <section class="recipe-notes">
+            <h2>Notes</h2>
+            <p><%= recipe.notes %></p>
+          </section>
+        <% } %>
+      </main>
+    </div>
+  </body>
+</html>

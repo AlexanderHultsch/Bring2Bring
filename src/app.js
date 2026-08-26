@@ -11,6 +11,7 @@ import { loadCurrentUser } from './middleware/auth.js';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { recipesRouter } from './routes/recipes.js';
+import { shareRouter } from './routes/share.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VIEWS_DIR = path.join(__dirname, 'views');
@@ -53,7 +54,12 @@ export function createApp({ db, config }) {
 
   app.use(healthRouter(db));
 
-  // -- later: public share routes /r/:token and /uploads/:file --
+  // Public share route (SPECIFICATION.md section 8, D1): mounted before
+  // express.urlencoded, cookieParser, session and csrf, so GET /r/:token
+  // never sees a cookie, never creates a session, and never gets redirected
+  // to /login — Bring!'s own servers fetch this URL, not a logged-in browser.
+  app.use(shareRouter(db, config));
+  // -- later: public /uploads/:file --
 
   app.use(express.urlencoded({ extended: true, parameterLimit: 5000 }));
   app.use(cookieParser(config.sessionSecret));

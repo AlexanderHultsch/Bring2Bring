@@ -15,10 +15,17 @@ import {
   parseListOptions,
   parseYieldParam,
 } from '../services/recipes.js';
+import { applyShareAction, ShareActionSchema } from '../services/sharing.js';
 
 function notFoundError() {
   const error = new Error('Not found');
   error.status = 404;
+  return error;
+}
+
+function badRequestError() {
+  const error = new Error('Bad request');
+  error.status = 400;
   return error;
 }
 
@@ -100,6 +107,7 @@ export function recipesRouter(db, config) {
       saved,
       requestedYield,
       locale: config.numberLocale,
+      publicBaseUrl: config.publicBaseUrl,
     });
   });
 
@@ -166,6 +174,28 @@ export function recipesRouter(db, config) {
       return;
     }
     res.redirect(`/recipes/${result.recipeId}`);
+  });
+
+  router.post('/recipes/:id/share/link', requireAuth(), (req, res, next) => {
+    const id = parseRecipeId(req.params.id);
+    if (id === null) {
+      next(notFoundError());
+      return;
+    }
+
+    const parsed = ShareActionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      next(badRequestError());
+      return;
+    }
+
+    const result = applyShareAction(db, id, req.currentUser.id, parsed.data.action);
+    if (!result.success) {
+      next(notFoundError());
+      return;
+    }
+
+    res.redirect(`/recipes/${id}`);
   });
 
   router.post('/recipes/:id/delete', requireAuth(), (req, res, next) => {

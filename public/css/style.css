@@ -278,6 +278,10 @@ a.tag-chip:focus {
   font-size: var(--font-size-sm);
 }
 
+.share-badge {
+  font-size: var(--font-size-sm);
+}
+
 .recipe-page__archived-flag {
   display: inline-block;
   padding: var(--space-1) var(--space-2);
@@ -381,6 +385,39 @@ a.tag-chip:focus {
 
 .recipe-source {
   color: var(--color-text-muted);
+}
+
+.share-panel {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.share-panel h2 {
+  margin-top: 0;
+}
+
+.share-panel__url {
+  overflow-wrap: break-word;
+  font-family: var(--font-sans);
+}
+
+.share-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: var(--space-2) 0;
+}
+
+.share-panel__form {
+  margin: 0;
+}
+
+.share-panel__warning,
+.share-panel__hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
 .recipe-actions {

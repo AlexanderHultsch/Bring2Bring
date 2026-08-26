@@ -77,7 +77,10 @@
             <% recipes.forEach((recipe) => { %>
               <li class="recipe-list__item">
                 <a class="recipe-list__link" href="/recipes/<%= recipe.id %>">
-                  <span class="recipe-list__title"><%= recipe.title %></span>
+                  <span class="recipe-list__title">
+                    <%= recipe.title %>
+                    <% if (recipe.share_enabled) { %><span class="share-badge" title="Public link enabled">🔗</span><% } %>
+                  </span>
                   <span class="recipe-list__meta">
                     <% if (recipe.total_minutes != null) { %><%= recipe.total_minutes %> min · <% } %><%= recipe.yield_amount %> <%= recipe.yield_label || recipe.yield_unit %>
                   </span>

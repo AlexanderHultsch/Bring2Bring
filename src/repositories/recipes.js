@@ -38,6 +38,16 @@ export function findRecipeForWrite(db, recipeId, actingUserId) {
     .get(recipeId, actingUserId, actingUserId);
 }
 
+// SPECIFICATION.md section 8: the public share page (GET /r/:token) has no
+// session and no acting user by design — Bring!'s own servers fetch it, not
+// a logged-in browser. Token lookup is therefore the one deliberate exception
+// to section 5.1's owner/write-share authorization pattern used everywhere
+// else in this file. share_enabled is checked in SQL so a disabled share is
+// indistinguishable from an unknown token to the caller.
+export function findRecipeByShareToken(db, token) {
+  return db.prepare('SELECT * FROM recipes WHERE share_token = ? AND share_enabled = 1').get(token);
+}
+
 const LIST_SORT_CLAUSES = {
   title: 'title COLLATE NOCASE ASC, id ASC',
   updated: 'updated_at DESC, id DESC',
@@ -126,6 +136,38 @@ export function loadRecipeAggregate(db, recipeId, actingUserId) {
   return { recipe, groups, steps, tags };
 }
 
+// Companion to findRecipeByShareToken: loads the same groups/ingredients/
+// steps/tags shape as loadRecipeAggregate, but by recipeId alone, since the
+// share route has no acting user to check read access with — the caller has
+// already established access via the token itself.
+export function loadRecipeContentById(db, recipeId) {
+  const groupRows = db
+    .prepare('SELECT * FROM ingredient_groups WHERE recipe_id = ? ORDER BY position')
+    .all(recipeId);
+  const ingredientsStmt = db.prepare(
+    'SELECT * FROM ingredients WHERE group_id = ? ORDER BY position'
+  );
+  const groups = groupRows.map((group) => ({
+    ...group,
+    ingredients: ingredientsStmt.all(group.id),
+  }));
+
+  const steps = db
+    .prepare('SELECT * FROM steps WHERE recipe_id = ? ORDER BY position')
+    .all(recipeId);
+
+  const tags = db
+    .prepare(
+      `SELECT t.* FROM tags t
+       JOIN recipe_tags rt ON rt.tag_id = t.id
+       WHERE rt.recipe_id = ?
+       ORDER BY t.name`
+    )
+    .all(recipeId);
+
+  return { groups, steps, tags };
+}
+
 export function insertRecipe(db, ownerId, fields) {
   const columns = ['owner_id'];
   const values = [ownerId];
@@ -171,6 +213,16 @@ export function setRecipeArchived(db, recipeId, actingUserId, isArchived) {
   const { changes } = db
     .prepare(`UPDATE recipes SET is_archived = ? WHERE id = ? AND ${WRITE_PREDICATE}`)
     .run(isArchived ? 1 : 0, recipeId, actingUserId, actingUserId);
+
+  return changes;
+}
+
+export function setRecipeShareState(db, recipeId, actingUserId, { token, enabled, createdAt }) {
+  const { changes } = db
+    .prepare(
+      `UPDATE recipes SET share_token = ?, share_enabled = ?, share_created_at = ? WHERE id = ? AND ${WRITE_PREDICATE}`
+    )
+    .run(token, enabled ? 1 : 0, createdAt, recipeId, actingUserId, actingUserId);
 
   return changes;
 }
