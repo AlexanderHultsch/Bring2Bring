@@ -1,10 +1,22 @@
+<%
+  function listUrl(overrides) {
+    const state = Object.assign({ search, sort, archived, tagIds: selectedTagIds }, overrides);
+    const params = new URLSearchParams();
+    if (state.search) params.set('q', state.search);
+    if (state.sort !== 'recent') params.set('sort', state.sort);
+    if (state.archived) params.set('archived', '1');
+    state.tagIds.forEach((id) => params.append('tag', id));
+    const query = params.toString();
+    return query ? '/?' + query : '/';
+  }
+%>
 <%- include('../partials/head', { title: (archived ? 'Archive' : 'Recipes') + ' — Dishlist' }) %>
       <%- include('../partials/header', { currentUser, csrfToken }) %>
       <main class="recipes-page">
         <p class="recipes-page__greeting">Signed in as <%= currentUser.username %></p>
         <div class="recipes-page__bar">
           <h1><%= archived ? 'Archive' : 'Recipes' %></h1>
-          <a class="button button--ghost" href="<%= archived ? '/' : '/?archived=1' %>">
+          <a class="button button--ghost" href="<%= listUrl({ archived: !archived }) %>">
             <%= archived ? 'Back to recipes' : 'View archive' %>
           </a>
         </div>
@@ -36,12 +48,7 @@
                  const nextTagIds = isSelected
                    ? selectedTagIds.filter((id) => id !== tag.id)
                    : selectedTagIds.concat(tag.id);
-                 const params = new URLSearchParams();
-                 if (search) params.set('q', search);
-                 if (sort !== 'recent') params.set('sort', sort);
-                 if (archived) params.set('archived', '1');
-                 nextTagIds.forEach((id) => params.append('tag', id));
-                 const chipHref = '/?' + params.toString();
+                 const chipHref = listUrl({ tagIds: nextTagIds });
             %>
               <li>
                 <a

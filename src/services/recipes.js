@@ -388,7 +388,7 @@ export function duplicateRecipe(db, recipeId, actingUserId) {
   const aggregate = loadRecipeAggregate(db, recipeId, actingUserId);
   if (!aggregate) return { success: false };
 
-  const { recipe, groups, steps } = aggregate;
+  const { recipe, groups, steps, tags } = aggregate;
   const fields = { title: `${recipe.title} (Copy)` };
   for (const column of COPYABLE_RECIPE_FIELDS) {
     fields[column] = recipe[column];
@@ -410,7 +410,7 @@ export function duplicateRecipe(db, recipeId, actingUserId) {
       })),
     })),
     steps: steps.map((step) => ({ text: step.text, section_title: step.section_title })),
-    tagIds: [],
+    tagIds: tags.map((tag) => tag.id),
   });
 
   return { success: true, recipeId: created.id };

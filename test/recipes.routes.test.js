@@ -329,6 +329,58 @@ test('POST /recipes/:id/duplicate creates a second recipe owned by the acting us
   });
 });
 
+test('POST /recipes/:id/duplicate copies the tags: a recipe with two tags produces a copy carrying the same two tag ids', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const createCsrf = await csrfFor(agent, '/recipes/new');
+    const createRes = await agent
+      .post('/recipes')
+      .type('form')
+      .send(encodeForm({ _csrf: createCsrf, ...basicRecipeBody({ tags: 'quick, italian' }) }));
+    const recipeId = recipeIdFromLocation(createRes.headers.location);
+
+    const dupCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    const dupRes = await agent.post(`/recipes/${recipeId}/duplicate`).type('form').send({ _csrf: dupCsrf });
+    assert.equal(dupRes.status, 302);
+    const dupId = recipeIdFromLocation(dupRes.headers.location);
+
+    const originalTagIds = db
+      .prepare('SELECT tag_id FROM recipe_tags WHERE recipe_id = ? ORDER BY tag_id')
+      .all(recipeId)
+      .map((row) => row.tag_id);
+    const copyTagIds = db
+      .prepare('SELECT tag_id FROM recipe_tags WHERE recipe_id = ? ORDER BY tag_id')
+      .all(dupId)
+      .map((row) => row.tag_id);
+
+    assert.equal(originalTagIds.length, 2);
+    assert.deepEqual(copyTagIds, originalTagIds);
+  });
+});
+
+test('the archive toggle link in the rendered list preserves an active q and sort', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const listRes = await agent.get('/?q=Tomato&sort=title');
+    assert.equal(listRes.status, 200);
+
+    const match = listRes.text.match(/class="button button--ghost" href="([^"]+)"/);
+    assert.ok(match, 'expected the archive toggle link in the HTML');
+    const href = match[1].replace(/&amp;/g, '&');
+
+    assert.match(href, /^\/\?/);
+    const params = new URLSearchParams(href.slice(2));
+    assert.equal(params.get('q'), 'Tomato');
+    assert.equal(params.get('sort'), 'title');
+    assert.equal(params.get('archived'), '1');
+  });
+});
+
 test('the archived recipe does not appear in GET / but does appear in GET /?archived=1', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
