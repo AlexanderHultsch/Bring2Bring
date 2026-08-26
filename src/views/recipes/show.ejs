@@ -1,0 +1,82 @@
+<%- include('../partials/head', { title: recipe.title + ' — Dishlist' }) %>
+      <%- include('../partials/header', { currentUser, csrfToken }) %>
+      <main class="recipe-page" data-recipe-id="<%= recipe.id %>" data-saved="<%= saved %>">
+        <% if (recipe.is_archived) { %>
+          <p class="recipe-page__archived-flag">Archived</p>
+        <% } %>
+        <h1><%= recipe.title %></h1>
+        <% if (recipe.subtitle) { %><p class="recipe-page__subtitle"><%= recipe.subtitle %></p><% } %>
+        <p class="recipe-page__meta">
+          <% if (recipe.prep_minutes != null) { %>Prep <%= recipe.prep_minutes %> min · <% } %>
+          <% if (recipe.cook_minutes != null) { %>Cook <%= recipe.cook_minutes %> min · <% } %>
+          <% if (recipe.total_minutes != null) { %>Total <%= recipe.total_minutes %> min · <% } %>
+          <%= recipe.yield_amount %> <%= recipe.yield_label || recipe.yield_unit %>
+        </p>
+        <% if (recipe.description) { %><p class="recipe-page__description"><%= recipe.description %></p><% } %>
+
+        <% groups.forEach((group) => { %>
+          <section class="ingredient-group">
+            <% if (group.name) { %><h2><%= group.name %></h2><% } %>
+            <ul class="ingredient-list">
+              <% group.ingredients.forEach((ingredient) => { %>
+                <li class="ingredient-list__item">
+                  <% if (ingredient.amount != null) { %>
+                    <span class="ingredient-list__amount"><%= ingredient.amount %><% if (ingredient.amount_max != null) { %>–<%= ingredient.amount_max %><% } %><% if (ingredient.unit) { %> <%= ingredient.unit %><% } %></span>
+                  <% } %>
+                  <span class="ingredient-list__name"><%= ingredient.name %></span>
+                  <% if (ingredient.note) { %><span class="ingredient-list__note">(<%= ingredient.note %>)</span><% } %>
+                  <% if (ingredient.is_optional) { %><span class="ingredient-list__marker">optional</span><% } %>
+                  <% if (ingredient.exclude_from_shopping) { %><span class="ingredient-list__marker">not on shopping list</span><% } %>
+                </li>
+              <% }) %>
+            </ul>
+          </section>
+        <% }) %>
+
+        <% if (steps.length > 0) { %>
+          <section class="recipe-steps">
+            <h2>Steps</h2>
+            <ol class="step-list">
+              <% steps.forEach((step) => { %>
+                <li class="step-list__item">
+                  <% if (step.section_title) { %><strong class="step-list__section"><%= step.section_title %></strong><% } %>
+                  <p><%= step.text %></p>
+                </li>
+              <% }) %>
+            </ol>
+          </section>
+        <% } %>
+
+        <% if (recipe.notes) { %>
+          <section class="recipe-notes">
+            <h2>Notes</h2>
+            <p><%= recipe.notes %></p>
+          </section>
+        <% } %>
+
+        <% if (recipe.source_name || recipe.source_url) { %>
+          <p class="recipe-source">
+            Source:
+            <% if (recipe.source_url && /^https?:\/\//.test(recipe.source_url)) { %>
+              <a href="<%= recipe.source_url %>"><%= recipe.source_name || recipe.source_url %></a>
+            <% } else { %>
+              <%= recipe.source_name || recipe.source_url %>
+            <% } %>
+          </p>
+        <% } %>
+
+        <div class="recipe-actions">
+          <a class="button" href="/recipes/<%= recipe.id %>/edit">Edit</a>
+          <form method="post" action="/recipes/<%= recipe.id %>/duplicate" class="recipe-actions__form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="button button--ghost">Duplicate</button>
+          </form>
+          <form method="post" action="/recipes/<%= recipe.id %>/delete" class="recipe-actions__form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="button button--danger">
+              <%= recipe.is_archived ? 'Delete permanently' : 'Archive' %>
+            </button>
+          </form>
+        </div>
+      </main>
+<%- include('../partials/foot') %>

@@ -1,0 +1,37 @@
+<%- include('../partials/head', { title: (archived ? 'Archive' : 'Recipes') + ' — Dishlist' }) %>
+      <%- include('../partials/header', { currentUser, csrfToken }) %>
+      <main class="recipes-page">
+        <p class="recipes-page__greeting">Signed in as <%= currentUser.username %></p>
+        <div class="recipes-page__bar">
+          <h1><%= archived ? 'Archive' : 'Recipes' %></h1>
+          <a class="button button--ghost" href="<%= archived ? '/' : '/?archived=1' %>">
+            <%= archived ? 'Back to recipes' : 'View archive' %>
+          </a>
+        </div>
+
+        <% if (recipes.length === 0) { %>
+          <p class="empty-state">
+            <% if (archived) { %>
+              No archived recipes.
+            <% } else { %>
+              No recipes yet. <a href="/recipes/new">Add your first recipe</a>.
+            <% } %>
+          </p>
+        <% } else { %>
+          <ul class="recipe-list">
+            <% recipes.forEach((recipe) => { %>
+              <li class="recipe-list__item">
+                <a class="recipe-list__link" href="/recipes/<%= recipe.id %>">
+                  <span class="recipe-list__title"><%= recipe.title %></span>
+                  <span class="recipe-list__meta">
+                    <% if (recipe.total_minutes != null) { %><%= recipe.total_minutes %> min · <% } %><%= recipe.yield_amount %> <%= recipe.yield_label || recipe.yield_unit %>
+                  </span>
+                </a>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+
+        <p><a class="button" href="/recipes/new">New recipe</a></p>
+      </main>
+<%- include('../partials/foot') %>

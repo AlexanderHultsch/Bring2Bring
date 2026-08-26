@@ -10,7 +10,7 @@ import { csrfProtection, csrfTokenLocals } from './middleware/csrf.js';
 import { loadCurrentUser } from './middleware/auth.js';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
-import { homeRouter } from './routes/home.js';
+import { recipesRouter } from './routes/recipes.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VIEWS_DIR = path.join(__dirname, 'views');
@@ -51,7 +51,7 @@ export function createApp({ db, config }) {
 
   // -- later: public share routes /r/:token and /uploads/:file --
 
-  app.use(express.urlencoded({ extended: false }));
+  app.use(express.urlencoded({ extended: true, parameterLimit: 5000 }));
   app.use(cookieParser(config.sessionSecret));
   app.use(sessionMiddleware(db, config));
   app.use(loadCurrentUser(db));
@@ -59,7 +59,7 @@ export function createApp({ db, config }) {
   app.use(csrfTokenLocals());
 
   app.use(authRouter(db, config));
-  app.use(homeRouter());
+  app.use(recipesRouter(db));
 
   app.use(notFoundHandler());
   app.use(errorHandler(config));
