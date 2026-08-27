@@ -98,6 +98,65 @@ behaviour; criteria 1–8 are unchanged.
 
 ---
 
+## Changes in v2.1
+
+v2.0 defined the visual system, but the stylesheet only ever applied part
+of it. Three rules in `public/css/style.css` overrode the v2.0 contract on
+every screen except the recipe page: the bare `button` element carried the
+primary-action look, so every other control had to opt out of it; the
+§10.C type scale was scoped to `.recipe-page` instead of the global
+heading rules, so every other screen kept the pre-v2 scale; and `.icon`
+sized itself in `em`, so a symbol's size followed whatever text sat next
+to it instead of a token. v2.1 changes almost nothing about *what* the
+design is and a great deal about whether it reaches the screen. One
+genuine behaviour change rides along with the fixes: the servings range.
+The full set of decisions:
+
+- **Buttons declare their role (E1).** The stylesheet styled the bare
+  `button` element with the primary-action appearance, so a control had to
+  opt *out* of looking like the primary action. Inverted: the `button`
+  element is role-neutral, and the visual belongs to the `.button` class
+  and its modifiers (`.button--ghost`, `.button--danger`, and a new
+  `.button--icon` for icon-only 44 px square controls). Every button in a
+  template names its role.
+- **One type scale, all screens (E2).** The §10.C type scale was applied
+  only under `.recipe-page`; every other screen used the pre-v2 scale. The
+  scale now lives on the global `h1`/`h2`/`h3` rules and the page-scoped
+  overrides are removed.
+- **Icon size is a token, not an inheritance (E3).** `.icon` sized itself
+  in `em`, so an icon's size was decided by whatever text it sat next to.
+  Two new tokens (`--icon-size`, `--icon-size-sm`) give §10.D's "one place
+  to change a symbol" a matching "one place to change its size".
+- **"Recipes", not "My Dishes" (E4).** The bottom-nav label said "My
+  Dishes" while the page heading said "Recipes". One word wins:
+  **Recipes**. The word "dish" leaves the user interface.
+- **The recipe screen is for cooking, not for administering (E5).**
+  Publishing controls, the public-link panel and their explanatory prose
+  sat between the "Send to Bring!" button and the method. Reading order
+  becomes: title → servings → ingredients → Send to Bring! → method →
+  Edit and Duplicate → a single collapsed disclosure holding publishing,
+  the public link and Archive. Edit and Duplicate stay one tap away
+  deliberately; the disclosure holds only what is touched once per recipe
+  rather than once per cook.
+- **The servings control is a ruler (E6).** Ten integers laid across the
+  full width with a tick beneath each and the selection in a filled
+  accent circle, replacing a scrolling row of circular buttons. The
+  underlying markup — ten `?yield=N` anchors — is unchanged, so it still
+  works with JavaScript off.
+- **A recipe's own servings are limited to 1–10 (E7).** This **reverses**
+  the sentence in §7.4 that reads "The stored `yield_amount` on a recipe
+  is not limited to 1–10, only the interactive control is." A ruler shows
+  its whole range, so a recipe whose stored servings fall outside that
+  range could not be shown at its own size. Servings are now validated as
+  an **integer in 1..10** on submit, the same bound the `?yield=`
+  parameter already enforces. Existing rows outside the range are
+  deliberately **not** migrated: a migration would silently change what a
+  stored quantity means. Such a recipe still renders and still scales
+  correctly from its true base; the ruler simply shows no selection until
+  one is picked, and the next edit surfaces the validation error.
+
+---
+
 ## 1. Purpose
 
 Dishlist is Alex's own private cookbook on the web. Recipes are entered once,
@@ -157,8 +216,10 @@ for why. This resolves open question 1 (§16).
   ingredient entered through the editor scales normally and ships to
   Bring!. Scaled results are rounded by the rules in §7.3.
 - **A3 — Yield:** a recipe has a numeric servings count and nothing else —
-  no unit choice, no free-text label override. The `yield_unit` and
-  `yield_label` columns remain in the schema at their defaults (§5).
+  no unit choice, no free-text label override. **Since v2.1 (E7)**, that
+  count is validated as an integer in 1..10, the same range the
+  interactive control uses (§7.4). The `yield_unit` and `yield_label`
+  columns remain in the schema at their defaults (§5).
 - **A4 — Ingredient groups:** removed. Every recipe has exactly one flat
   ingredient list — the schema still has `ingredient_groups`, but every
   recipe now gets exactly one such row, with `name = NULL` (§5).
@@ -557,9 +618,11 @@ setting in `config.js`, not scattered through templates.
 
 ### 7.4 UI behaviour — servings control rebuilt (D6, since v2.0)
 
-- The recipe page has a yield control: a horizontal snap-scroll wheel of
-  **integers 1 to 10**, default 4. The old `−/+` buttons, the `×0.5`/`×2`
-  presets and free numeric entry are all **removed**.
+- The recipe page has a yield control: a ruler of **integers 1 to 10**,
+  default 4 — all ten values laid out across the full width, a tick
+  beneath each, the selected value in a filled accent circle (E6, since
+  v2.1). The old `−/+` buttons, the `×0.5`/`×2` presets and free numeric
+  entry are all **removed**.
 - Changing it recalculates ingredient amounts **client-side without a page
   reload**, and updates the URL query (`?yield=6`) via `history.replaceState`
   so the state is linkable and reloadable.
@@ -570,8 +633,15 @@ setting in `config.js`, not scattered through templates.
   malformed yield.
 - The scaling engine itself (§7.1–7.3) is unchanged — only the control that
   drives it is constrained. Trade-off, stated explicitly: scaling to, say,
-  12 for a party is no longer possible from the UI. The stored `yield_amount`
-  on a recipe is not limited to 1–10, only the interactive control is.
+  12 for a party is no longer possible from the UI. **Since v2.1 (E7)**,
+  the stored `yield_amount` is itself validated to an integer in 1..10 on
+  submit, so the control's range and the data's range are the same range —
+  this reverses the earlier rule that only the control, not the stored
+  value, was bounded. Rows saved before v2.1 that fall outside 1–10 are
+  deliberately **not** migrated: such a recipe still renders and still
+  scales correctly from its true base, the ruler simply shows no
+  selection until one is picked, and the next edit surfaces the
+  validation error.
 - Scaled values that were rounded show the exact value in a `title` tooltip.
 - The editor has no UI to mark an ingredient `scales = false` (§2.1 A2), so
   in practice every ingredient scales — there is no "unchanged" marker to
@@ -788,28 +858,29 @@ body text, high contrast — unchanged from v1, and still non-negotiable.
 
 ### 10.0 Navigation
 
-- **Bottom navigation bar**, thumb-reachable, exactly three items: **My
-  Dishes**, **Public**, **+ New**. This also supplies the way back from a
-  recipe to a list — a gap v1.1 had, since it removed navigation along with
-  everything else that wasn't essential.
+- **Bottom navigation bar**, thumb-reachable, exactly three items:
+  **Recipes**, **Public**, **+ New**. This also supplies the way back from
+  a recipe to a list — a gap v1.1 had, since it removed navigation along
+  with everything else that wasn't essential.
 - **Burger menu**, top right: Account, Privacy, Report a bug, Log out.
 - The **archive moves into the burger menu**, out of the main flow — it was
   reachable from the list in v1, it is a deliberate extra step now.
 
 ### 10.1 Pages
 
-- **My Dishes / Public** — cards: title and **import count**
+- **Recipes / Public** — cards: title and **import count**
   (`bring_import_count`) — no longer the servings; it isn't interesting at a
-  glance (D5). **Public** cards also show the **author** as `@username`; My
-  Dishes omits it, since every dish listed there is by definition the
-  signed-in user's own (§10.E). Search box is **title-first**; ingredient search is a
-  secondary toggle beside it, not the default — finding a dish by name is
-  the common case, ingredient search is occasional, and the control reflects
-  that. **Default sort is alphabetical**, with an **A–Z rail** down the edge
-  to jump to a letter. Empty state on My Dishes links straight to
-  "New recipe"; empty state on Public explains that no recipes have been
-  published yet. Public is listed by every logged-in user; a recipe's
-  presence there requires no ownership check beyond `is_public = 1` (D2).
+  glance (D5). **Public** cards also show the **author** as `@username`;
+  Recipes omits it, since every recipe listed there is by definition the
+  signed-in user's own (§10.E). Search box is **title-first**; ingredient
+  search is a secondary toggle beside it, not the default — finding a
+  recipe by name is the common case, ingredient search is occasional, and
+  the control reflects that. **Default sort is alphabetical**, with an
+  **A–Z rail** down the edge to jump to a letter. Empty state on Recipes
+  links straight to "New recipe"; empty state on Public explains that no
+  recipes have been published yet. Public is listed by every logged-in
+  user; a recipe's presence there requires no ownership check beyond
+  `is_public = 1` (D2).
 - **Recipe** — title, meta line, yield control (the 1–10 wheel, §7.4),
   ingredients (flat list, with checkboxes that survive scrolling), method
   (rendered exactly as typed, one block per typed line, with a hanging
@@ -929,30 +1000,44 @@ movement, deliberately not a shopping-cart cliché.
 
 One paragraph per screen, matching the mockup:
 
-1. **My Dishes** — a search field with a secondary "ingredients" toggle
-   beside it, off by default. Rows are sorted A–Z with letter section
-   headers, and an A–Z rail runs down the right edge (starting with `#`)
-   that jumps to a section. Each row shows the dish name as body text and
-   the import count with the `i-bring` mark, above the bottom nav.
-   **Deliberate deviation from the mockup:** the mockup also shows an
-   author name under each dish on this screen, but on My Dishes every dish
-   is by definition the signed-in user's own, so the author line is
-   omitted here and shown only on the Public shelf (§10.1).
-2. **Recipe** — a back arrow and a burger control in the header, the
-   title, a "Servings" section with the 1–10 integer wheel and the current
-   value marked, then "Ingredients (for N servings)" where N is the
-   selected servings, the ingredient list, the primary "Send to Bring!"
-   button, the collapsed public-link row, then "Method".
-3. **Public** — laid out as My Dishes, except each row also shows the
-   author as `@username`, and the header carries a sort control ("Most
-   imported" / A–Z / "Recently added") in place of the ingredients toggle
+1. **Recipes** — a search field with a magnifier control inside the field
+   itself that submits the search, and a secondary "ingredients" toggle
+   beside it — a link, not a submit button — off by default; the screen
+   needs no submit button of its own and therefore no inline script.
+   Rows are sorted A–Z with letter section headers, and an A–Z rail runs
+   down the right edge (starting with `#`) that jumps to a section. Each
+   row shows the recipe name as body text and the import count with the
+   `i-bring` mark, above the bottom nav. **Deliberate deviation from the
+   mockup:** the mockup also shows an author name under each recipe on
+   this screen, but on Recipes every recipe is by definition the
+   signed-in user's own, so the author line is omitted here and shown
+   only on the Public shelf (§10.1).
+2. **Recipe** — a back arrow and a burger control in the header, then, in
+   this reading order (E5, since v2.1): the title, a "Servings" section
+   with the 1–10 ruler (E6) and the current value marked, then
+   "Ingredients (for N servings)" where N is the selected servings, the
+   ingredient list, the primary "Send to Bring!" button, then "Method",
+   then Edit and Duplicate, then a single collapsed disclosure holding
+   publishing, the public link and Archive. Edit and Duplicate stay one
+   tap away; the disclosure holds only what is touched once per recipe
+   rather than once per cook.
+3. **Public** — laid out as Recipes, except each row also shows the
+   author as `@username`, and the header carries a sort control of three
+   segmented links — A–Z / Most imported / Recently added — rather than
+   a `<select>` with a submit button, in place of the ingredients toggle
    alone.
 4. **Burger** — a panel over the page from the right, with a close control
    and the items Account, Privacy, Report a bug, Archive, Log out. Log out
    and other destructive items use the `danger` token (§10.B).
 
+**Tap-target exceptions (since v2.1).** Two controls fall short of the
+44 px minimum restated in §10.F, both deliberately and both recorded here
+rather than taken silently: the A–Z rail's letters, and, new in v2.1, each
+position on the servings ruler (E6) — 29 px wide, though its hit area is
+the full 46 px height of the ruler.
+
 **Bottom nav** — three items, always present on list and recipe screens:
-My Dishes, Public, and New. New is visually raised as the primary action.
+Recipes, Public, and New. New is visually raised as the primary action.
 This is also the way back from a recipe to a list.
 
 ### 10.F Rules that survive
@@ -960,9 +1045,10 @@ This is also the way back from a recipe to a list.
 Restated, not weakened:
 
 - Mobile-first.
-- Minimum 44 px tap targets, minimum 16 px body text, high contrast. A
-  "keep screen awake" toggle on the Recipe page using the Wake Lock API
-  where available, degrading silently where not.
+- Minimum 44 px tap targets, minimum 16 px body text, high contrast — see
+  §10.E for the two recorded exceptions (the A–Z rail and the servings
+  ruler). A "keep screen awake" toggle on the Recipe page using the Wake
+  Lock API where available, degrading silently where not.
 - No inline scripts anywhere, so the CSP (§11) needs no nonces and gets
   none.
 - No webfonts, no third-party scripts, no analytics.
