@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import request from 'supertest';
 import { createTestDb } from './helpers/db.js';
 import { loadConfig } from '../src/config.js';
@@ -77,14 +80,30 @@ function minimalRecipeFormBody() {
 // whether the route is scoped to a recipe, and (for POST routes) a body to send.
 const ROUTES = [
   { method: 'get', path: '/', recipeScoped: false },
+  { method: 'get', path: '/public', recipeScoped: false },
   { method: 'get', path: '/recipes/new', recipeScoped: false },
   { method: 'post', path: '/recipes', recipeScoped: false, body: minimalRecipeFormBody() },
   { method: 'get', path: '/recipes/:id', recipeScoped: true },
   { method: 'get', path: '/recipes/:id/edit', recipeScoped: true },
   { method: 'post', path: '/recipes/:id', recipeScoped: true, body: minimalRecipeFormBody() },
   { method: 'post', path: '/recipes/:id/duplicate', recipeScoped: true, body: {} },
+  // A valid action is required so the assertion below proves the auth check
+  // fired, not the ShareActionSchema validation in src/routes/recipes.js.
+  { method: 'post', path: '/recipes/:id/share/link', recipeScoped: true, body: { action: 'enable' } },
   { method: 'post', path: '/recipes/:id/delete', recipeScoped: true, body: {} },
+  { method: 'get', path: '/account', recipeScoped: false },
+  { method: 'post', path: '/account/password', recipeScoped: false, body: {} },
+  { method: 'get', path: '/privacy', recipeScoped: false },
   { method: 'post', path: '/logout', recipeScoped: false, body: {} },
+];
+
+// Routes deliberately excluded from the completeness guard below: reachable
+// without a session by design, so they have no place in ROUTES above.
+const PUBLIC_ROUTES = [
+  { method: 'get', path: '/healthz' }, // §9: for Uptime Kuma
+  { method: 'get', path: '/login' }, // §9: public by design
+  { method: 'post', path: '/login' }, // §9: public by design
+  { method: 'get', path: '/r/:token' }, // §8.3: the one route open to the internet
 ];
 
 function resolvePath(route, recipeId) {
@@ -209,4 +228,35 @@ test('Group D: a cross-user POST attempt does not modify the target recipe', asy
 
     assert.deepEqual(rowCounts(), before);
   });
+});
+
+test('GUARD: every route mounted in src/routes/ is either in ROUTES or PUBLIC_ROUTES', () => {
+  // All routers in src/app.js are mounted with app.use(router) — no path
+  // prefix — so the string literal inside router.get(...)/router.post(...)
+  // is already the route's full path. Verified by reading src/app.js: every
+  // `app.use(...Router(...))` call there takes no leading path argument.
+  const routesDir = fileURLToPath(new URL('../src/routes/', import.meta.url));
+  const mounted = [];
+  for (const file of fs.readdirSync(routesDir)) {
+    if (!file.endsWith('.js')) continue;
+    const src = fs.readFileSync(path.join(routesDir, file), 'utf8');
+    for (const m of src.matchAll(/router\.(get|post)\(\s*['"]([^'"]+)['"]/g)) {
+      mounted.push({ method: m[1], path: m[2], file });
+    }
+  }
+
+  const isKnown = (route, table) =>
+    table.some((r) => r.method === route.method && r.path === route.path);
+
+  const missing = mounted.filter(
+    (route) => !isKnown(route, ROUTES) && !isKnown(route, PUBLIC_ROUTES)
+  );
+
+  assert.equal(
+    missing.length,
+    0,
+    `route(s) mounted in src/routes/ but missing from ROUTES (and not in PUBLIC_ROUTES): ${missing
+      .map((r) => `${r.method.toUpperCase()} ${r.path} (${r.file})`)
+      .join(', ')}`
+  );
 });
