@@ -854,7 +854,8 @@ never leak version details of dependencies.
 
 **Mobile-first, restated as binding.** The primary usage context is a phone
 on a kitchen counter with wet hands. Minimum 44 px tap targets, minimum 16 px
-body text, high contrast — unchanged from v1, and still non-negotiable.
+body text, high contrast — unchanged from v1, and still non-negotiable, save
+for the two recorded tap-target exceptions in §10.E.
 
 ### 10.0 Navigation
 
@@ -980,7 +981,7 @@ The icon set the mockups use, each a `<symbol id="i-…">` in
 `src/views/partials/icons.ejs`:
 
 `i-search`, `i-back`, `i-menu`, `i-close`, `i-chevron-right`,
-`i-chevron-up`, `i-book` (My Dishes), `i-people` (Public), `i-plus` (New),
+`i-chevron-up`, `i-book` (Recipes), `i-people` (Public), `i-plus` (New),
 `i-bring` (the import mark), `i-globe` (public link), `i-copy`, `i-rotate`,
 `i-disable`, `i-account`, `i-privacy`, `i-bug`, `i-archive`, `i-logout`,
 `i-filter`.
@@ -995,6 +996,19 @@ a separate colour kept in sync.
 `i-bring` — the mark shown next to every import count and on the "Send to
 Bring!" button — is a leaf with an arrow, per the mockup: natural,
 movement, deliberately not a shopping-cart cliché.
+
+Icon size is likewise tokenised (since v2.1): `--icon-size-sm` (16px),
+`--icon-size` (20px) and `--icon-size-lg` (24px), in `tokens.css` alongside
+the other sizing tokens. Without this, `.icon` sized itself in `em`, so the
+same symbol rendered at whatever size the surrounding text happened to be —
+one place to change a symbol, but no matching one place to change its size.
+`--icon-size` is the default, used wherever an icon sits beside body text;
+`--icon-size-sm` is for icons beside small or caption text (the import
+count, the search field, the public-link disclosure chevron); `--icon-size-lg`
+is for the bottom navigation bar, including its raised primary button. The
+default was chosen to match what the old `1.25em` already rendered at next
+to 16px body text — 20px — so introducing the token changed no existing
+screen.
 
 ### 10.E Screen anatomy
 
