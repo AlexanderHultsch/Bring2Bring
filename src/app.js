@@ -8,6 +8,7 @@ import { notFoundHandler, errorHandler } from './middleware/error-handler.js';
 import { sessionMiddleware, warnIfSessionCookieSuppressed } from './middleware/session.js';
 import { csrfProtection, csrfTokenLocals } from './middleware/csrf.js';
 import { loadCurrentUser } from './middleware/auth.js';
+import { computeAssetVersion } from './asset-version.js';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { recipesRouter } from './routes/recipes.js';
@@ -49,10 +50,16 @@ export function createApp({ db, config }) {
 
   app.use(requestLogger(config));
 
-  app.use(express.static(PUBLIC_DIR));
+  const assetVersion = computeAssetVersion();
+  app.use((req, res, next) => {
+    res.locals.assetVersion = assetVersion;
+    next();
+  });
+
+  app.use(express.static(PUBLIC_DIR, { maxAge: '1y', immutable: true }));
   // Served so the browser can `import` the exact same domain code the server
   // renders with (SPECIFICATION.md section 4.1) — never copy these into public/.
-  app.use('/js/domain', express.static(DOMAIN_DIR));
+  app.use('/js/domain', express.static(DOMAIN_DIR, { maxAge: '1y', immutable: true }));
 
   app.use(healthRouter(db));
 

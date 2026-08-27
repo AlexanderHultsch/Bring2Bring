@@ -73,5 +73,5 @@
         </form>
       </main>
       <%- include('../partials/bottom-nav', { activeNav: mode === 'new' ? 'new' : null }) %>
-      <script src="/js/recipe-editor.js" defer></script>
+      <script src="/js/recipe-editor.js?v=<%= assetVersion %>" defer></script>
 <%- include('../partials/foot') %>

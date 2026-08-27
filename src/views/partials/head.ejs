@@ -4,13 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><%= title %></title>
-    <link rel="stylesheet" href="/css/tokens.css">
-    <link rel="stylesheet" href="/css/style.css">
-    <script src="/js/theme-init.js"></script>
-    <script src="/js/theme-toggle.js" defer></script>
-    <script src="/js/draft-clear.js" defer></script>
-    <script src="/js/menu.js" defer></script>
-    <script type="module" src="/js/recipe-view.js"></script>
+    <link rel="stylesheet" href="/css/tokens.css?v=<%= assetVersion %>">
+    <link rel="stylesheet" href="/css/style.css?v=<%= assetVersion %>">
+    <script src="/js/theme-init.js?v=<%= assetVersion %>"></script>
+    <script src="/js/theme-toggle.js?v=<%= assetVersion %>" defer></script>
+    <script src="/js/draft-clear.js?v=<%= assetVersion %>" defer></script>
+    <script src="/js/menu.js?v=<%= assetVersion %>" defer></script>
+    <script type="module" src="/js/recipe-view.js?v=<%= assetVersion %>"></script>
   </head>
   <body>
     <%- include('icons') %>
