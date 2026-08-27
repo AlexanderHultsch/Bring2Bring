@@ -984,7 +984,8 @@ The icon set the mockups use, each a `<symbol id="i-…">` in
 `i-chevron-up`, `i-book` (Recipes), `i-people` (Public), `i-plus` (New),
 `i-bring` (the import mark), `i-globe` (public link), `i-copy`, `i-rotate`,
 `i-disable`, `i-account`, `i-privacy`, `i-bug`, `i-archive`, `i-logout`,
-`i-filter`.
+`i-filter`, `i-sun` (theme toggle, dark mode), `i-moon` (theme toggle, light
+mode).
 
 The sprite is **inlined into every page**, not linked as an external `.svg`
 referenced by URL: Safari on iOS does not reliably support `<use>` pointing
@@ -995,7 +996,9 @@ a separate colour kept in sync.
 
 `i-bring` — the mark shown next to every import count and on the "Send to
 Bring!" button — is a leaf with an arrow, per the mockup: natural,
-movement, deliberately not a shopping-cart cliché.
+movement, deliberately not a shopping-cart cliché. It is drawn stroked, at
+the same weight as the rest of the set, so it does not read heavier than the
+icons around it.
 
 Icon size is likewise tokenised (since v2.1): `--icon-size-sm` (16px),
 `--icon-size` (20px) and `--icon-size-lg` (24px), in `tokens.css` alongside

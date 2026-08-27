@@ -210,7 +210,36 @@ label {
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: var(--font-size-md);
+}
+
+.theme-toggle__moon {
+  display: none;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .theme-toggle__sun {
+    display: none;
+  }
+
+  :root:not([data-theme='dark']) .theme-toggle__moon {
+    display: inline-block;
+  }
+}
+
+:root[data-theme='light'] .theme-toggle__sun {
+  display: none;
+}
+
+:root[data-theme='light'] .theme-toggle__moon {
+  display: inline-block;
+}
+
+:root[data-theme='dark'] .theme-toggle__sun {
+  display: inline-block;
+}
+
+:root[data-theme='dark'] .theme-toggle__moon {
+  display: none;
 }
 
 .logout-form {
