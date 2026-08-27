@@ -69,7 +69,7 @@ test('POST /login with correct credentials redirects (302) to /', async () => {
   });
 });
 
-test('after logging in, GET / returns 200 and contains the username', async () => {
+test('after logging in, GET / returns 200 and GET /account contains the username', async () => {
   await withApp(async (app, db) => {
     await seedKnownUser(db);
     const agent = request.agent(app);
@@ -84,7 +84,10 @@ test('after logging in, GET / returns 200 and contains the username', async () =
 
     const res = await agent.get('/');
     assert.equal(res.status, 200);
-    assert.match(res.text, new RegExp(KNOWN_USERNAME));
+
+    const accountRes = await agent.get('/account');
+    assert.equal(accountRes.status, 200);
+    assert.match(accountRes.text, new RegExp(KNOWN_USERNAME));
   });
 });
 

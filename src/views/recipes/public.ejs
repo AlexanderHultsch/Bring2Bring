@@ -1,4 +1,12 @@
 <%
+  function publicUrl(overrides) {
+    const state = Object.assign({ search, sort }, overrides);
+    const params = new URLSearchParams();
+    if (state.search) params.set('q', state.search);
+    params.set('sort', state.sort);
+    const query = params.toString();
+    return query ? '/public?' + query : '/public';
+  }
   const showAZ = sort === 'title';
 %>
 <%- include('../partials/head', { title: 'Public — Dishlist' }) %>
@@ -10,23 +18,20 @@
         </div>
 
         <form method="get" action="/public" class="list-controls" role="search">
-          <div class="list-controls__search">
-            <label for="q">Search</label>
-            <div class="search-field">
-              <svg class="icon search-field__icon"><use href="#i-search"></use></svg>
-              <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search dishes">
-            </div>
+          <input type="hidden" name="sort" value="<%= sort %>">
+          <label class="visually-hidden" for="q">Search recipes</label>
+          <div class="search-field">
+            <svg class="icon search-field__icon"><use href="#i-search"></use></svg>
+            <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search recipes">
           </div>
-          <div class="list-controls__sort">
-            <label for="sort">Sort by</label>
-            <select id="sort" name="sort">
-              <option value="title" <%= sort === 'title' ? 'selected' : '' %>>A-Z</option>
-              <option value="imports" <%= sort === 'imports' ? 'selected' : '' %>>Most imported</option>
-              <option value="recent" <%= sort === 'recent' ? 'selected' : '' %>>Recently added</option>
-            </select>
-          </div>
-          <button type="submit" class="button">Apply</button>
+          <button type="submit" class="visually-hidden">Search</button>
         </form>
+
+        <nav class="segmented" aria-label="Sort recipes">
+          <a class="segmented__item<%= sort === 'title' ? ' segmented__item--on' : '' %>" href="<%= publicUrl({ sort: 'title' }) %>"<% if (sort === 'title') { %> aria-current="true"<% } %>>A–Z</a>
+          <a class="segmented__item<%= sort === 'imports' ? ' segmented__item--on' : '' %>" href="<%= publicUrl({ sort: 'imports' }) %>"<% if (sort === 'imports') { %> aria-current="true"<% } %>>Most imported</a>
+          <a class="segmented__item<%= sort === 'recent' ? ' segmented__item--on' : '' %>" href="<%= publicUrl({ sort: 'recent' }) %>"<% if (sort === 'recent') { %> aria-current="true"<% } %>>Newest</a>
+        </nav>
 
         <% const hasActiveFilter = search.trim() !== ''; %>
         <% if (recipes.length === 0) { %>

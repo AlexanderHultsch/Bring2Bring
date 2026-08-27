@@ -12,34 +12,26 @@
   const showAZ = sort === 'title';
 %>
 <%- include('../partials/head', { title: (archived ? 'Archive' : 'Recipes') + ' — Dishlist' }) %>
-      <%- include('../partials/header', { currentUser, csrfToken }) %>
+      <%- include('../partials/header', { currentUser, csrfToken, backHref: archived ? '/' : undefined }) %>
       <% if (showAZ) { %><%- include('../partials/az-rail', { groups }) %><% } %>
       <main class="recipes-page has-bottom-nav<%= showAZ ? ' recipes-page--az' : '' %>">
-        <p class="recipes-page__greeting">Signed in as <%= currentUser.username %></p>
-        <div class="recipes-page__bar">
-          <h1><%= archived ? 'Archive' : 'Recipes' %></h1>
-          <a class="button button--ghost" href="<%= listUrl({ archived: !archived }) %>">
-            <%= archived ? 'Back to recipes' : 'View archive' %>
-          </a>
-        </div>
+        <h1><%= archived ? 'Archive' : 'Recipes' %></h1>
 
         <form method="get" action="/" class="list-controls" role="search">
           <% if (archived) { %><input type="hidden" name="archived" value="1"><% } %>
+          <% if (matchIngredients) { %><input type="hidden" name="ingredients" value="1"><% } %>
           <input type="hidden" name="sort" value="<%= sort %>">
-          <div class="list-controls__search">
-            <label for="q">Search</label>
-            <div class="search-field">
-              <svg class="icon search-field__icon"><use href="#i-search"></use></svg>
-              <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search dishes">
-            </div>
+          <label class="visually-hidden" for="q">Search recipes</label>
+          <div class="search-field">
+            <svg class="icon search-field__icon"><use href="#i-search"></use></svg>
+            <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search recipes">
           </div>
-          <label class="ingredients-toggle">
-            <span class="ingredients-toggle__label">ingredients</span>
-            <input type="checkbox" name="ingredients" value="1" class="ingredients-toggle__input" <%= matchIngredients ? 'checked' : '' %>>
-            <span class="ingredients-toggle__track" aria-hidden="true"></span>
-          </label>
-          <button type="submit" class="button">Apply</button>
+          <button type="submit" class="visually-hidden">Search</button>
         </form>
+        <a class="ingredients-toggle<%= matchIngredients ? ' ingredients-toggle--on' : '' %>" href="<%= listUrl({ matchIngredients: !matchIngredients }) %>">
+          <span class="ingredients-toggle__track" aria-hidden="true"></span>
+          <span class="ingredients-toggle__label">Also search ingredients</span>
+        </a>
 
         <% const hasActiveFilter = search.trim() !== ''; %>
         <% if (recipes.length === 0) { %>
@@ -68,8 +60,6 @@
             <% }) %>
           </ul>
         <% } %>
-
-        <p><a class="button" href="/recipes/new">New recipe</a></p>
       </main>
       <%- include('../partials/bottom-nav', { activeNav: archived ? null : 'mine' }) %>
 <%- include('../partials/foot') %>

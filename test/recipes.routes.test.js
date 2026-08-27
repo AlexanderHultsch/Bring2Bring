@@ -547,25 +547,91 @@ test('V6: POST /recipes/:id/duplicate copies the ingredients and the method', as
   });
 });
 
-test('the archive toggle link in the rendered list preserves an active q and sort', async () => {
+// SPECIFICATION.md section 10.E: the archive is reached through the burger
+// menu, not a button on the list screen, and the way back from the archive
+// is the header's back arrow (E5).
+test('GET /?archived=1 renders the header back link to /', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
-    const csrfToken = await csrfFor(agent, '/recipes/new');
-    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
 
-    const listRes = await agent.get('/?q=Tomato&sort=title');
-    assert.equal(listRes.status, 200);
+    const res = await agent.get('/?archived=1');
+    assert.equal(res.status, 200);
+    assert.match(res.text, /class="site-header__back" href="\/"/);
+  });
+});
 
-    const match = listRes.text.match(/class="button button--ghost" href="([^"]+)"/);
-    assert.ok(match, 'expected the archive toggle link in the HTML');
+// SPECIFICATION.md section 10.E (v2.1): identity moved to the burger menu's
+// Account item, so the list screen no longer greets the user by name.
+test('GET / does not contain "Signed in as"', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    assert.ok(!res.text.includes('Signed in as'));
+  });
+});
+
+// SPECIFICATION.md section 10.E item 1: the search field submits itself, so
+// the screen needs no submit button of its own.
+test('GET / renders no submit button labelled Apply', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    assert.ok(!res.text.includes('>Apply<'));
+  });
+});
+
+// SPECIFICATION.md section 10.E item 1: the ingredients toggle is a link, not
+// a checkbox, and its href always applies the opposite of the current state.
+test('GET / renders the ingredients toggle as a link whose href turns the filter on when it is off, and off when it is on', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const offRes = await agent.get('/');
+    assert.equal(offRes.status, 200);
+    const offMatch = offRes.text.match(/class="ingredients-toggle" href="([^"]+)"/);
+    assert.ok(offMatch, 'expected the ingredients toggle link in the HTML');
+    assert.match(offMatch[1].replace(/&amp;/g, '&'), /ingredients=1/);
+
+    const onRes = await agent.get('/?ingredients=1');
+    assert.equal(onRes.status, 200);
+    const onMatch = onRes.text.match(/class="ingredients-toggle ingredients-toggle--on" href="([^"]+)"/);
+    assert.ok(onMatch, 'expected the "on" ingredients toggle link in the HTML');
+    assert.doesNotMatch(onMatch[1].replace(/&amp;/g, '&'), /ingredients=1/);
+  });
+});
+
+test('GET /?q=Tomato keeps the search text in the ingredients toggle link', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/?q=Tomato');
+    assert.equal(res.status, 200);
+    const match = res.text.match(/class="ingredients-toggle" href="([^"]+)"/);
+    assert.ok(match, 'expected the ingredients toggle link in the HTML');
     const href = match[1].replace(/&amp;/g, '&');
+    assert.match(href, /q=Tomato/);
+  });
+});
 
-    assert.match(href, /^\/\?/);
-    const params = new URLSearchParams(href.slice(2));
-    assert.equal(params.get('q'), 'Tomato');
-    assert.equal(params.get('sort'), 'title');
-    assert.equal(params.get('archived'), '1');
+// SPECIFICATION.md section 10.E, decision E4: one word wins, "Recipes".
+test('the bottom nav says Recipes, not My Dishes', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    assert.match(res.text, />Recipes<\/span>/);
+    assert.ok(!res.text.includes('My Dishes'));
   });
 });
 

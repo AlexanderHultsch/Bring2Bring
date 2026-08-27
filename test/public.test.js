@@ -101,6 +101,40 @@ test('GET /public?sort=title, ?sort=imports and ?sort=recent each return 200, an
   });
 });
 
+// SPECIFICATION.md section 10.E item 3: the search field submits itself, so
+// the screen needs no submit button of its own.
+test('GET /public renders no submit button labelled Apply', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/public');
+    assert.equal(res.status, 200);
+    assert.ok(!res.text.includes('>Apply<'));
+  });
+});
+
+// SPECIFICATION.md section 10.E item 3: three segmented links replace the
+// <select> + Apply button, and exactly one carries the "on" state matching
+// the active ?sort=.
+test('GET /public renders three segmented sort links and marks exactly the one matching ?sort=', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/public?sort=imports');
+    assert.equal(res.status, 200);
+
+    const items = [...res.text.matchAll(/class="segmented__item( segmented__item--on)?" href="([^"]+)"[^>]*>([^<]+)</g)];
+    assert.equal(items.length, 3);
+
+    const onItems = items.filter(([, on]) => on);
+    assert.equal(onItems.length, 1);
+    assert.match(onItems[0][2].replace(/&amp;/g, '&'), /sort=imports/);
+    assert.equal(onItems[0][3], 'Most imported');
+  });
+});
+
 test('GET /public with no published recipes shows the "nothing published yet" empty state', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');

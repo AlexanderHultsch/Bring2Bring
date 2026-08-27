@@ -28,6 +28,18 @@
   height: var(--icon-size-lg);
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
 html {
   background: var(--color-bg);
 }
@@ -284,11 +296,6 @@ label {
   padding: var(--space-4) 0;
 }
 
-.recipes-page__greeting {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
 .recipes-page__bar {
   display: flex;
   align-items: center;
@@ -312,6 +319,36 @@ label {
 .list-controls__search,
 .list-controls__sort {
   flex: 1 1 12rem;
+}
+
+.segmented {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.segmented__item {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--min-tap-target);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font-size: var(--text-secondary-size);
+  line-height: var(--text-secondary-line-height);
+  text-align: center;
+  text-decoration: none;
+}
+
+.segmented__item--on {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: 600;
 }
 
 .search-field {
@@ -339,20 +376,13 @@ label {
   gap: var(--space-2);
   min-height: var(--min-tap-target);
   cursor: pointer;
+  text-decoration: none;
 }
 
 .ingredients-toggle__label {
   font-size: var(--text-secondary-size);
   line-height: var(--text-secondary-line-height);
   color: var(--color-text-muted);
-}
-
-.ingredients-toggle__input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  opacity: 0;
 }
 
 .ingredients-toggle__track {
@@ -376,19 +406,14 @@ label {
   transition: left 0.15s ease, background 0.15s ease;
 }
 
-.ingredients-toggle__input:checked ~ .ingredients-toggle__track {
+.ingredients-toggle--on .ingredients-toggle__track {
   background: var(--color-accent);
   border-color: var(--color-accent);
 }
 
-.ingredients-toggle__input:checked ~ .ingredients-toggle__track::after {
+.ingredients-toggle--on .ingredients-toggle__track::after {
   left: calc(100% - 1.375rem);
   background: var(--color-accent-contrast);
-}
-
-.ingredients-toggle__input:focus-visible ~ .ingredients-toggle__track {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
 }
 
 .recipes-page--az {
