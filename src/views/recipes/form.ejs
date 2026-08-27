@@ -43,7 +43,9 @@
                 </select>
                 <input type="text" name="ingredients[<%= ingredientIndex %>][name]" value="<%= ingredient.name %>" placeholder="Ingredient" class="ingredient-row__name" data-ingredient-name>
                 <div class="ingredient-row__actions">
-                  <button type="button" data-remove-ingredient>Remove</button>
+                  <button type="button" class="button button--icon" data-remove-ingredient aria-label="Remove ingredient">
+                    <svg class="icon"><use href="#i-close"></use></svg>
+                  </button>
                 </div>
               </div>
             <% }) %>
@@ -66,7 +68,9 @@
               </select>
               <input type="text" name="" value="" placeholder="Ingredient" class="ingredient-row__name" data-ingredient-name>
               <div class="ingredient-row__actions">
-                <button type="button" data-remove-ingredient>Remove</button>
+                <button type="button" class="button button--icon" data-remove-ingredient aria-label="Remove ingredient">
+                  <svg class="icon"><use href="#i-close"></use></svg>
+                </button>
               </div>
             </div>
           </template>

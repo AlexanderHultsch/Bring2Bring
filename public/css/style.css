@@ -79,7 +79,15 @@ a:focus {
   text-decoration: none;
 }
 
-button,
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -96,7 +104,6 @@ button,
   cursor: pointer;
 }
 
-button:hover,
 .button:hover {
   filter: brightness(1.1);
 }
@@ -188,6 +195,9 @@ label {
 }
 
 .theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: var(--min-tap-target);
   min-width: var(--min-tap-target);
   padding: 0;
@@ -203,6 +213,15 @@ label {
 }
 
 .button--ghost {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.button--icon {
+  min-width: var(--min-tap-target);
+  padding-left: 0;
+  padding-right: 0;
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
