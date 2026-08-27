@@ -246,6 +246,10 @@ export function duplicateRecipe(db, recipeId, actingUserId) {
   if (!aggregate) return { success: false };
 
   const { recipe, groups, steps } = aggregate;
+  // Explicit allow-list, not a copy of `recipe`: this is also how the share
+  // columns already stay off a duplicate (section 5.1, D2) — since v2.0 the
+  // same reasoning excludes is_public and bring_import_count. A copy is
+  // private and starts at zero imports.
   const fields = {
     title: `${recipe.title} (Copy)`,
     yield_amount: recipe.yield_amount,

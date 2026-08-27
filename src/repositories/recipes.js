@@ -14,28 +14,22 @@ const RECIPE_COLUMNS = [
   'image_path',
 ];
 
-export const READ_PREDICATE = `
-  (owner_id = ? OR EXISTS (
-    SELECT 1 FROM recipe_shares s WHERE s.recipe_id = recipes.id AND s.user_id = ?
-  ))
-`;
+// SPECIFICATION.md section 5.1 (v2.0, D2): per-user sharing (recipe_shares)
+// is dormant. Read = owner or public; write = owner, full stop.
+export const READ_PREDICATE = `(owner_id = ? OR is_public = 1)`;
 
-const WRITE_PREDICATE = `
-  (owner_id = ? OR EXISTS (
-    SELECT 1 FROM recipe_shares s WHERE s.recipe_id = recipes.id AND s.user_id = ? AND s.can_edit = 1
-  ))
-`;
+const WRITE_PREDICATE = `(owner_id = ?)`;
 
 export function findRecipeForRead(db, recipeId, actingUserId) {
   return db
     .prepare(`SELECT * FROM recipes WHERE id = ? AND ${READ_PREDICATE}`)
-    .get(recipeId, actingUserId, actingUserId);
+    .get(recipeId, actingUserId);
 }
 
 export function findRecipeForWrite(db, recipeId, actingUserId) {
   return db
     .prepare(`SELECT * FROM recipes WHERE id = ? AND ${WRITE_PREDICATE}`)
-    .get(recipeId, actingUserId, actingUserId);
+    .get(recipeId, actingUserId);
 }
 
 // SPECIFICATION.md section 8: the public share page (GET /r/:token) has no
@@ -57,10 +51,13 @@ function escapeLikeTerm(value) {
   return value.replace(/[\\%_]/g, '\\$&');
 }
 
+// SPECIFICATION.md section 5.1 / 9 (v2.0, D2): "My Dishes" — the acting
+// user's own recipes only, never recipes shared with them (recipe_shares is
+// dormant) and never other users' public recipes (that's /public instead).
 export function listRecipesForUser(db, actingUserId, options = {}) {
   const { includeArchived = false, search = '', sort = 'recent' } = options;
   const archivedClause = includeArchived ? '' : 'AND is_archived = 0';
-  const params = [actingUserId, actingUserId];
+  const params = [actingUserId];
 
   let searchClause = '';
   const trimmedSearch = search.trim();
@@ -83,7 +80,49 @@ export function listRecipesForUser(db, actingUserId, options = {}) {
 
   return db
     .prepare(
-      `SELECT * FROM recipes WHERE ${READ_PREDICATE} ${archivedClause} ${searchClause} ORDER BY ${orderClause}`
+      `SELECT * FROM recipes WHERE owner_id = ? ${archivedClause} ${searchClause} ORDER BY ${orderClause}`
+    )
+    .all(...params);
+}
+
+const PUBLIC_SORT_CLAUSES = {
+  title: 'recipes.title COLLATE NOCASE ASC, recipes.id ASC',
+  imports: 'recipes.bring_import_count DESC, recipes.title COLLATE NOCASE ASC, recipes.id ASC',
+  recent: 'recipes.created_at DESC, recipes.id DESC',
+};
+
+// SPECIFICATION.md section 9 / 10.1 (v2.0, D1): the Public shelf — every
+// is_public recipe, for every logged-in user, with the author's username.
+export function listPublicRecipes(db, options = {}) {
+  const { search = '', sort = 'title' } = options;
+  const params = [];
+
+  let searchClause = '';
+  const trimmedSearch = search.trim();
+  if (trimmedSearch !== '') {
+    const likeTerm = `%${escapeLikeTerm(trimmedSearch)}%`;
+    searchClause = `
+      AND (
+        recipes.title LIKE ? ESCAPE '\\'
+        OR EXISTS (
+          SELECT 1 FROM ingredients i
+          JOIN ingredient_groups g ON g.id = i.group_id
+          WHERE g.recipe_id = recipes.id AND i.name LIKE ? ESCAPE '\\'
+        )
+      )
+    `;
+    params.push(likeTerm, likeTerm);
+  }
+
+  const orderClause = PUBLIC_SORT_CLAUSES[sort] || PUBLIC_SORT_CLAUSES.title;
+
+  return db
+    .prepare(
+      `SELECT recipes.*, users.username AS author_username
+       FROM recipes
+       JOIN users ON users.id = recipes.owner_id
+       WHERE recipes.is_public = 1 ${searchClause}
+       ORDER BY ${orderClause}`
     )
     .all(...params);
 }
@@ -181,7 +220,7 @@ export function updateRecipe(db, recipeId, actingUserId, fields) {
     }
   }
 
-  values.push(recipeId, actingUserId, actingUserId);
+  values.push(recipeId, actingUserId);
 
   const { changes } = db
     .prepare(
@@ -195,7 +234,7 @@ export function updateRecipe(db, recipeId, actingUserId, fields) {
 export function setRecipeArchived(db, recipeId, actingUserId, isArchived) {
   const { changes } = db
     .prepare(`UPDATE recipes SET is_archived = ? WHERE id = ? AND ${WRITE_PREDICATE}`)
-    .run(isArchived ? 1 : 0, recipeId, actingUserId, actingUserId);
+    .run(isArchived ? 1 : 0, recipeId, actingUserId);
 
   return changes;
 }
@@ -205,9 +244,23 @@ export function setRecipeShareState(db, recipeId, actingUserId, { token, enabled
     .prepare(
       `UPDATE recipes SET share_token = ?, share_enabled = ?, share_created_at = ? WHERE id = ? AND ${WRITE_PREDICATE}`
     )
-    .run(token, enabled ? 1 : 0, createdAt, recipeId, actingUserId, actingUserId);
+    .run(token, enabled ? 1 : 0, createdAt, recipeId, actingUserId);
 
   return changes;
+}
+
+// SPECIFICATION.md section 9 (v2.0, D1): only the owner may publish or
+// unpublish — write-scoped like every other mutation in this file.
+export function setRecipePublic(db, recipeId, actingUserId, isPublic) {
+  const { changes } = db
+    .prepare(`UPDATE recipes SET is_public = ? WHERE id = ? AND ${WRITE_PREDICATE}`)
+    .run(isPublic ? 1 : 0, recipeId, actingUserId);
+
+  return changes;
+}
+
+export function countRecipesByOwner(db, userId) {
+  return db.prepare('SELECT COUNT(*) AS count FROM recipes WHERE owner_id = ?').get(userId).count;
 }
 
 export function deleteRecipe(db, recipeId, actingUserId) {

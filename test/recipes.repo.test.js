@@ -6,10 +6,12 @@ import {
   findRecipeForRead,
   findRecipeForWrite,
   listRecipesForUser,
+  listPublicRecipes,
   loadRecipeAggregate,
   insertRecipe,
   updateRecipe,
   setRecipeArchived,
+  setRecipePublic,
   deleteRecipe,
   replaceRecipeContent,
 } from '../src/repositories/recipes.js';
@@ -44,7 +46,7 @@ test('a third user with no share row cannot read the recipe', () => {
   }
 });
 
-test('a read-only share (can_edit 0) grants read but not write', () => {
+test('SPECIFICATION.md 5.1 (v2.0, D2): a recipe_shares row (read-only) is dormant and grants no read access', () => {
   const { db, cleanup } = createTestDb();
   try {
     const owner = makeUser(db, 'owner');
@@ -55,14 +57,14 @@ test('a read-only share (can_edit 0) grants read but not write', () => {
       viewer.id
     );
 
-    assert.ok(findRecipeForRead(db, recipe.id, viewer.id));
+    assert.equal(findRecipeForRead(db, recipe.id, viewer.id), undefined);
     assert.equal(findRecipeForWrite(db, recipe.id, viewer.id), undefined);
   } finally {
     cleanup();
   }
 });
 
-test('an editable share (can_edit 1) grants write', () => {
+test('SPECIFICATION.md 5.1 (v2.0, D2): a recipe_shares row with can_edit = 1 is dormant and grants no write access', () => {
   const { db, cleanup } = createTestDb();
   try {
     const owner = makeUser(db, 'owner');
@@ -73,7 +75,7 @@ test('an editable share (can_edit 1) grants write', () => {
       editor.id
     );
 
-    assert.ok(findRecipeForWrite(db, recipe.id, editor.id));
+    assert.equal(findRecipeForWrite(db, recipe.id, editor.id), undefined);
   } finally {
     cleanup();
   }
@@ -335,24 +337,26 @@ test('replaceRecipeContent is atomic: a failing insert leaves the original conte
   }
 });
 
-test('listRecipesForUser returns own + shared, excludes others, and hides archived by default', () => {
+test('SPECIFICATION.md 5.1/9 (v2.0, D2): listRecipesForUser ("My Dishes") returns only the acting user\'s own recipes — not recipes shared with them, not other users\' public recipes — and hides archived by default', () => {
   const { db, cleanup } = createTestDb();
   try {
     const owner = makeUser(db, 'owner');
     const other = makeUser(db, 'other');
 
     const own = insertRecipe(db, owner.id, { title: 'Mine' });
-    const shared = insertRecipe(db, other.id, { title: 'Shared with me' });
-    const notShared = insertRecipe(db, other.id, { title: 'Not shared' });
+    const sharedWithMe = insertRecipe(db, other.id, { title: 'Shared with me' });
+    const othersPublic = insertRecipe(db, other.id, { title: "Other's public recipe" });
     db.prepare('INSERT INTO recipe_shares (recipe_id, user_id, can_edit) VALUES (?, ?, 0)').run(
-      shared.id,
+      sharedWithMe.id,
       owner.id
     );
+    setRecipePublic(db, othersPublic.id, other.id, true);
 
     const visible = listRecipesForUser(db, owner.id);
-    const visibleIds = visible.map((r) => r.id).sort();
-    assert.deepEqual(visibleIds, [own.id, shared.id].sort());
-    assert.ok(!visibleIds.includes(notShared.id));
+    const visibleIds = visible.map((r) => r.id);
+    assert.deepEqual(visibleIds, [own.id]);
+    assert.ok(!visibleIds.includes(sharedWithMe.id));
+    assert.ok(!visibleIds.includes(othersPublic.id));
 
     setRecipeArchived(db, own.id, owner.id, true);
 
@@ -363,6 +367,116 @@ test('listRecipesForUser returns own + shared, excludes others, and hides archiv
       (r) => r.id
     );
     assert.ok(withArchived.includes(own.id));
+  } finally {
+    cleanup();
+  }
+});
+
+test('ACCEPTANCE 9: a private recipe is invisible to a second user via findRecipeForRead', () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const owner = makeUser(db, 'owner');
+    const other = makeUser(db, 'other');
+    const recipe = insertRecipe(db, owner.id, { title: 'Private Soup' });
+
+    assert.equal(findRecipeForRead(db, recipe.id, other.id), undefined);
+  } finally {
+    cleanup();
+  }
+});
+
+test('ACCEPTANCE 10 (read half): a public recipe is visible to a second user via findRecipeForRead', () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const owner = makeUser(db, 'owner');
+    const other = makeUser(db, 'other');
+    const recipe = insertRecipe(db, owner.id, { title: 'Public Soup' });
+    setRecipePublic(db, recipe.id, owner.id, true);
+
+    const found = findRecipeForRead(db, recipe.id, other.id);
+    assert.ok(found);
+    assert.equal(found.id, recipe.id);
+  } finally {
+    cleanup();
+  }
+});
+
+test('ACCEPTANCE 11: a second user cannot write a public recipe they do not own', () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const owner = makeUser(db, 'owner');
+    const other = makeUser(db, 'other');
+    const recipe = insertRecipe(db, owner.id, { title: 'Public Soup' });
+    setRecipePublic(db, recipe.id, owner.id, true);
+
+    assert.equal(findRecipeForWrite(db, recipe.id, other.id), undefined);
+
+    const changes = updateRecipe(db, recipe.id, other.id, { title: 'Hijacked' });
+    assert.equal(changes, 0);
+    assert.equal(db.prepare('SELECT title FROM recipes WHERE id = ?').get(recipe.id).title, 'Public Soup');
+  } finally {
+    cleanup();
+  }
+});
+
+test('setRecipePublic: only the owner can publish or unpublish; a non-owner changes 0 rows', () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const owner = makeUser(db, 'owner');
+    const other = makeUser(db, 'other');
+    const recipe = insertRecipe(db, owner.id, { title: 'Soup' });
+
+    const strangerChanges = setRecipePublic(db, recipe.id, other.id, true);
+    assert.equal(strangerChanges, 0);
+    assert.equal(db.prepare('SELECT is_public FROM recipes WHERE id = ?').get(recipe.id).is_public, 0);
+
+    const ownerChanges = setRecipePublic(db, recipe.id, owner.id, true);
+    assert.equal(ownerChanges, 1);
+    assert.equal(db.prepare('SELECT is_public FROM recipes WHERE id = ?').get(recipe.id).is_public, 1);
+
+    setRecipePublic(db, recipe.id, owner.id, false);
+    assert.equal(db.prepare('SELECT is_public FROM recipes WHERE id = ?').get(recipe.id).is_public, 0);
+  } finally {
+    cleanup();
+  }
+});
+
+test('listPublicRecipes returns the author username, excludes private recipes, and sorts by title / imports / recent', () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const alice = makeUser(db, 'alice');
+    const bob = makeUser(db, 'bob');
+
+    const zebra = insertRecipe(db, alice.id, { title: 'Zebra Stew' });
+    const apple = insertRecipe(db, bob.id, { title: 'Apple Pie' });
+    const mango = insertRecipe(db, alice.id, { title: 'Mango Salad' });
+    const secret = insertRecipe(db, alice.id, { title: 'Secret Recipe' });
+
+    setRecipePublic(db, zebra.id, alice.id, true);
+    setRecipePublic(db, apple.id, bob.id, true);
+    setRecipePublic(db, mango.id, alice.id, true);
+    // secret stays private
+
+    db.prepare('UPDATE recipes SET bring_import_count = 5 WHERE id = ?').run(zebra.id);
+    db.prepare('UPDATE recipes SET bring_import_count = 1 WHERE id = ?').run(apple.id);
+    db.prepare("UPDATE recipes SET created_at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(apple.id);
+    db.prepare("UPDATE recipes SET created_at = '2024-01-01T00:00:00.000Z' WHERE id = ?").run(mango.id);
+    db.prepare("UPDATE recipes SET created_at = '2022-01-01T00:00:00.000Z' WHERE id = ?").run(zebra.id);
+
+    const byTitle = listPublicRecipes(db);
+    assert.deepEqual(byTitle.map((r) => r.title), ['Apple Pie', 'Mango Salad', 'Zebra Stew']);
+    assert.ok(!byTitle.some((r) => r.id === secret.id));
+    const appleRow = byTitle.find((r) => r.id === apple.id);
+    assert.equal(appleRow.author_username, 'bob');
+
+    const byImports = listPublicRecipes(db, { sort: 'imports' });
+    assert.deepEqual(byImports.map((r) => r.id), [zebra.id, apple.id, mango.id]);
+
+    const byRecent = listPublicRecipes(db, { sort: 'recent' });
+    assert.deepEqual(byRecent.map((r) => r.id), [mango.id, zebra.id, apple.id]);
+
+    const searched = listPublicRecipes(db, { search: 'zebra' });
+    assert.deepEqual(searched.map((r) => r.id), [zebra.id]);
   } finally {
     cleanup();
   }

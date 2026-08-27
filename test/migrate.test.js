@@ -7,6 +7,7 @@ import { openDatabase } from '../src/db/index.js';
 import { runMigrations } from '../src/db/migrate.js';
 
 const EXPECTED_TABLES = [
+  'bring_imports',
   'ingredient_groups',
   'ingredients',
   'invites',
@@ -47,12 +48,12 @@ test('pragma foreign_keys is 1 and journal_mode is wal after openDatabase', () =
   });
 });
 
-test('runMigrations on a fresh db returns 001_init.sql and creates every table', () => {
+test('runMigrations on a fresh db returns 001, 002 and 003 in order and creates every table', () => {
   withTempDir((dir) => {
     const dbPath = path.join(dir, 'dishlist.db');
     const db = openDatabase(dbPath);
     const applied = runMigrations(db);
-    assert.deepEqual(applied, ['001_init.sql']);
+    assert.deepEqual(applied, ['001_init.sql', '002_public_shelf.sql', '003_bring_imports.sql']);
 
     const tables = db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
@@ -64,7 +65,7 @@ test('runMigrations on a fresh db returns 001_init.sql and creates every table',
   });
 });
 
-test('runMigrations called a second time returns [] and leaves schema_migrations with one row', () => {
+test('runMigrations called a second time returns [] and leaves schema_migrations with three rows', () => {
   withTempDir((dir) => {
     const dbPath = path.join(dir, 'dishlist.db');
     const db = openDatabase(dbPath);
@@ -73,7 +74,80 @@ test('runMigrations called a second time returns [] and leaves schema_migrations
     assert.deepEqual(secondRun, []);
 
     const count = db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count;
-    assert.equal(count, 1);
+    assert.equal(count, 3);
+    db.close();
+  });
+});
+
+test('migration 002 adds recipes.is_public NOT NULL DEFAULT 0, indexed', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'dishlist.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+
+    const ownerId = db
+      .prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
+      .run('owner', 'hash').lastInsertRowid;
+    const recipeId = db
+      .prepare('INSERT INTO recipes (owner_id, title) VALUES (?, ?)')
+      .run(ownerId, 'Soup').lastInsertRowid;
+
+    assert.equal(db.prepare('SELECT is_public FROM recipes WHERE id = ?').get(recipeId).is_public, 0);
+
+    const indexes = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'recipes'")
+      .all()
+      .map((row) => row.name);
+    assert.ok(indexes.some((name) => name.includes('is_public')));
+    db.close();
+  });
+});
+
+test('migration 003 adds recipes.bring_import_count and the bring_imports table with its composite primary key', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'dishlist.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+
+    const ownerId = db
+      .prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
+      .run('owner', 'hash').lastInsertRowid;
+    const recipeId = db
+      .prepare('INSERT INTO recipes (owner_id, title) VALUES (?, ?)')
+      .run(ownerId, 'Soup').lastInsertRowid;
+
+    assert.equal(
+      db.prepare('SELECT bring_import_count FROM recipes WHERE id = ?').get(recipeId)
+        .bring_import_count,
+      0
+    );
+
+    db.prepare(
+      'INSERT INTO bring_imports (recipe_id, device_id, day) VALUES (?, ?, ?)'
+    ).run(recipeId, 'device-a', '2026-08-27');
+
+    assert.throws(() => {
+      db.prepare(
+        'INSERT INTO bring_imports (recipe_id, device_id, day) VALUES (?, ?, ?)'
+      ).run(recipeId, 'device-a', '2026-08-27');
+    });
+    db.close();
+  });
+});
+
+test('migrations 002 and 003 are idempotent: applying them twice leaves the schema unchanged', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'dishlist.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+    assert.doesNotThrow(() => runMigrations(db));
+
+    const tables = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
+      .all()
+      .map((row) => row.name)
+      .sort();
+    assert.deepEqual(tables, EXPECTED_TABLES);
     db.close();
   });
 });
