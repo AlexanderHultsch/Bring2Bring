@@ -1622,3 +1622,97 @@ test('the owner of that same recipe still sees the enable form', async () => {
     assert.match(res.text, /Enable public link and send to Bring!/);
   });
 });
+
+// SPECIFICATION.md decision E5 (v2.1): the header no longer duplicates the
+// page title, since the <h1> already carries it.
+test('the recipe page renders the title exactly once, in the h1, not the header', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.doesNotMatch(res.text, /site-header__title/);
+    assert.match(res.text, /<h1>Scalable Soup<\/h1>/);
+  });
+});
+
+// SPECIFICATION.md decision E5 (v2.1): reading order is servings,
+// ingredients, Send to Bring!, Method, then the collapsed manage disclosure.
+test('the Method section comes before the manage disclosure', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    const methodIndex = res.text.indexOf('<h2>Method</h2>');
+    const manageIndex = res.text.indexOf('<details class="manage">');
+
+    assert.ok(methodIndex > -1, 'expected a Method section');
+    assert.ok(manageIndex > -1, 'expected the manage disclosure');
+    assert.ok(methodIndex < manageIndex, 'Method should come before the manage disclosure');
+  });
+});
+
+test('Send to Bring! comes before the Method section', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+    const shareCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: shareCsrf, action: 'enable' });
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    const bringIndex = res.text.indexOf('Send to Bring!');
+    const methodIndex = res.text.indexOf('<h2>Method</h2>');
+
+    assert.ok(bringIndex > -1, 'expected a Send to Bring! action');
+    assert.ok(methodIndex > -1, 'expected a Method section');
+    assert.ok(bringIndex < methodIndex, 'Send to Bring! should come before Method');
+  });
+});
+
+// SPECIFICATION.md decision E5 (v2.1): publishing, the public link and
+// Archive are owner-only administration, tucked behind one disclosure.
+test('an owner sees the manage disclosure; a signed-in non-owner viewing a public recipe does not', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const owner = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(owner);
+    const publishCsrf = await csrfFor(owner, `/recipes/${recipeId}`);
+    await owner.post(`/recipes/${recipeId}/publish`).type('form').send({ _csrf: publishCsrf, action: 'publish' });
+
+    const ownerRes = await owner.get(`/recipes/${recipeId}`);
+    assert.equal(ownerRes.status, 200);
+    assert.match(ownerRes.text, /<details class="manage">/);
+
+    await seedUser(db, 'other');
+    const other = await loginAgent(app, 'other');
+    const otherRes = await other.get(`/recipes/${recipeId}`);
+    assert.equal(otherRes.status, 200);
+    assert.doesNotMatch(otherRes.text, /<details class="manage">/);
+  });
+});
+
+// SPECIFICATION.md decision E6 (v2.1): the servings ruler wraps each number
+// in its own span so a filled circle can be drawn behind it.
+test('each servings-wheel item wraps its number in a servings-wheel__value span', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    const values = [...res.text.matchAll(/<span class="servings-wheel__value">(\d+)<\/span>/g)];
+    assert.equal(values.length, 10);
+    values.forEach((m, i) => assert.equal(Number(m[1]), i + 1));
+  });
+});
