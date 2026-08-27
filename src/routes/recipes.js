@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import {
@@ -25,6 +26,22 @@ import {
 } from '../services/recipes.js';
 import { applyShareAction, ShareActionSchema } from '../services/sharing.js';
 import { publishRecipe, unpublishRecipe, PublishActionSchema } from '../services/publishing.js';
+import { recordImport } from '../services/imports.js';
+
+// SPECIFICATION.md section 8.5 / 11 (v2.0, D4): 16 random bytes, base64url,
+// httpOnly, sameSite=lax, secure in production, long expiry — mirrors the
+// session and CSRF cookie options (src/middleware/session.js,
+// src/middleware/csrf.js).
+const DEVICE_COOKIE_NAME = 'dishlist.did';
+const DEVICE_COOKIE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
+
+function generateDeviceId() {
+  return crypto.randomBytes(16).toString('base64url');
+}
+
+function currentUtcDay() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 function notFoundError() {
   const error = new Error('Not found');
@@ -283,6 +300,25 @@ export function recipesRouter(db, config) {
       res.redirect(`/recipes/${id}`);
       return;
     }
+
+    // SPECIFICATION.md section 8.5 / 11 (v2.0, D4): recorded only past the
+    // read-access and share-enabled checks above, so a recipe that redirects
+    // back to itself, or another user's private recipe, is never counted.
+    // The cookie is set lazily, right here, only for a request that actually
+    // reaches this point — a visitor who never sends a recipe to Bring! never
+    // receives one.
+    let deviceId = req.cookies[DEVICE_COOKIE_NAME];
+    if (!deviceId) {
+      deviceId = generateDeviceId();
+      res.cookie(DEVICE_COOKIE_NAME, deviceId, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: config.isProduction,
+        path: '/',
+        maxAge: DEVICE_COOKIE_MAX_AGE_MS,
+      });
+    }
+    recordImport(db, id, deviceId, currentUtcDay());
 
     const requestedYield = parseYieldParam(req.query, recipe.yield_amount);
     const bringDeeplinkUrl = buildBringDeeplinkUrl({

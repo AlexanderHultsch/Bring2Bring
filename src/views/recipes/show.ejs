@@ -57,7 +57,7 @@
               <svg class="icon"><use href="#i-bring"></use></svg>
               Send to Bring!
             </a>
-          <% } else { %>
+          <% } else if (isOwner) { %>
             <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="bring-action">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               <input type="hidden" name="action" value="enable">
@@ -67,6 +67,8 @@
                 Enable public link and send to Bring!
               </button>
             </form>
+          <% } else { %>
+            <p class="bring-action__hint">This dish can't be sent to Bring! right now — its author has turned its link off.</p>
           <% } %>
         </div>
 

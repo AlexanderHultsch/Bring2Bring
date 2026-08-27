@@ -75,6 +75,19 @@ test('GET /account and GET /privacy return 200 logged in, 302 to /login otherwis
   });
 });
 
+// SPECIFICATION.md section 8.5 / 11 (v2.0, D4): the device cookie exists now
+// and must be documented on the Privacy page, by name.
+test('GET /privacy mentions the dishlist.did device cookie by name', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+
+    const res = await agent.get('/privacy');
+    assert.equal(res.status, 200);
+    assert.match(res.text, /dishlist\.did/);
+  });
+});
+
 test('POST /account/password with the correct current password changes it: the old password no longer authenticates and the new one does', async () => {
   await withApp(async (app, db) => {
     await seedKnownUser(db);

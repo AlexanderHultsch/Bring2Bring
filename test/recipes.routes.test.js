@@ -1387,3 +1387,172 @@ test('the A-Z rail renders 27 entries, and a letter with no recipes is not a lin
     assert.match(railMatch[0], /<span class="az-rail__letter az-rail__letter--inert"[^>]*>B<\/span>/);
   });
 });
+
+function setCookieFor(res, name) {
+  const raw = res.headers['set-cookie'] || [];
+  return raw.find((cookie) => cookie.startsWith(`${name}=`));
+}
+
+function importCount(db, recipeId) {
+  return db.prepare('SELECT bring_import_count FROM recipes WHERE id = ?').get(recipeId)
+    .bring_import_count;
+}
+
+// SPECIFICATION.md section 13 acceptance 12 (v2.0, D4): two GETs from the
+// same device on the same day increment the counter by exactly one, and both
+// still answer 302 to a deeplink with baseQuantity === requestedQuantity.
+test('ACCEPTANCE 12: two GETs of /recipes/:id/bring from the same device on the same day increment bring_import_count by exactly one', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+    const enableCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: enableCsrf, action: 'enable' });
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const res = await agent.get(`/recipes/${recipeId}/bring?yield=6`);
+      assert.equal(res.status, 302);
+      const url = new URL(res.headers.location);
+      assert.equal(url.searchParams.get('baseQuantity'), url.searchParams.get('requestedQuantity'));
+    }
+
+    assert.equal(importCount(db, recipeId), 1);
+  });
+});
+
+// SPECIFICATION.md section 13 acceptance 13 (v2.0, D4).
+test('ACCEPTANCE 13: the same request from a different device id increments bring_import_count again', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+    const enableCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: enableCsrf, action: 'enable' });
+
+    await agent.get(`/recipes/${recipeId}/bring`);
+    assert.equal(importCount(db, recipeId), 1);
+
+    const otherDeviceAgent = await loginAgent(app, 'alex');
+    await otherDeviceAgent.get(`/recipes/${recipeId}/bring`);
+    assert.equal(importCount(db, recipeId), 2);
+  });
+});
+
+test('the first GET /recipes/:id/bring sets dishlist.did, httpOnly and SameSite=Lax; the second reuses the same value', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+    const enableCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: enableCsrf, action: 'enable' });
+
+    const first = await agent.get(`/recipes/${recipeId}/bring`);
+    const firstCookie = setCookieFor(first, 'dishlist.did');
+    assert.ok(firstCookie, 'expected dishlist.did to be set on the first request');
+    assert.match(firstCookie, /HttpOnly/);
+    assert.match(firstCookie, /SameSite=Lax/i);
+    const firstValue = firstCookie.split(';')[0].split('=')[1];
+    assert.ok(firstValue.length > 0);
+
+    const second = await agent.get(`/recipes/${recipeId}/bring`);
+    const secondCookie = setCookieFor(second, 'dishlist.did');
+    assert.equal(secondCookie, undefined, 'expected no new dishlist.did cookie on the second request');
+  });
+});
+
+test('GET /recipes/:id/bring does not increment bring_import_count when sharing is disabled', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    await agent.get(`/recipes/${recipeId}/bring?yield=6`);
+    assert.equal(importCount(db, recipeId), 0);
+  });
+});
+
+test("GET /recipes/:id/bring does not increment bring_import_count for another user's private recipe", async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'owner');
+    await seedUser(db, 'stranger');
+    const ownerAgent = await loginAgent(app, 'owner');
+    const recipeId = await createScalingRecipe(ownerAgent);
+    const enableCsrf = await csrfFor(ownerAgent, `/recipes/${recipeId}`);
+    await ownerAgent
+      .post(`/recipes/${recipeId}/share/link`)
+      .type('form')
+      .send({ _csrf: enableCsrf, action: 'enable' });
+
+    const strangerAgent = await loginAgent(app, 'stranger');
+    const res = await strangerAgent.get(`/recipes/${recipeId}/bring`);
+    assert.equal(res.status, 404);
+    assert.equal(importCount(db, recipeId), 0);
+  });
+});
+
+test('GET /recipes/:id/bring does not increment bring_import_count when unauthenticated', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+    const enableCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: enableCsrf, action: 'enable' });
+
+    const res = await request(app).get(`/recipes/${recipeId}/bring`);
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.location, '/login');
+    assert.equal(importCount(db, recipeId), 0);
+  });
+});
+
+// SPECIFICATION.md section 9 (v2.0, D1): a recipe on the Public shelf whose
+// owner has since disabled its link. The fallback "enable and send to Bring!"
+// form posts to an owner-only route, so a non-owner must not see it.
+test('a non-owner viewing a public recipe whose link is disabled sees an explanatory sentence, not the enable form', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'owner');
+    await seedUser(db, 'stranger');
+    const ownerAgent = await loginAgent(app, 'owner');
+    const recipeId = await createScalingRecipe(ownerAgent);
+
+    const publishCsrf = await csrfFor(ownerAgent, `/recipes/${recipeId}`);
+    await ownerAgent
+      .post(`/recipes/${recipeId}/publish`)
+      .type('form')
+      .send({ _csrf: publishCsrf, action: 'publish' });
+    const disableCsrf = await csrfFor(ownerAgent, `/recipes/${recipeId}`);
+    await ownerAgent
+      .post(`/recipes/${recipeId}/share/link`)
+      .type('form')
+      .send({ _csrf: disableCsrf, action: 'disable' });
+
+    const strangerAgent = await loginAgent(app, 'stranger');
+    const res = await strangerAgent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.doesNotMatch(res.text, /Enable public link and send to Bring!/);
+    assert.match(res.text, /author has turned its link off/);
+  });
+});
+
+test('the owner of that same recipe still sees the enable form', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'owner');
+    const ownerAgent = await loginAgent(app, 'owner');
+    const recipeId = await createScalingRecipe(ownerAgent);
+
+    const publishCsrf = await csrfFor(ownerAgent, `/recipes/${recipeId}`);
+    await ownerAgent
+      .post(`/recipes/${recipeId}/publish`)
+      .type('form')
+      .send({ _csrf: publishCsrf, action: 'publish' });
+    const disableCsrf = await csrfFor(ownerAgent, `/recipes/${recipeId}`);
+    await ownerAgent
+      .post(`/recipes/${recipeId}/share/link`)
+      .type('form')
+      .send({ _csrf: disableCsrf, action: 'disable' });
+
+    const res = await ownerAgent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /Enable public link and send to Bring!/);
+  });
+});
