@@ -95,6 +95,18 @@ test('GET /admin/recipes and /admin/users answer 200 for an admin', async () => 
   });
 });
 
+test('GET /admin/recipes has no visible Apply button on the search form', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'root', 'admin');
+    const agent = await loginAgent(app, 'root');
+
+    const res = await agent.get('/admin/recipes');
+
+    assert.equal(res.status, 200);
+    assert.ok(!res.text.includes('>Apply<'));
+  });
+});
+
 // ACCEPTANCE 14 (SPECIFICATION.md section 13), over HTTP rather than at the
 // repository level (test/admin.test.js already covers the repository).
 test('ACCEPTANCE 14 over HTTP: GET /admin/recipes leaks no ingredient name or method text', async () => {

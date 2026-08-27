@@ -8,14 +8,12 @@
         <p class="admin-page__hint">Title, author, and state only — no admin screen ever shows an ingredient or a method.</p>
 
         <form method="get" action="/admin/recipes" class="list-controls" role="search">
-          <div class="list-controls__search">
-            <label for="q">Search</label>
-            <div class="search-field">
-              <svg class="icon search-field__icon"><use href="#i-search"></use></svg>
-              <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search by title">
-            </div>
+          <label class="visually-hidden" for="q">Search</label>
+          <div class="search-field">
+            <svg class="icon search-field__icon"><use href="#i-search"></use></svg>
+            <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search by title">
           </div>
-          <button type="submit" class="button">Apply</button>
+          <button type="submit" class="visually-hidden">Search</button>
         </form>
 
         <% if (recipes.length === 0) { %>

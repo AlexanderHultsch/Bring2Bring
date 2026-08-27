@@ -547,6 +547,13 @@ label {
   margin: 0 0 var(--space-1);
 }
 
+.field-hint {
+  margin: calc(var(--space-1) * -1) 0 0;
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-line-height);
+  color: var(--color-text-muted);
+}
+
 .servings-section {
   margin-bottom: var(--space-4);
 }

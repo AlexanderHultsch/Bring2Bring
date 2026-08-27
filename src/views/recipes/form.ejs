@@ -3,7 +3,6 @@
         currentUser,
         csrfToken,
         backHref: mode === 'edit' ? '/recipes/' + recipeId : '/',
-        pageTitle: mode === 'edit' ? 'Edit recipe' : 'New recipe',
       }) %>
       <main class="editor-page has-bottom-nav">
         <h1><%= mode === 'edit' ? 'Edit recipe' : 'New recipe' %></h1>
@@ -25,11 +24,12 @@
         >
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
 
-          <label for="title">Title</label>
+          <label class="section-caption" for="title">Title</label>
           <input type="text" id="title" name="title" value="<%= values.title %>" required maxlength="200">
 
-          <label for="servings">Servings</label>
-          <input type="text" inputmode="decimal" id="servings" name="servings" value="<%= values.servings %>" required>
+          <label class="section-caption" for="servings">Servings</label>
+          <input type="text" inputmode="numeric" id="servings" name="servings" value="<%= values.servings %>" required>
+          <p class="field-hint">A whole number from 1 to 10.</p>
 
           <h2>Ingredients</h2>
           <div class="ingredient-rows" data-ingredients>
@@ -53,8 +53,8 @@
           <button type="button" class="button button--ghost" data-add-ingredient>Add ingredient</button>
 
           <h2>Method</h2>
-          <label for="method">Method (optional)</label>
-          <textarea id="method" name="method" data-method><%= values.method %></textarea>
+          <label class="visually-hidden" for="method">Method</label>
+          <textarea id="method" name="method" data-method placeholder="Optional"><%= values.method %></textarea>
 
           <button type="submit" class="button">Save recipe</button>
 
