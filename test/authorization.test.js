@@ -90,6 +90,7 @@ const ROUTES = [
   // A valid action is required so the assertion below proves the auth check
   // fired, not the ShareActionSchema validation in src/routes/recipes.js.
   { method: 'post', path: '/recipes/:id/share/link', recipeScoped: true, body: { action: 'enable' } },
+  { method: 'get', path: '/recipes/:id/bring', recipeScoped: true },
   { method: 'post', path: '/recipes/:id/delete', recipeScoped: true, body: {} },
   { method: 'get', path: '/account', recipeScoped: false },
   { method: 'post', path: '/account/password', recipeScoped: false, body: {} },

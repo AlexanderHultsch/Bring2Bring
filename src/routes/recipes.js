@@ -1,6 +1,7 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import {
+  findRecipeForRead,
   findRecipeForWrite,
   loadRecipeAggregate,
   listRecipesForUser,
@@ -123,17 +124,6 @@ export function recipesRouter(db, config) {
     const factor = computeFactor(requestedYield, aggregate.recipe.yield_amount);
     const scaledGroups = scaleGroups(aggregate.groups, factor, { locale: config.numberLocale });
 
-    // D6: baseQuantity and requestedQuantity are both set to requestedYield —
-    // the exact yield this page is rendered with — so Bring's multiplier is
-    // always 1.0 against our already-scaled amounts (the double-scaling trap).
-    const bringDeeplinkUrl = aggregate.recipe.share_enabled
-      ? buildBringDeeplinkUrl({
-          baseUrl: config.publicBaseUrl,
-          token: aggregate.recipe.share_token,
-          requestedYield,
-        })
-      : null;
-
     res.render('recipes/show', {
       recipe: aggregate.recipe,
       groups: aggregate.groups,
@@ -143,7 +133,6 @@ export function recipesRouter(db, config) {
       requestedYield,
       locale: config.numberLocale,
       publicBaseUrl: config.publicBaseUrl,
-      bringDeeplinkUrl,
     });
   });
 
@@ -232,6 +221,39 @@ export function recipesRouter(db, config) {
     }
 
     res.redirect(`/recipes/${id}`);
+  });
+
+  // SPECIFICATION.md section 8.5 (v2.0, D4/D6): the Bring! deeplink is built
+  // here, server-side, from a single ?yield=N — never client-side — so the
+  // servings wheel and the exported quantities can never drift apart (the
+  // double-scaling trap). Same read access as viewing the recipe (section
+  // 5.1): findRecipeForRead, 404 when it returns undefined, no second rule.
+  router.get('/recipes/:id/bring', requireAuth(), (req, res, next) => {
+    const id = parseRecipeId(req.params.id);
+    if (id === null) {
+      next(notFoundError());
+      return;
+    }
+
+    const recipe = findRecipeForRead(db, id, req.currentUser.id);
+    if (!recipe) {
+      next(notFoundError());
+      return;
+    }
+
+    if (!recipe.share_enabled) {
+      res.redirect(`/recipes/${id}`);
+      return;
+    }
+
+    const requestedYield = parseYieldParam(req.query, recipe.yield_amount);
+    const bringDeeplinkUrl = buildBringDeeplinkUrl({
+      baseUrl: config.publicBaseUrl,
+      token: recipe.share_token,
+      requestedYield,
+    });
+
+    res.redirect(bringDeeplinkUrl);
   });
 
   router.post('/recipes/:id/delete', requireAuth(), (req, res, next) => {

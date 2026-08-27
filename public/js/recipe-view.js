@@ -11,8 +11,9 @@ if (container) {
   const locale = container.dataset.locale || 'de-DE';
 
   if (Number.isFinite(baseYield) && baseYield > 0) {
-    const yieldInput = document.querySelector('[data-yield-input]');
-    const yieldForm = document.querySelector('[data-yield-form]');
+    const yieldWheel = document.querySelector('[data-yield-wheel]');
+    const servingsCount = document.querySelector('[data-servings-count]');
+    const bringLink = document.querySelector('[data-bring-link]');
 
     const emptyToNull = (raw) => {
       if (raw === undefined || raw === '') return null;
@@ -55,8 +56,34 @@ if (container) {
         itemEls.forEach((el, index) => applyToElement(el, scaledIngredients[index]));
       });
 
-      if (yieldInput) yieldInput.value = String(requestedYield);
+      if (servingsCount) servingsCount.textContent = String(requestedYield);
+      markSelected(requestedYield);
       updateUrl(requestedYield);
+      updateBringLink(requestedYield);
+    }
+
+    // SPECIFICATION.md section 8.5: what the wheel shows and what the Bring!
+    // button sends must be the same number, or the export scales twice (the
+    // double-scaling trap) — the button's href is our own /recipes/:id/bring
+    // route, so this only ever has to rewrite the one yield query param.
+    function updateBringLink(requestedYield) {
+      if (!bringLink) return;
+      const url = new URL(bringLink.href, window.location.origin);
+      url.searchParams.set('yield', String(requestedYield));
+      bringLink.href = url.pathname + url.search;
+    }
+
+    function markSelected(requestedYield) {
+      if (!yieldWheel) return;
+      yieldWheel.querySelectorAll('[data-yield-option]').forEach((el) => {
+        const selected = Number(el.dataset.yieldOption) === requestedYield;
+        el.classList.toggle('servings-wheel__item--selected', selected);
+        if (selected) {
+          el.setAttribute('aria-current', 'true');
+        } else {
+          el.removeAttribute('aria-current');
+        }
+      });
     }
 
     function updateUrl(requestedYield) {
@@ -65,39 +92,14 @@ if (container) {
       window.history.replaceState(window.history.state, '', url.toString());
     }
 
-    function currentYield() {
-      const value = yieldInput ? Number(yieldInput.value) : NaN;
-      return Number.isFinite(value) && value > 0 ? value : baseYield;
-    }
+    if (yieldWheel) {
+      yieldWheel.addEventListener('click', (event) => {
+        const option = event.target.closest('[data-yield-option]');
+        if (!option) return;
 
-    function clampYield(value) {
-      if (!Number.isFinite(value) || value <= 0) return null;
-      return Math.min(Math.round(value * 100) / 100, 1000);
-    }
-
-    if (yieldForm) {
-      yieldForm.addEventListener('submit', (event) => {
         event.preventDefault();
-        const next = clampYield(currentYield());
-        if (next !== null) applyYield(next);
-      });
-
-      yieldForm.addEventListener('click', (event) => {
-        const stepLink = event.target.closest('[data-yield-step]');
-        const presetLink = event.target.closest('[data-yield-preset]');
-
-        if (stepLink) {
-          event.preventDefault();
-          const next = clampYield(currentYield() + Number(stepLink.dataset.yieldStep));
-          if (next !== null) applyYield(next);
-          return;
-        }
-
-        if (presetLink) {
-          event.preventDefault();
-          const next = clampYield(currentYield() * Number(presetLink.dataset.yieldPreset));
-          if (next !== null) applyYield(next);
-        }
+        const next = Number(option.dataset.yieldOption);
+        if (Number.isInteger(next) && next >= 1 && next <= 10) applyYield(next);
       });
     }
   }

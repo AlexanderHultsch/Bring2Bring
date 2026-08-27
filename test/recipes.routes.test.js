@@ -958,6 +958,246 @@ test('GET / renders the import count and the i-bring icon on each row', async ()
   });
 });
 
+// SPECIFICATION.md section 7.4 (v2.0, D6): the servings wheel is exactly the
+// integers 1..10, each a real ?yield=N link (works with JavaScript disabled).
+test('the servings wheel renders exactly the integers 1..10, each linking to ?yield=N', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    const items = [
+      ...res.text.matchAll(
+        /<a\s+class="servings-wheel__item[^"]*"\s+href="\?yield=(\d+)"\s+data-yield-option="(\d+)"/g
+      ),
+    ];
+    assert.equal(items.length, 10);
+    items.forEach((m, i) => {
+      assert.equal(Number(m[1]), i + 1);
+      assert.equal(Number(m[2]), i + 1);
+    });
+  });
+});
+
+test('the current servings is marked as selected on the wheel; at ?yield=3 it is 3, not the base yield', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent); // base yield 4
+
+    const res = await agent.get(`/recipes/${recipeId}?yield=3`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /class="servings-wheel__item servings-wheel__item--selected"\s+href="\?yield=3"/);
+    assert.doesNotMatch(res.text, /class="servings-wheel__item servings-wheel__item--selected"\s+href="\?yield=4"/);
+  });
+});
+
+test("?yield=0, ?yield=11, ?yield=3.5 and ?yield=abc each fall back to the recipe's own servings and return 200, never 400", async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    for (const badYield of ['0', '11', '3.5', 'abc']) {
+      const res = await agent.get(`/recipes/${recipeId}?yield=${encodeURIComponent(badYield)}`);
+      assert.equal(res.status, 200, `?yield=${badYield}`);
+      assert.match(res.text, /250 g/, `?yield=${badYield}`);
+    }
+  });
+});
+
+test('the ingredients heading names the selected servings', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}?yield=6`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /Ingredients \(for <span data-servings-count>6<\/span> servings\)/);
+  });
+});
+
+test('the public-link <details> has no open attribute on load, and the expanded content has the URL, Copy, Rotate and Disable controls', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const enableCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: enableCsrf, action: 'enable' });
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    assert.match(res.text, /<details class="public-link">/);
+    assert.doesNotMatch(res.text, /<details class="public-link"[^>]*\sopen/);
+
+    assert.ok(res.text.includes('Public link · on'));
+    assert.match(res.text, /data-share-url="https:\/\/dishlist\.example\.com\/r\/[^"]+"/);
+    assert.match(res.text, /Copy\s*<\/button>/);
+    assert.match(res.text, /Rotate\s*<\/button>/);
+    assert.match(res.text, /Disable\s*<\/button>/);
+  });
+});
+
+test('the recipe page\'s Send to Bring! button now points at /recipes/:id/bring, not directly at api.getbring.com, and carries the data hook recipe-view.js looks for', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const enableCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: enableCsrf, action: 'enable' });
+
+    const res = await agent.get(`/recipes/${recipeId}?yield=6`);
+    assert.equal(res.status, 200);
+
+    const match = res.text.match(/<a class="button button--bring" href="([^"]+)"\s+data-bring-link>/);
+    assert.ok(match, 'expected the Send to Bring! link with the data-bring-link hook');
+    assert.equal(match[1], `/recipes/${recipeId}/bring?yield=6`);
+    assert.doesNotMatch(res.text, /button--bring" href="https:\/\/api\.getbring\.com/);
+  });
+});
+
+// SPECIFICATION.md section 8.5: acceptance criterion 5, now checked over
+// HTTP against GET /recipes/:id/bring instead of the page's rendered href —
+// the deeplink is built server-side from ?yield=N, never client-side, so the
+// servings wheel and the exported quantities can never drift apart.
+test('ACCEPTANCE 5 over HTTP: GET /recipes/:id/bring?yield=6 redirects to an api.getbring.com deeplink with baseQuantity equal to requestedQuantity, both 6, and a URL-encoded share url containing yield=6', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const enableCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: enableCsrf, action: 'enable' });
+
+    const res = await agent.get(`/recipes/${recipeId}/bring?yield=6`);
+    assert.equal(res.status, 302);
+
+    const url = new URL(res.headers.location);
+    assert.equal(url.origin + url.pathname, 'https://api.getbring.com/rest/bringrecipes/deeplink');
+    assert.equal(url.searchParams.get('baseQuantity'), '6');
+    assert.equal(url.searchParams.get('requestedQuantity'), '6');
+    assert.equal(url.searchParams.get('baseQuantity'), url.searchParams.get('requestedQuantity'));
+
+    const shareUrl = url.searchParams.get('url');
+    assert.ok(shareUrl.includes('yield=6'), `expected the share url to carry yield=6, got ${shareUrl}`);
+    assert.ok(res.headers.location.includes(`url=${encodeURIComponent(shareUrl)}`));
+  });
+});
+
+test('GET /recipes/:id/bring with no ?yield uses the recipe\'s own servings, base still equal to requested', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent); // base yield 4
+
+    const enableCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: enableCsrf, action: 'enable' });
+
+    const res = await agent.get(`/recipes/${recipeId}/bring`);
+    assert.equal(res.status, 302);
+
+    const url = new URL(res.headers.location);
+    assert.equal(url.searchParams.get('baseQuantity'), '4');
+    assert.equal(url.searchParams.get('requestedQuantity'), '4');
+  });
+});
+
+test('GET /recipes/:id/bring with ?yield=11 or ?yield=abc falls back to the recipe\'s own servings, still 302, never 400, base still equal to requested', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent); // base yield 4
+
+    const enableCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: enableCsrf, action: 'enable' });
+
+    for (const badYield of ['11', 'abc']) {
+      const res = await agent.get(`/recipes/${recipeId}/bring?yield=${encodeURIComponent(badYield)}`);
+      assert.equal(res.status, 302, `?yield=${badYield}`);
+      const url = new URL(res.headers.location);
+      assert.equal(url.searchParams.get('baseQuantity'), '4', `?yield=${badYield}`);
+      assert.equal(url.searchParams.get('requestedQuantity'), '4', `?yield=${badYield}`);
+    }
+  });
+});
+
+test('GET /recipes/:id/bring redirects back to the recipe page, not api.getbring.com, when sharing is disabled', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}/bring?yield=6`);
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.location, `/recipes/${recipeId}`);
+  });
+});
+
+test('GET /recipes/:id/bring answers 404 for another user\'s private recipe', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'owner');
+    await seedUser(db, 'stranger');
+    const ownerAgent = await loginAgent(app, 'owner');
+    const recipeId = await createScalingRecipe(ownerAgent);
+    const enableCsrf = await csrfFor(ownerAgent, `/recipes/${recipeId}`);
+    await ownerAgent
+      .post(`/recipes/${recipeId}/share/link`)
+      .type('form')
+      .send({ _csrf: enableCsrf, action: 'enable' });
+
+    const strangerAgent = await loginAgent(app, 'stranger');
+    const res = await strangerAgent.get(`/recipes/${recipeId}/bring`);
+    assert.equal(res.status, 404);
+  });
+});
+
+test('GET /recipes/:id/bring answers 302 to /login when unauthenticated', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await request(app).get(`/recipes/${recipeId}/bring`);
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.location, '/login');
+  });
+});
+
+test('the method renders verbatim on the recipe page: a two-line method with a blank line between round-trips into the HTML with its line breaks intact', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const method = 'Preheat the oven.\n\nWhisk vigorously.';
+    const recipeId = await createScalingRecipe(agent, { method });
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    const bodyMatch = res.text.match(/<p class="recipe-method__text">([\s\S]*?)<\/p>/);
+    assert.ok(bodyMatch, 'expected the method paragraph');
+    assert.equal(bodyMatch[1], method);
+  });
+});
+
+test('the recipe page includes the back link to My Dishes and the bottom nav', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /<a class="site-header__back" href="\/" aria-label="Back">/);
+    assert.match(res.text, /<nav class="bottom-nav" aria-label="Primary">/);
+  });
+});
+
 test('the A-Z rail renders 27 entries, and a letter with no recipes is not a link', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');

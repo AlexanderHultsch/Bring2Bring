@@ -5,37 +5,31 @@
           <p class="recipe-page__archived-flag">Archived</p>
         <% } %>
         <h1><%= recipe.title %></h1>
-        <p class="recipe-page__meta">
-          <%= recipe.yield_amount %> <%= recipe.yield_unit %>
-        </p>
 
-        <%
-          // Progressive enhancement (section 7.4): the step/preset links are real
-          // hrefs computed from the server-rendered requestedYield, so they work
-          // with JavaScript disabled; recipe-view.js intercepts clicks and
-          // recalculates without a reload.
-          const yieldStep = (delta) => {
-            const next = Math.round((requestedYield + delta) * 100) / 100;
-            return next > 0 ? next : requestedYield;
-          };
-          const yieldPreset = (multiplier) => {
-            const next = Math.round(requestedYield * multiplier * 100) / 100;
-            return next > 0 ? next : requestedYield;
-          };
-        %>
-        <form method="get" class="yield-control" data-yield-form aria-label="Adjust yield">
-          <a class="button button--ghost yield-control__step" href="?yield=<%= yieldStep(-1) %>" data-yield-step="-1" aria-label="Decrease yield">−</a>
-          <input type="number" inputmode="decimal" name="yield" id="yield" class="yield-control__input" data-yield-input min="0.01" max="1000" step="any" value="<%= requestedYield %>">
-          <span class="yield-control__unit" data-yield-unit><%= recipe.yield_unit %></span>
-          <a class="button button--ghost yield-control__step" href="?yield=<%= yieldStep(1) %>" data-yield-step="1" aria-label="Increase yield">+</a>
-          <button type="submit" class="button button--ghost yield-control__submit">Update</button>
-          <div class="yield-control__presets">
-            <a class="button button--ghost" href="?yield=<%= yieldPreset(0.5) %>" data-yield-preset="0.5">×0.5</a>
-            <a class="button button--ghost" href="?yield=<%= yieldPreset(2) %>" data-yield-preset="2">×2</a>
+        <section class="servings-section">
+          <h2>Servings</h2>
+          <%
+            // Progressive enhancement (section 7.4, v2.0 D6): each number is a
+            // real ?yield=N href, computed from the server-rendered
+            // requestedYield, so the wheel works with JavaScript disabled;
+            // recipe-view.js intercepts the tap and recalculates without a
+            // reload.
+          %>
+          <div class="servings-wheel" data-yield-wheel role="list" aria-label="Servings">
+            <% for (let n = 1; n <= 10; n++) { %>
+              <a
+                class="servings-wheel__item<%= n === requestedYield ? ' servings-wheel__item--selected' : '' %>"
+                href="?yield=<%= n %>"
+                data-yield-option="<%= n %>"
+                role="listitem"
+                <% if (n === requestedYield) { %>aria-current="true"<% } %>
+              ><%= n %></a>
+            <% } %>
           </div>
-        </form>
+        </section>
 
-        <div class="recipe-ingredients" data-base-yield="<%= recipe.yield_amount %>" data-locale="<%= locale %>">
+        <section class="recipe-ingredients" data-base-yield="<%= recipe.yield_amount %>" data-locale="<%= locale %>">
+          <h2>Ingredients (for <span data-servings-count><%= requestedYield %></span> servings)</h2>
           <ul class="ingredient-list" data-ingredient-list>
             <% groups[0].ingredients.forEach((ingredient, ingredientIndex) => {
                  const scaledIngredient = scaledGroups[0].ingredients[ingredientIndex];
@@ -55,7 +49,77 @@
               </li>
             <% }) %>
           </ul>
+        </section>
+
+        <div class="recipe-primary-action">
+          <% if (recipe.share_enabled) { %>
+            <a class="button button--bring" href="/recipes/<%= recipe.id %>/bring?yield=<%= requestedYield %>" data-bring-link>
+              <svg class="icon"><use href="#i-bring"></use></svg>
+              Send to Bring!
+            </a>
+          <% } else { %>
+            <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="bring-action">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <input type="hidden" name="action" value="enable">
+              <p class="bring-action__hint">Bring! needs to fetch this recipe itself, so sending to Bring! requires a public link.</p>
+              <button type="submit" class="button button--bring">
+                <svg class="icon"><use href="#i-bring"></use></svg>
+                Enable public link and send to Bring!
+              </button>
+            </form>
+          <% } %>
         </div>
+
+        <details class="public-link">
+          <summary class="public-link__summary">
+            <span class="public-link__summary-label">
+              <svg class="icon"><use href="#i-globe"></use></svg>
+              Public link · <%= recipe.share_enabled ? 'on' : 'off' %>
+            </span>
+            <svg class="icon public-link__chevron public-link__chevron--closed"><use href="#i-chevron-right"></use></svg>
+            <svg class="icon public-link__chevron public-link__chevron--open"><use href="#i-chevron-up"></use></svg>
+          </summary>
+          <div class="public-link__content">
+            <% if (recipe.share_enabled) { %>
+              <%
+                const shareUrl = publicBaseUrl + '/r/' + recipe.share_token;
+              %>
+              <p class="share-panel__url" data-share-url><%= shareUrl %></p>
+              <div class="share-panel__actions">
+                <button type="button" class="button button--ghost" data-copy-share-link data-share-url="<%= shareUrl %>">
+                  <svg class="icon"><use href="#i-copy"></use></svg>
+                  Copy
+                </button>
+                <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="action" value="rotate">
+                  <button type="submit" class="button button--ghost">
+                    <svg class="icon"><use href="#i-rotate"></use></svg>
+                    Rotate
+                  </button>
+                </form>
+                <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="action" value="disable">
+                  <button type="submit" class="button button--danger">
+                    <svg class="icon"><use href="#i-disable"></use></svg>
+                    Disable
+                  </button>
+                </form>
+              </div>
+              <p class="share-panel__warning">Rotating replaces this link immediately — previously imported Bring! entries will no longer link back.</p>
+            <% } else { %>
+              <p class="share-panel__hint">Sharing is off. Enable it to get a public link Bring! can import.</p>
+              <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="action" value="enable">
+                <button type="submit" class="button">Enable public link</button>
+              </form>
+            <% } %>
+          </div>
+        </details>
+
+        <script src="/js/copy-share-link.js" defer></script>
 
         <% if (steps.length > 0) { %>
           <section class="recipe-method">
@@ -64,51 +128,8 @@
           </section>
         <% } %>
 
-        <section class="share-panel">
-          <h2>Public link</h2>
-          <% if (recipe.share_enabled) { %>
-            <%
-              const shareUrl = publicBaseUrl + '/r/' + recipe.share_token;
-            %>
-            <p class="share-panel__url" data-share-url><%= shareUrl %></p>
-            <div class="share-panel__actions">
-              <button type="button" class="button button--ghost" data-copy-share-link data-share-url="<%= shareUrl %>">Copy link</button>
-              <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <input type="hidden" name="action" value="rotate">
-                <button type="submit" class="button button--ghost">Rotate link</button>
-              </form>
-              <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
-                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <input type="hidden" name="action" value="disable">
-                <button type="submit" class="button button--danger">Disable</button>
-              </form>
-            </div>
-            <p class="share-panel__warning">Rotating replaces this link immediately — previously imported Bring! entries will no longer link back.</p>
-          <% } else { %>
-            <p class="share-panel__hint">Sharing is off. Enable it to get a public link Bring! can import.</p>
-            <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <input type="hidden" name="action" value="enable">
-              <button type="submit" class="button">Enable public link</button>
-            </form>
-          <% } %>
-        </section>
-
-        <script src="/js/copy-share-link.js" defer></script>
-
         <div class="recipe-actions">
-          <% if (recipe.share_enabled) { %>
-            <a class="button button--bring" href="<%= bringDeeplinkUrl %>">Send to Bring!</a>
-          <% } else { %>
-            <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="bring-action">
-              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-              <input type="hidden" name="action" value="enable">
-              <p class="bring-action__hint">Bring! needs to fetch this recipe itself, so sending to Bring! requires a public link.</p>
-              <button type="submit" class="button button--bring">Enable public link and send to Bring!</button>
-            </form>
-          <% } %>
-          <a class="button" href="/recipes/<%= recipe.id %>/edit">Edit</a>
+          <a class="button button--ghost" href="/recipes/<%= recipe.id %>/edit">Edit</a>
           <form method="post" action="/recipes/<%= recipe.id %>/duplicate" class="recipe-actions__form">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button type="submit" class="button button--ghost">Duplicate</button>

@@ -35,17 +35,20 @@ function trimmedOrNull(value) {
   return trimmed === '' ? null : trimmed;
 }
 
-const MAX_YIELD = 1000;
+const MIN_YIELD = 1;
+const MAX_YIELD = 10;
 
-// SPECIFICATION.md section 7.4: the server render must honour ?yield=N so the
-// page is correct with JavaScript disabled. Anything invalid — missing, zero,
-// negative, NaN, text, out of range — falls back to the recipe's own yield,
-// never a 400.
+// SPECIFICATION.md section 7.4 (v2.0, D6): the servings control is a wheel of
+// INTEGERS 1..10, so the server render must honour only that range — anything
+// invalid (missing, zero, negative, non-integer, out of range, non-numeric)
+// falls back to the recipe's own yield, never a 400. Shared by the recipe
+// route and the public share route (section 8.5: the deeplink only ever
+// carries a value from this same 1..10 wheel).
 export function parseYieldParam(query, baseYield) {
   const raw = query?.yield;
   if (typeof raw !== 'string') return baseYield;
   const value = Number(raw.trim());
-  if (!Number.isFinite(value) || value <= 0 || value > MAX_YIELD) return baseYield;
+  if (!Number.isInteger(value) || value < MIN_YIELD || value > MAX_YIELD) return baseYield;
   return value;
 }
 
