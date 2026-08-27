@@ -6,8 +6,8 @@ disagreement gets flagged, not silently resolved.
 
 ## Domain purity
 
-Everything in `src/domain/` (`scaling.js`, `units.js`, `ingredient-parser.js`,
-`recipe-jsonld.js`) is pure and dependency-free: no imports outside
+Everything in `src/domain/` (`scaling.js`, `units.js`, `recipe-jsonld.js`)
+is pure and dependency-free: no imports outside
 `src/domain/`, no Node built-ins, no DOM. It runs unchanged in the server and
 in the browser (served as-is at `/js/domain`, never copied into `public/`).
 A test reads these files as text and fails if an import creeps in — don't

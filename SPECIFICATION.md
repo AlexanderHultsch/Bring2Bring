@@ -1,4 +1,4 @@
-# Dishlist — Specification v1.1
+# Dishlist — Specification v2.0
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
 > source of truth for the `Dishlist` repository
@@ -36,6 +36,67 @@ come back later by adding a form field.
 
 ---
 
+## Changes in v2.0
+
+v1 was a private cookbook with capability links: every recipe lived only for
+its owner and, at most, the individual users it had been explicitly shared
+with. v2 adds a second space alongside "My Dishes": a **Public** shelf, a
+community gallery that any logged-in user can browse and search, listing a
+recipe's name and its author's username. The unguessable `/r/<token>` URL
+stops being how humans find a recipe — that job now belongs to the shelf —
+and becomes purely the machine channel Bring! reads.
+
+This is a genuine shift, not an addition bolted onto the private cookbook, so
+it touches authorization, the data model, navigation, the servings control,
+one unit label, and adds an import counter with its own anti-cheat design.
+The full set of decisions:
+
+- **Public shelf, behind login (D1).** A new `is_public` flag per recipe. A
+  public recipe is listed for every logged-in user; anonymous visitors get
+  nothing new — the internet-facing surface is still exactly `/r/<token>`,
+  `/healthz`, `/login` and `/register` (§1 principle 3, restated below, not
+  removed). Publishing a recipe **also** turns on its `/r/<token>` link,
+  because Bring! can only import from a URL its own servers can fetch — this
+  consequence is spelled out at the point of publishing, not left implicit
+  (§10, §11).
+- **Authorization, simplified (D2).** Read = owner or public. Write = owner,
+  full stop — shared per-user editing is gone. Anyone who can read a recipe
+  can duplicate it into a private copy of their own, with no share token and
+  no import count. `recipe_shares` becomes dormant, like the v1.1 dormant
+  columns (§5.1 replaces the old rule entirely).
+- **Admin acts without reading (D3).** An admin screen lists recipes by
+  title, author, public/private state, created date and import count, and
+  can unpublish or delete a recipe, or delete a user (cascading to their
+  recipes) — but never displays ingredients or method. Moderation needs
+  identity and existence, not contents.
+- **The Bring! import counter (D4).** The "Send to Bring!" button now goes
+  through `GET /recipes/:id/bring?yield=N`, which records the import and
+  redirects 302 to the Bring! deeplink — still a plain server-side redirect,
+  never fetched by JavaScript (§8.5 unchanged in that respect). A first-party
+  `dishlist.did` device cookie plus a `bring_imports` table cap the count at
+  once per device per day; `recipes.bring_import_count` is the denormalised
+  total. The metric is inflatable and that is accepted (§8.5, §11).
+- **Navigation rebuilt around the two shelves (D5).** A three-item bottom
+  nav (My Dishes / Public / + New), a burger menu (Account, Privacy, Report
+  a bug, Log out) that now also holds the archive, title-first search with
+  ingredient search as a secondary toggle, alphabetical default sort with an
+  A–Z rail, author + import count on cards instead of servings, a collapsed
+  public-link section, and a new Privacy page (§10).
+- **Servings control constrained (D6).** The free-form yield control is
+  replaced by a snap-scroll wheel of integers 1–10, default 4. The scaling
+  engine (§7.1–7.3) does not change, only the control that drives it — this
+  costs the ability to scale to 12 from the UI, and that trade-off is
+  accepted (§7.4).
+- **One label change (D7).** The `stueck` unit now displays as "pcs" instead
+  of "Stück"; no key is renamed (§7.2).
+
+Phases A, B and C (§12.3) deliver this independently: look and navigation,
+then the public shelf and admin tools (migration 002), then the import
+counter (migration 003). Acceptance criteria 9–15 (§13) cover the new
+behaviour; criteria 1–8 are unchanged.
+
+---
+
 ## 1. Purpose
 
 Dishlist is Alex's own private cookbook on the web. Recipes are entered once,
@@ -56,7 +117,10 @@ platform. There are no cooking tips, no comments, no ratings — just recipes.
    the price of a system built for thousands either.
 3. **Security before convenience.** The app is reachable from the public
    internet. Exactly one route is public by design (the share page); every
-   other route requires a session.
+   other route requires a session. This still holds in v2: the public
+   *shelf* (D1, §10) is a gallery for logged-in users, not a public route —
+   an anonymous visitor reaches nothing new. The internet-facing surface
+   remains exactly `/r/<token>`, `/healthz`, `/login` and `/register`.
 4. **Debuggable by Claude Code.** Plain, boring, readable code; clear layer
    boundaries; useful logs; no clever metaprogramming.
 5. **The Bring! export must never produce a wrong shopping list.** A wrong
@@ -71,8 +135,8 @@ platform. There are no cooking tips, no comments, no ratings — just recipes.
 | UI language | **English**, single language, no i18n layer. Recipe *content* is whatever the user types (typically German). |
 | Multi-user | **Full user registration and recipe sharing from day one.** |
 | Registration | **Invite-code only** (see §6.2). |
-| Recipe visibility | **Private by default**, explicitly shareable to individual users. |
-| Public share link | **Permanent random token per recipe, off by default, toggleable and revocable per recipe.** |
+| Recipe visibility | **Private by default. Since v2.0**, an owner may publish a recipe to the **Public shelf** (D1, §5.1), visible and searchable to any logged-in user; per-user sharing (`recipe_shares`) is dormant, superseded by the shelf. |
+| Public share link | **Permanent random token per recipe, off by default, toggleable and revocable per recipe. Since v2.0**, publishing to the Public shelf also enables the token, because Bring! can only import from a URL it can fetch (§10, §11) — un-publishing does not retract a token already held; rotating does. |
 | Additional outputs | Copy ingredients as text, JSON export, print view. |
 | Hosting | Own Docker container on the Pi, behind Caddy + Cloudflare Tunnel. |
 
@@ -274,6 +338,38 @@ recipe_shares (                          -- explicit sharing to a logged-in user
 sessions (…)                             -- managed by the session store
 ```
 
+**Additions — migration 002 (Phase B, D1/D2/D3):** columns added to
+`recipes`, `001_init.sql` left untouched.
+
+```sql
+-- migration 002
+ALTER TABLE recipes ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0;
+```
+
+`recipe_shares` (including its `can_edit` column) receives no migration —
+the table stays exactly as `001_init.sql` created it, unused (§5.1).
+
+**Additions — migration 003 (Phase C, D4):** the Bring! import counter.
+
+```sql
+-- migration 003
+ALTER TABLE recipes ADD COLUMN bring_import_count INTEGER NOT NULL DEFAULT 0;
+
+bring_imports (
+  recipe_id -> recipes.id ON DELETE CASCADE,
+  device_id TEXT NOT NULL,               -- from the dishlist.did cookie
+  day TEXT NOT NULL,                     -- YYYY-MM-DD, server-local date
+  PRIMARY KEY(recipe_id, device_id, day)
+)
+```
+
+A repeat `GET /recipes/:id/bring` from the same device on the same day is an
+`INSERT OR IGNORE` into `bring_imports` — a no-op that still redirects, but
+only increments `recipes.bring_import_count` when the insert actually wrote
+a row. `bring_import_count` is a denormalised total kept alongside the exact
+table so the recipe list can sort and filter on it cheaply, without a join
+and a `COUNT` on every page render.
+
 **Schema note (v1.1):** the schema above is unchanged from v1.0 — see
 "Changes in v1.1". The product now only writes a subset of it; the rest
 sits unused at its defaults, and there is no migration:
@@ -290,21 +386,37 @@ sits unused at its defaults, and there is no migration:
 - `steps`: exactly **one** row per recipe, `position = 0`,
   `section_title = NULL`, holding the method text verbatim.
 - `tags` / `recipe_tags`: unused, always empty.
+- **Since v2.0:** `recipe_shares` (and its `can_edit` column) is dormant —
+  the table stays, nothing writes to it any more. Per-user sharing is
+  superseded by the Public shelf (D2, §5.1).
 
 Any of this can come back later by adding a form field, not by changing the
 schema.
 
-### 5.1 Authorization rules
+### 5.1 Authorization rules — replaces the v1 rules (D2)
 
-A user may **read** a recipe if they own it, or it is in `recipe_shares` for
-them. A user may **write** a recipe if they own it, or the share row has
-`can_edit = 1`. Admins have no implicit read access to other users' recipes —
-being able to reset a password is not the same as reading someone's cookbook.
-Every repository function that loads a recipe takes the acting user id and
-enforces this in SQL, not in the route.
+```
+read      = the acting user owns the recipe, OR recipes.is_public = 1
+write     = the acting user owns the recipe. Only the author edits. Full stop.
+duplicate = anyone who can read a recipe may duplicate it. The copy belongs
+            to the duplicating user, is private (is_public = 0), and carries
+            NO share token and NO import count.
+delete    = the owner, or an admin (§6.4 / D3).
+```
 
-The single exception is the public share route (§8), which loads by token and
-by definition has no acting user.
+Per-user sharing is gone: `recipe_shares` and its `can_edit` column are
+dormant (§5), superseded by the Public shelf. There is no longer a
+"shared with me, can I edit it" case to check.
+
+Every repository function that loads a recipe still takes the acting user id
+and enforces this **in SQL**, not in the route — that rule is unchanged from
+v1. The single exception remains the public share route (§8), which loads by
+token and by definition has no acting user.
+
+Admins are covered separately (§6.4 / D3): an admin can act on any recipe's
+*metadata* (unpublish, delete) through the admin screens, but the ordinary
+read/write rules above still govern every non-admin route — an admin has no
+implicit read access to another user's recipe contents through `/recipes/:id`.
 
 ---
 
@@ -336,6 +448,27 @@ by definition has no acting user.
   reset by generating a one-time reset link — **no email sending**; the link is
   displayed to the admin, who passes it on. A mail server is out of scope
   (see the Pi repo's reasoning on why email is not hosted there).
+
+### 6.4 Admin acts without reading — since v2.0 (D3)
+
+`/admin/recipes` lists every recipe by **title, author, public/private
+state, created date and import count** — never ingredients, never method.
+From that list an admin can:
+
+- **Unpublish** a recipe (`is_public → 0`).
+- **Delete** a recipe outright.
+
+`/admin/users` lists users and lets an admin **delete a user**, which
+deletes that user's recipes with them via the existing `ON DELETE CASCADE`
+(§5). An admin must not be able to delete the last remaining admin account,
+nor their own account while it is the last admin — both attempts are
+rejected.
+
+Admins gain **no** ability to read recipe contents, public or private, in
+these screens or anywhere else. This replaces the v1 wording "admins have no
+implicit read access to other users' recipes" but keeps its intent:
+moderation needs identity and existence — whose recipe is this, does it
+exist, is it published — not the ingredients or the method inside it.
 
 ---
 
@@ -377,15 +510,18 @@ free text, so the table is deliberately small — exactly:
 | `tsp` | TL | spoon |
 | `tbsp` | EL | spoon |
 | `pinch` | Prise | pinch |
-| `stueck` | Stück | count |
+| `stueck` | pcs | count |
 
 "No unit" is stored as the `piece` unit (count dimension with empty label), so
 `2 Eier` renders without a unit word while still getting the count rounding
 rule (§7.3: nearest 0.5, never below 0.5). This is a deliberate internal
 representation, not an accident — it lets `piece` (displayed as "2 Eier")
-and the new `stueck` unit (displayed as "2 Stück Butter") share the count
+and the `stueck` unit (displayed as "2 pcs Butter") share the count
 rounding and conversion rules while differing only in the label shown.
-The `stueck` unit is new in v1.1.
+The `stueck` unit was new in v1.1; **since v2.0** (D7) its label is "pcs"
+instead of "Stück" — the other labels stay German (TL, EL, Prise) because
+ingredient names are German. The key is unchanged, so this is a display-only
+change: nothing stored migrates.
 
 Rules:
 - Convert **up** when the scaled amount gets unwieldy: `1500 g → 1.5 kg`,
@@ -416,15 +552,23 @@ locale-appropriate separator for the *content* language of the recipe; default
 `de-DE` formatting (comma) since the recipes are German — this is a display
 setting in `config.js`, not scattered through templates.
 
-### 7.4 UI behaviour
+### 7.4 UI behaviour — servings control rebuilt (D6, since v2.0)
 
-- The recipe page has a yield control: `−  [ 4 ] servings  +`, plus quick
-  presets (`×0.5`, `×2`) and direct numeric entry.
+- The recipe page has a yield control: a horizontal snap-scroll wheel of
+  **integers 1 to 10**, default 4. The old `−/+` buttons, the `×0.5`/`×2`
+  presets and free numeric entry are all **removed**.
 - Changing it recalculates ingredient amounts **client-side without a page
   reload**, and updates the URL query (`?yield=6`) via `history.replaceState`
   so the state is linkable and reloadable.
-- Server render always honours the `yield` query parameter, so the page is
-  correct with JavaScript disabled and correct for any external parser.
+- Server render always honours the `yield` query parameter: `?yield=N` is
+  validated to an **integer in 1..10**; anything else (out of range,
+  non-numeric, absent) falls back to the recipe's own servings — still never
+  a `400`, matching the v1 rule that the share page must never error on a
+  malformed yield.
+- The scaling engine itself (§7.1–7.3) is unchanged — only the control that
+  drives it is constrained. Trade-off, stated explicitly: scaling to, say,
+  12 for a party is no longer possible from the UI. The stored `yield_amount`
+  on a recipe is not limited to 1–10, only the interactive control is.
 - Scaled values that were rounded show the exact value in a `title` tooltip.
 - The editor has no UI to mark an ingredient `scales = false` (§2.1 A2), so
   in practice every ingredient scales — there is no "unchanged" marker to
@@ -512,7 +656,15 @@ flag (§2.1 A2, §13 criterion 6).
 
 ### 8.5 The deeplink, and the double-scaling trap
 
-Button on the (logged-in) recipe page:
+**Since v2.0 (D4), "Send to Bring!" no longer links straight to Bring.** It
+links to our own route:
+
+```
+GET /recipes/:id/bring?yield=N
+```
+
+which records the import (see "Import counter" below), then answers **`302`**
+to the Bring! deeplink:
 
 ```
 https://api.getbring.com/rest/bringrecipes/deeplink
@@ -522,22 +674,46 @@ https://api.getbring.com/rest/bringrecipes/deeplink
   &requestedQuantity=N
 ```
 
-**`baseQuantity` and `requestedQuantity` must be identical** and must equal the
-yield the share page was rendered with. Bring multiplies by
-`requestedQuantity / baseQuantity`; since our page already delivers scaled
-amounts, the factor must be exactly `1.0`. Sending `baseQuantity=4` with
-`requestedQuantity=8` against an already-doubled page produces a shopping list
-for sixteen people. This must be covered by a test.
+This is a server-side redirect: `/recipes/:id/bring` works with JavaScript
+disabled (a plain `<a href="/recipes/:id/bring?yield=N">` is correct), and
+the rule that the Bring! deeplink itself must never be **fetched** by
+JavaScript is untouched — we redirect to it, we do not fetch it.
+
+**`baseQuantity` and `requestedQuantity` must be identical** and must equal
+`N`. Bring multiplies by `requestedQuantity / baseQuantity`; since our page
+already delivers scaled amounts, the factor must be exactly `1.0`. Sending
+`baseQuantity=4` with `requestedQuantity=8` against an already-doubled page
+produces a shopping list for sixteen people. This must be covered by a test
+— acceptance criterion 5 (§13) is unchanged by the D4 redirect.
 
 Behaviour details:
-- The endpoint answers with `307` to an app deeplink, so a plain `<a href>` is
-  correct — do **not** fetch it with JavaScript.
 - Include the yield in the share URL so that the "back to recipe" link stored
   inside Bring! reopens the recipe at the same quantity, and so that Bring's
   per-URL caching does not serve a stale quantity.
-- If sharing is disabled for the recipe, the Bring! button is replaced by a
-  one-click "Enable public link and send to Bring!" action that explains, in
-  one sentence, that Bring! needs to fetch the recipe itself.
+- If sharing is disabled for the recipe, `/recipes/:id/bring` enables the
+  public link first (as v1 did before handing off to Bring), still
+  explaining in one sentence that Bring! needs to fetch the recipe itself.
+
+**Import counter and anti-cheat — since v2.0 (D4).** A first-party cookie
+`dishlist.did` identifies a device: 16 random bytes, base64url-encoded,
+`httpOnly`, `sameSite=lax`, `secure` in production, long expiry, set by us,
+sent to nobody else (this is the one cookie of its kind in the app and is
+documented on the Privacy page, §10, §11).
+
+The `bring_imports` table (§5, migration 003) makes a repeat import from the
+same device on the same day a no-op:
+
+```sql
+INSERT OR IGNORE INTO bring_imports (recipe_id, device_id, day) VALUES (?, ?, ?)
+```
+
+The user may tap "Send to Bring!" as often as they like; the counter moves
+once per device per day, and `recipes.bring_import_count` is incremented
+only when the insert actually wrote a new row. This makes the metric
+**inflatable** — a determined user can run up the count with several
+devices, or by asking friends — and that is accepted: it is a rough quality
+signal for sorting and filtering the shelf, not a measurement to be defended
+against abuse.
 
 ### 8.6 Other importers
 
@@ -552,7 +728,7 @@ than building integrations.
 - **JSON export** — `GET /recipes/:id/export.json` (authenticated) and
   `GET /export/all.json` for a full backup of the user's own recipes. Format:
   the app's own schema, versioned with `"formatVersion": 1`, importable via
-  `POST /import` (see §12 milestones — import is phase 3).
+  `POST /import` (see §12 milestones).
 - **Print view** — `?print=1` or a dedicated print stylesheet: recipe at the
   chosen yield including the method, no navigation, no buttons,
   page-break-safe. Unlike the share page (§8.4), the print view is
@@ -566,44 +742,79 @@ Authenticated unless marked public.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/` | Recipe list (own + shared), search (title, ingredient name), sort |
+| GET | `/` | "My Dishes" — own recipes, search (title-first, ingredient toggle), alphabetical sort by default (§10) |
+| GET | `/public` | **since v2.0** — Public shelf: every `is_public = 1` recipe, name + author, searchable by every logged-in user (D1) |
+| GET | `/archive` | **since v2.0** — archived recipes (own only), moved out of the main flow into the burger menu (D5) |
 | GET | `/login`, POST `/login` | *public* |
 | GET | `/register`, POST `/register` | *public*, invite code required |
 | POST | `/logout` | |
 | GET | `/recipes/new`, POST `/recipes` | Create |
 | GET | `/recipes/:id` | View (`?yield=N`, `?print=1`) |
-| GET | `/recipes/:id/edit`, POST `/recipes/:id` | Edit |
-| POST | `/recipes/:id/delete` | Soft-delete → archive; hard delete from archive |
-| POST | `/recipes/:id/duplicate` | |
+| GET | `/recipes/:id/edit`, POST `/recipes/:id` | Edit — owner only (D2); 404 for anyone else, including on a public recipe |
+| POST | `/recipes/:id/delete` | Soft-delete → archive; hard delete from archive. Owner only — an admin deletes through `/admin/recipes/:id/delete` instead (D2, D3) |
+| POST | `/recipes/:id/duplicate` | **since v2.0** — anyone who can read the recipe (owner or public, D2); copy is private, no share token, import count 0 |
+| POST | `/recipes/:id/publish` | **since v2.0** — toggle `is_public` (D1); enabling also enables the share token (§8.2, §10) |
 | POST | `/recipes/:id/share/link` | Enable / rotate / disable public token |
-| POST | `/recipes/:id/share/user` | Grant/revoke access for a user |
+| GET | `/recipes/:id/bring` | **since v2.0** — records a Bring! import, `302`s to the deeplink (§8.5, D4) |
 | GET | `/recipes/:id/export.json` | |
 | GET | `/export/all.json` | |
 | GET | `/r/:token` | **public** share page (§8.3) |
 | GET | `/uploads/:file` | **public** images — only reachable via unguessable filename. `image_path` is always `NULL` in v1.1 (§5), so this route is currently unused, kept for when images come back |
 | GET | `/account`, POST `/account/password` | |
+| GET | `/privacy` | **since v2.0** — Privacy page: documents the `dishlist.did` cookie and nothing else tracked (D5, D4, §11) |
 | GET | `/admin/invites`, POST `/admin/invites` | admin only |
+| GET | `/admin/recipes` | **since v2.0** — admin only. Title, author, public/private, created date, import count; unpublish, delete (D3) |
+| POST | `/admin/recipes/:id/unpublish`, POST `/admin/recipes/:id/delete` | **since v2.0** — admin only (D3) |
+| GET | `/admin/users`, POST `/admin/users/:id/delete` | **since v2.0** — admin only; cannot delete the last remaining admin, nor self while the last admin (D3) |
 | GET | `/healthz` | **public**, returns 200 + version, for Uptime Kuma |
+
+The `POST /recipes/:id/share/user` route from v1 (grant/revoke per-user
+access) is removed: `recipe_shares` is dormant (D2, §5.1), superseded by
+`/recipes/:id/publish`.
 
 `/healthz` must not touch the database beyond a trivial `SELECT 1`, and must
 never leak version details of dependencies.
 
 ---
 
-## 10. User interface
+## 10. User interface — navigation rebuilt for the shelf (D5, since v2.0)
 
-Mobile-first. The primary usage context is a phone on a kitchen counter with
-wet hands.
+**Mobile-first, restated as binding.** The primary usage context is a phone
+on a kitchen counter with wet hands. Minimum 44 px tap targets, minimum 16 px
+body text, high contrast — unchanged from v1, and still non-negotiable.
+
+### 10.0 Navigation
+
+- **Bottom navigation bar**, thumb-reachable, exactly three items: **My
+  Dishes**, **Public**, **+ New**. This also supplies the way back from a
+  recipe to a list — a gap v1.1 had, since it removed navigation along with
+  everything else that wasn't essential.
+- **Burger menu**, top right: Account, Privacy, Report a bug, Log out.
+- The **archive moves into the burger menu**, out of the main flow — it was
+  reachable from the list in v1, it is a deliberate extra step now.
 
 ### 10.1 Pages
 
-- **List** — cards or compact rows: title. Search box (title, ingredient
-  name). Sort by recently added / title / last cooked. Empty state that
-  links straight to "New recipe".
-- **Recipe** — title, meta line (yield), yield control, ingredients (flat
-  list, with checkboxes that survive scrolling), method (shown exactly as
-  typed, line breaks preserved). Action bar: **Send to Bring!**, copy,
-  print, edit.
+- **My Dishes / Public** — cards: title, **author**, **import count**
+  (`bring_import_count`) — no longer the servings; it isn't interesting at a
+  glance (D5). Search box is **title-first**; ingredient search is a
+  secondary toggle beside it, not the default — finding a dish by name is
+  the common case, ingredient search is occasional, and the control reflects
+  that. **Default sort is alphabetical**, with an **A–Z rail** down the edge
+  to jump to a letter. Empty state on My Dishes links straight to
+  "New recipe"; empty state on Public explains that no recipes have been
+  published yet. Public is listed by every logged-in user; a recipe's
+  presence there requires no ownership check beyond `is_public = 1` (D2).
+- **Recipe** — title, meta line, yield control (the 1–10 wheel, §7.4),
+  ingredients (flat list, with checkboxes that survive scrolling), method
+  (shown exactly as typed, line breaks preserved). **"Send to Bring!" is the
+  primary action** and is styled as the one obvious thing to do on the page;
+  copy, print and edit are secondary. Edit is shown only to the owner (D2).
+  The **public-link section is collapsed by default** to a single line
+  showing only whether the link is on. Expanding it reveals the URL, Copy,
+  Rotate and Disable — the URL itself is not on screen until asked for. The
+  publish control states, in one sentence, that publishing also enables this
+  link because Bring! can only fetch a URL it can reach (D1, §8.2).
 - **Editor** — one page, no wizard. Ingredient rows: amount, unit (the
   fixed dropdown, §7.2), name — add or remove a row, no drag reordering, no
   quick-add line, no per-row toggles. Method is a single, optional
@@ -611,6 +822,15 @@ wet hands.
   `localStorage` so a dropped connection never loses a half-typed recipe.
 - **Share page** — recipe only, stripped down further than the app view:
   name, servings and ingredients only, no method (§8.4).
+- **Privacy** — new, since v2.0. Documents the `dishlist.did` device cookie
+  (§8.5, §11) as the one cookie of its kind in the app, and states plainly
+  that there is no third-party tracking or analytics (§11).
+- **Report a bug** — new, since v2.0. A link in the burger menu pointing at
+  the GitHub issue tracker of this repository. There is no in-app bug form:
+  that would need storage and a queue nobody reads, and there is no mail
+  server (§6.3) to notify anyone either.
+- **Admin** — `/admin/recipes` and `/admin/users` (§6.4, D3): plain lists,
+  metadata only, no recipe content.
 
 ### 10.2 Design
 
@@ -627,6 +847,9 @@ wet hands.
   contrast. A "keep screen awake" toggle on the recipe page using the Wake Lock
   API where available, degrading silently where not.
 - No third-party scripts, no fonts loaded from a CDN, no analytics.
+- **Mobile-first is binding** (D5, §10) — every screen added in v2.0 (Public
+  shelf, admin lists, Privacy page) follows the same rules above, not a
+  desktop-first afterthought.
 
 ---
 
@@ -635,9 +858,26 @@ wet hands.
 The app is internet-facing behind Cloudflare and Caddy. Threat model: an
 opportunistic scanner, and anyone who ends up holding a share link.
 
+- **Publishing consequence (D1, since v2.0):** publishing a recipe to the
+  Public shelf also enables its `/r/<token>` share link — Bring!'s servers
+  can only import from a URL they can fetch, so "visible to logged-in
+  users" unavoidably also means "readable by anyone holding the token".
+  Tokens are unguessable (§8.2, 256 bits), but un-publishing does not
+  retract a token someone already has — rotating it does. This is stated to
+  the user at the point of publishing (§10), not only here.
+- **Device cookie (D4, since v2.0):** `dishlist.did` identifies a device for
+  the Bring! import counter (§8.5) — 16 random bytes, base64url, `httpOnly`,
+  `sameSite=lax`, `secure` in production, long expiry, set by us, sent to
+  nobody else. It is the only cookie of its kind in the app, does not
+  identify a person, and is documented on the Privacy page (§10). It does
+  not conflict with "no third-party scripts, no analytics" above — it is
+  first-party, server-set, and used for nothing but the once-per-device-
+  per-day import cap.
 - `helmet` with a strict **Content-Security-Policy**: `default-src 'self'`,
-  no inline scripts (use nonces or external files), `img-src 'self' data:`.
-  The Bring! button is a plain link, so no external script is needed.
+  `script-src 'self'` with all client JavaScript as external files under
+  `public/js/` and no inline scripts anywhere (therefore no nonces needed
+  and none permitted), and `img-src 'self' data:`. The Bring! button is a
+  plain link, so no external script is needed.
 - **CSRF tokens** on every state-changing POST (double-submit cookie or
   `csrf-csrf`). The public share route has no forms and needs none.
 - `trust proxy` set correctly, otherwise every rate limit sees Caddy's IP and
@@ -722,8 +962,12 @@ while the site looks perfectly fine in a browser.
 | **1** | Recipe CRUD, list, view — flat ingredient list, single method field. Single user, no scaling yet. |
 | **2** | Scaling engine + unit/rounding logic with full unit tests, yield control. |
 | **3** | Share tokens, public share page with JSON-LD + microdata, Bring! button. **Verified on a real phone with the real Bring! app before the phase is called done.** |
-| **4** | Registration by invite, per-user sharing, account management. |
-| **5** | Text/JSON export, print view, JSON import. |
+| **A** | *v2.0.* Look and navigation: the D5 restyle and navigation (bottom nav, burger menu, archive moved, title-first search, alphabetical sort + A–Z rail), the D6 servings wheel, the D7 `stueck` → "pcs" label. **No schema change.** |
+| **B** | *v2.0.* Public shelf and admin: `is_public`, the `/public` gallery, author on cards, duplicate-from-public, the D2 authorization change, the D3 admin screens (`/admin/recipes`, `/admin/users`), delete users. **Migration 002.** |
+| **C** | *v2.0.* Import counter: D4 in full (`/recipes/:id/bring`, `dishlist.did`, `bring_imports`), sorting and filtering by import count, the Privacy page. **Migration 003.** |
+
+Each of A, B and C is independently deployable. Phases 0–3 above are the
+record of what shipped to get here; they are not revised by A/B/C.
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
@@ -760,6 +1004,26 @@ Explicit acceptance criteria:
 8. **Manual, non-negotiable:** a real import into the real Bring! app on a real
    phone yields the correct items at the correct quantities.
 
+**Since v2.0 (D9), added onward — criteria 1–8 above are unchanged:**
+
+9.  A recipe with `is_public = 0` is absent from the public gallery for a
+    second logged-in user, and `GET` of it returns 404 for them.
+10. A public recipe is visible in the gallery to a second logged-in user,
+    who can duplicate it, and whose copy is private, has no share token and
+    an import count of zero.
+11. A second logged-in user cannot edit a public recipe they do not own:
+    the edit route answers 404.
+12. Two `GET`s of `/recipes/:id/bring` from the **same device** on the
+    **same day** increment `bring_import_count` by exactly one, and both
+    answer 302 to a deeplink whose `baseQuantity` equals its
+    `requestedQuantity`.
+13. The same request from a different device id increments it again.
+14. No admin screen response contains any ingredient name or method text of
+    a recipe the admin does not own.
+15. The anonymous internet still reaches only `/r/<token>`, `/healthz`,
+    `/login` and `/register`; the gallery (`/public`) answers 302 to
+    `/login` without a session.
+
 ---
 
 ## 14. Documentation to be produced
@@ -777,10 +1041,20 @@ Explicit acceptance criteria:
 ## 15. Security summary
 
 - One deliberately public route (`/r/:token`) plus `/healthz`, `/login`,
-  `/register` and `/uploads/:file`; everything else requires a session.
+  `/register` and `/uploads/:file`; everything else — including the Public
+  shelf (`/public`) added in v2.0 — requires a session (§1 principle 3, D1).
 - Capability URLs with 256 bits of entropy, revocable and rotatable per
   recipe, off by default, listed in the UI so nothing is forgotten.
-- No email, no password reset by mail, no third-party scripts, no tracking.
+  **Since v2.0:** publishing a recipe to the shelf also turns the token on;
+  un-publishing does not retract a token already held, only rotation does
+  (D1, §8.2, §11).
+- No email, no password reset by mail, no third-party scripts, no
+  third-party tracking or analytics. **Since v2.0:** one first-party,
+  functional cookie, `dishlist.did`, exists solely to cap the Bring! import
+  counter at once per device per day (D4, §8.5, §11) and is documented on
+  the Privacy page (§10).
+- Admins can act on recipe and user *metadata* (§6.4, D3) but never read
+  recipe contents, public or private.
 - Secrets only from the environment; public repository assumed at all times.
 
 ---
@@ -796,8 +1070,11 @@ Explicit acceptance criteria:
    matching also works best when ingredient names are in one consistent
    language.
 3. Subdomain: `dishlist.ahultsch.com`, or something more cookbook-like?
-4. Should shared users be able to *edit*, or only read? (`can_edit` exists in
-   the schema either way.)
+4. ~~Should shared users be able to *edit*, or only read? (`can_edit` exists
+   in the schema either way.)~~ — **Answered in v2.0.** Superseded, not
+   answered as asked: per-user sharing is gone. Read = owner or public,
+   write = owner only, full stop (D2, §5.1). `can_edit` stays in the schema,
+   dormant, on `recipe_shares`.
 5. ~~Images: worth the `sharp`/upload complexity in v1, or defer to phase 5
    as planned here?~~ — **Answered in v1.1.** Images are out of the recipe
    model entirely for now (§5); `image_path` stays dormant. Revisit by
