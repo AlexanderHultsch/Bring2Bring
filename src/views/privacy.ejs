@@ -1,0 +1,14 @@
+<%- include('partials/head', { title: 'Privacy — Dishlist' }) %>
+      <%- include('partials/header', { currentUser, csrfToken, backHref: '/', pageTitle: 'Privacy' }) %>
+      <main class="privacy-page has-bottom-nav">
+        <h1>Privacy</h1>
+        <p>Dishlist sets two cookies. Both are first-party, set by this server, and used for nothing but running the app:</p>
+        <ul>
+          <li><strong>Session cookie</strong> (<code>dishlist.sid</code>) keeps you logged in. It is <code>httpOnly</code>, so no script on this page can read it.</li>
+          <li><strong>CSRF cookie</strong> (<code>dishlist.csrf</code>) stops the forms on this site from being submitted from somewhere else. It is also <code>httpOnly</code>.</li>
+        </ul>
+        <p>Your light/dark theme preference is stored in your browser's <code>localStorage</code>, on your device only — it is never sent to the server.</p>
+        <p>There are no third-party scripts, no analytics, and no tracking of any kind.</p>
+      </main>
+      <%- include('partials/bottom-nav', { activeNav: null }) %>
+<%- include('partials/foot') %>

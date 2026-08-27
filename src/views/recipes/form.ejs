@@ -1,6 +1,11 @@
 <%- include('../partials/head', { title: (mode === 'edit' ? 'Edit recipe' : 'New recipe') + ' — Dishlist' }) %>
-      <%- include('../partials/header', { currentUser, csrfToken }) %>
-      <main class="editor-page">
+      <%- include('../partials/header', {
+        currentUser,
+        csrfToken,
+        backHref: mode === 'edit' ? '/recipes/' + recipeId : '/',
+        pageTitle: mode === 'edit' ? 'Edit recipe' : 'New recipe',
+      }) %>
+      <main class="editor-page has-bottom-nav">
         <h1><%= mode === 'edit' ? 'Edit recipe' : 'New recipe' %></h1>
 
         <% if (errors.length > 0) { %>
@@ -67,5 +72,6 @@
           </template>
         </form>
       </main>
+      <%- include('../partials/bottom-nav', { activeNav: mode === 'new' ? 'new' : null }) %>
       <script src="/js/recipe-editor.js" defer></script>
 <%- include('../partials/foot') %>

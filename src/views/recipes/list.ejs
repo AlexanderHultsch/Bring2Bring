@@ -11,7 +11,7 @@
 %>
 <%- include('../partials/head', { title: (archived ? 'Archive' : 'Recipes') + ' — Dishlist' }) %>
       <%- include('../partials/header', { currentUser, csrfToken }) %>
-      <main class="recipes-page">
+      <main class="recipes-page has-bottom-nav">
         <p class="recipes-page__greeting">Signed in as <%= currentUser.username %></p>
         <div class="recipes-page__bar">
           <h1><%= archived ? 'Archive' : 'Recipes' %></h1>
@@ -68,4 +68,5 @@
 
         <p><a class="button" href="/recipes/new">New recipe</a></p>
       </main>
+      <%- include('../partials/bottom-nav', { activeNav: archived ? null : 'mine' }) %>
 <%- include('../partials/foot') %>

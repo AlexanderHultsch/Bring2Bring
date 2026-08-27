@@ -10,6 +10,7 @@ import {
 import { EDITOR_UNITS } from '../domain/units.js';
 
 export const LIST_SORTS = ['recent', 'title', 'updated'];
+export const PUBLIC_LIST_SORTS = ['title', 'imports', 'recent'];
 
 const EDITOR_UNIT_KEYS = new Set(EDITOR_UNITS.map((unit) => unit.key));
 
@@ -53,6 +54,19 @@ export function parseListOptions(query) {
 
   return {
     includeArchived: query?.archived === '1',
+    search: asString(query?.q),
+    sort,
+  };
+}
+
+// SPECIFICATION.md section 9 / 10.1 (v2.0, D1): the Public shelf's own sort
+// options ('imports' | 'title' | 'recent') and query-param convention, kept
+// separate from parseListOptions since the Public shelf has no archive state
+// and its default sort is alphabetical, not recency.
+export function parsePublicListOptions(query) {
+  const sort = PUBLIC_LIST_SORTS.includes(query?.sort) ? query.sort : 'title';
+
+  return {
     search: asString(query?.q),
     sort,
   };

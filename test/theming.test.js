@@ -59,6 +59,11 @@ test('GUARD: every icon referenced in a template is defined as a symbol in icons
   for (const id of referencedIds) {
     assert.ok(definedIds.has(id), `template references #${id} but icons.ejs defines no <symbol id="${id}">`);
   }
+
+  assert.ok(
+    referencedIds.size >= 8,
+    `expected at least 8 distinct icons referenced across the templates, found ${referencedIds.size}`
+  );
 });
 
 test('tokens.css contains only custom properties: every opening brace belongs to a :root or @media block', () => {

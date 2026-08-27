@@ -1,6 +1,6 @@
 <%- include('../partials/head', { title: recipe.title + ' — Dishlist' }) %>
-      <%- include('../partials/header', { currentUser, csrfToken }) %>
-      <main class="recipe-page" data-recipe-id="<%= recipe.id %>" data-saved="<%= saved %>">
+      <%- include('../partials/header', { currentUser, csrfToken, backHref: '/', pageTitle: recipe.title }) %>
+      <main class="recipe-page has-bottom-nav" data-recipe-id="<%= recipe.id %>" data-saved="<%= saved %>">
         <% if (recipe.is_archived) { %>
           <p class="recipe-page__archived-flag">Archived</p>
         <% } %>
@@ -121,4 +121,5 @@
           </form>
         </div>
       </main>
+      <%- include('../partials/bottom-nav', { activeNav: null }) %>
 <%- include('../partials/foot') %>

@@ -1,0 +1,33 @@
+<details class="menu" data-menu>
+  <summary class="menu__toggle" aria-label="Menu">
+    <svg class="icon menu__icon-open"><use href="#i-menu"></use></svg>
+    <svg class="icon menu__icon-close"><use href="#i-close"></use></svg>
+  </summary>
+  <div class="menu__overlay">
+    <nav class="menu__panel" aria-label="Menu">
+      <a class="menu__item" href="/account">
+        <svg class="icon"><use href="#i-account"></use></svg>
+        Account
+      </a>
+      <a class="menu__item" href="/privacy">
+        <svg class="icon"><use href="#i-privacy"></use></svg>
+        Privacy
+      </a>
+      <a class="menu__item" href="https://github.com/AlexanderHultsch/Dishlist/issues" target="_blank" rel="noopener noreferrer">
+        <svg class="icon"><use href="#i-bug"></use></svg>
+        Report a bug
+      </a>
+      <a class="menu__item" href="/?archived=1">
+        <svg class="icon"><use href="#i-archive"></use></svg>
+        Archive
+      </a>
+      <form method="post" action="/logout" class="menu__item-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button type="submit" class="menu__item menu__item--danger">
+          <svg class="icon"><use href="#i-logout"></use></svg>
+          Log out
+        </button>
+      </form>
+    </nav>
+  </div>
+</details>

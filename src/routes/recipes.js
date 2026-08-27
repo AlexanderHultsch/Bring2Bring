@@ -1,6 +1,11 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { findRecipeForWrite, loadRecipeAggregate, listRecipesForUser } from '../repositories/recipes.js';
+import {
+  findRecipeForWrite,
+  loadRecipeAggregate,
+  listRecipesForUser,
+  listPublicRecipes,
+} from '../repositories/recipes.js';
 import { computeFactor, scaleGroups } from '../domain/scaling.js';
 import { EDITOR_UNITS } from '../domain/units.js';
 import { buildBringDeeplinkUrl } from '../domain/recipe-jsonld.js';
@@ -13,6 +18,7 @@ import {
   emptyFormValues,
   formValuesFromAggregate,
   parseListOptions,
+  parsePublicListOptions,
   parseYieldParam,
 } from '../services/recipes.js';
 import { applyShareAction, ShareActionSchema } from '../services/sharing.js';
@@ -47,6 +53,19 @@ export function recipesRouter(db, config) {
     res.render('recipes/list', {
       recipes,
       archived: options.includeArchived,
+      sort: options.sort,
+      search: options.search,
+    });
+  });
+
+  // SPECIFICATION.md section 9 / 10.1 (v2.0, D1): the Public shelf — every
+  // is_public recipe from every user, no ownership check beyond is_public = 1.
+  router.get('/public', requireAuth(), (req, res) => {
+    const options = parsePublicListOptions(req.query);
+    const recipes = listPublicRecipes(db, options);
+
+    res.render('recipes/public', {
+      recipes,
       sort: options.sort,
       search: options.search,
     });

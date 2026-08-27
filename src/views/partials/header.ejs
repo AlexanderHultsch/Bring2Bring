@@ -1,12 +1,20 @@
 <header class="site-header">
-  <a class="site-header__brand" href="/">Dishlist</a>
+  <div class="site-header__start">
+    <% if (typeof backHref !== 'undefined' && backHref) { %>
+      <a class="site-header__back" href="<%= backHref %>" aria-label="Back">
+        <svg class="icon"><use href="#i-back"></use></svg>
+      </a>
+    <% } %>
+    <% if (typeof pageTitle !== 'undefined' && pageTitle) { %>
+      <span class="site-header__title"><%= pageTitle %></span>
+    <% } else { %>
+      <a class="site-header__brand" href="/">Dishlist</a>
+    <% } %>
+  </div>
   <div class="site-header__actions">
     <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">🌓</button>
     <% if (currentUser) { %>
-      <form class="logout-form" method="post" action="/logout">
-        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-        <button type="submit" class="button button--ghost">Log out</button>
-      </form>
+      <%- include('menu', { csrfToken }) %>
     <% } %>
   </div>
 </header>

@@ -1,0 +1,54 @@
+<%- include('partials/head', { title: 'Account — Dishlist' }) %>
+      <%- include('partials/header', { currentUser, csrfToken, backHref: '/', pageTitle: 'Account' }) %>
+      <main class="account-page has-bottom-nav">
+        <h1>Account</h1>
+        <dl class="account-details">
+          <dt>Username</dt>
+          <dd><%= currentUser.username %></dd>
+          <dt>Role</dt>
+          <dd><%= currentUser.role %></dd>
+          <dt>Member since</dt>
+          <dd><%= memberSince %></dd>
+        </dl>
+
+        <% if (passwordChanged) { %>
+          <p class="form-success">Password changed.</p>
+        <% } %>
+        <% if (passwordError) { %>
+          <p class="form-error"><%= passwordError %></p>
+        <% } %>
+
+        <h2>Change password</h2>
+        <form method="post" action="/account/password" class="auth-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label for="currentPassword">Current password</label>
+          <input
+            type="password"
+            id="currentPassword"
+            name="currentPassword"
+            autocomplete="current-password"
+            required
+          >
+          <label for="newPassword">New password</label>
+          <input
+            type="password"
+            id="newPassword"
+            name="newPassword"
+            autocomplete="new-password"
+            minlength="12"
+            required
+          >
+          <label for="confirmPassword">Confirm new password</label>
+          <input
+            type="password"
+            id="confirmPassword"
+            name="confirmPassword"
+            autocomplete="new-password"
+            minlength="12"
+            required
+          >
+          <button type="submit" class="button">Change password</button>
+        </form>
+      </main>
+      <%- include('partials/bottom-nav', { activeNav: null }) %>
+<%- include('partials/foot') %>
