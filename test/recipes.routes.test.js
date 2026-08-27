@@ -670,7 +670,9 @@ test('GET /recipes/:id with no query renders HTML containing data-saved=""', asy
   });
 });
 
-test('GET /?q=<ingredient name> finds a recipe by an ingredient name, not just a title', async () => {
+// SPECIFICATION.md section 10.1/10.E: "Search box is title-first; ingredient
+// search is a secondary toggle beside it, not the default."
+test('GET /?q=<ingredient name> does NOT find a recipe by ingredient name with the ingredients toggle off (the default)', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -679,6 +681,20 @@ test('GET /?q=<ingredient name> finds a recipe by an ingredient name, not just a
     await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
 
     const listRes = await agent.get('/?q=Basil');
+    assert.equal(listRes.status, 200);
+    assert.ok(!listRes.text.includes('Tomato Soup'));
+  });
+});
+
+test('GET /?q=<ingredient name>&ingredients=1 finds a recipe by an ingredient name, not just a title', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const listRes = await agent.get('/?q=Basil&ingredients=1');
     assert.equal(listRes.status, 200);
     assert.match(listRes.text, /Tomato Soup/);
   });
@@ -880,5 +896,83 @@ test('GET /js/domain/../config.js does not escape the static mount', async () =>
   await withApp(async (app) => {
     const res = await request(app).get('/js/domain/../config.js');
     assert.notEqual(res.status, 200);
+  });
+});
+
+// SPECIFICATION.md section 10.1/10.E: default sort is A-Z, and My Dishes
+// renders sticky letter section headers plus the A-Z rail against it.
+test('GET / sorted A-Z (the default) renders letter section headers with id="sect-A"', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    assert.match(res.text, /id="sect-T"/);
+    assert.match(res.text, /class="az-rail"/);
+  });
+});
+
+// SPECIFICATION.md section 10.1/10.E: letter grouping is meaningless once
+// the list isn't A-Z, so a non-alphabetical sort renders a flat list.
+test('GET /?sort=updated renders NO letter headers and NO rail', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const res = await agent.get('/?sort=updated');
+    assert.equal(res.status, 200);
+    assert.doesNotMatch(res.text, /class="recipe-list__section"/);
+    assert.doesNotMatch(res.text, /class="az-rail"/);
+  });
+});
+
+test('GET / does NOT render an author line for the signed-in user\'s own recipes', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    assert.doesNotMatch(res.text, /recipe-list__author/);
+    assert.doesNotMatch(res.text, /@alex/);
+  });
+});
+
+test('GET / renders the import count and the i-bring icon on each row', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    assert.match(res.text, /class="recipe-list__count">\s*<svg class="icon"><use href="#i-bring"><\/use><\/svg>\s*0/);
+  });
+});
+
+test('the A-Z rail renders 27 entries, and a letter with no recipes is not a link', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    const railMatch = res.text.match(/<nav class="az-rail"[\s\S]*?<\/nav>/);
+    assert.ok(railMatch, 'expected the A-Z rail in the response');
+    const entries = [...railMatch[0].matchAll(/class="az-rail__letter[^"]*"/g)];
+    assert.equal(entries.length, 27);
+
+    assert.doesNotMatch(railMatch[0], /<a class="az-rail__letter" href="#sect-B">B<\/a>/);
+    assert.match(railMatch[0], /<span class="az-rail__letter az-rail__letter--inert"[^>]*>B<\/span>/);
   });
 });

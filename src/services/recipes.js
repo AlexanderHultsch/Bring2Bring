@@ -49,13 +49,20 @@ export function parseYieldParam(query, baseYield) {
   return value;
 }
 
+// SPECIFICATION.md section 10.1: "Default sort is alphabetical" holds for
+// My Dishes too now (v2.0, D5) — the A-Z rail and letter sections only make
+// sense against that default, so an omitted/invalid ?sort= falls back to
+// 'title', not 'recent'. 'recent' and 'updated' remain valid explicit sorts.
 export function parseListOptions(query) {
-  const sort = LIST_SORTS.includes(query?.sort) ? query.sort : 'recent';
+  const sort = LIST_SORTS.includes(query?.sort) ? query.sort : 'title';
 
   return {
     includeArchived: query?.archived === '1',
     search: asString(query?.q),
     sort,
+    // SPECIFICATION.md section 10.1/10.E: "Search box is title-first;
+    // ingredient search is a secondary toggle beside it, not the default."
+    matchIngredients: query?.ingredients === '1',
   };
 }
 
@@ -70,6 +77,44 @@ export function parsePublicListOptions(query) {
     search: asString(query?.q),
     sort,
   };
+}
+
+const GERMAN_INITIAL_MAP = {
+  Ä: 'A', ä: 'A',
+  Ö: 'O', ö: 'O',
+  Ü: 'U', ü: 'U',
+  ß: 'S', ẞ: 'S',
+};
+
+function initialLetter(title) {
+  const trimmed = (title ?? '').trim();
+  if (trimmed === '') return '#';
+  const first = [...trimmed][0];
+  const mapped = GERMAN_INITIAL_MAP[first];
+  if (mapped) return mapped;
+  const stripped = first.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+  return /^[A-Z]$/.test(stripped) ? stripped : '#';
+}
+
+// SPECIFICATION.md section 10.1/10.E: buckets recipes by the title's first
+// letter for the A-Z rail and its sticky section headers, German-normalised
+// (Ä/Ö/Ü/ß, and any other diacritic via NFD, fold to a base Latin letter) so
+// the grouping matches how a German speaker expects it to sort. Anything
+// left that isn't A-Z (digits, punctuation, emoji) groups under '#', which
+// sorts first. `recipes` is assumed already sorted by title — this only
+// buckets it into that order, it never re-sorts or mutates the input.
+export function groupRecipesByInitial(recipes) {
+  const buckets = new Map();
+  for (const recipe of recipes) {
+    const letter = initialLetter(recipe.title);
+    if (!buckets.has(letter)) buckets.set(letter, []);
+    buckets.get(letter).push(recipe);
+  }
+
+  const order = ['#', ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i))];
+  return order
+    .filter((letter) => buckets.has(letter))
+    .map((letter) => ({ letter, recipes: buckets.get(letter) }));
 }
 
 function emptyIngredientRow() {

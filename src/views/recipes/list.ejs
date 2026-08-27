@@ -1,17 +1,20 @@
 <%
   function listUrl(overrides) {
-    const state = Object.assign({ search, sort, archived }, overrides);
+    const state = Object.assign({ search, sort, archived, matchIngredients }, overrides);
     const params = new URLSearchParams();
     if (state.search) params.set('q', state.search);
-    if (state.sort !== 'recent') params.set('sort', state.sort);
+    params.set('sort', state.sort);
+    if (state.matchIngredients) params.set('ingredients', '1');
     if (state.archived) params.set('archived', '1');
     const query = params.toString();
     return query ? '/?' + query : '/';
   }
+  const showAZ = sort === 'title';
 %>
 <%- include('../partials/head', { title: (archived ? 'Archive' : 'Recipes') + ' — Dishlist' }) %>
       <%- include('../partials/header', { currentUser, csrfToken }) %>
-      <main class="recipes-page has-bottom-nav">
+      <% if (showAZ) { %><%- include('../partials/az-rail', { groups }) %><% } %>
+      <main class="recipes-page has-bottom-nav<%= showAZ ? ' recipes-page--az' : '' %>">
         <p class="recipes-page__greeting">Signed in as <%= currentUser.username %></p>
         <div class="recipes-page__bar">
           <h1><%= archived ? 'Archive' : 'Recipes' %></h1>
@@ -22,18 +25,19 @@
 
         <form method="get" action="/" class="list-controls" role="search">
           <% if (archived) { %><input type="hidden" name="archived" value="1"><% } %>
+          <input type="hidden" name="sort" value="<%= sort %>">
           <div class="list-controls__search">
             <label for="q">Search</label>
-            <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search title or ingredient">
+            <div class="search-field">
+              <svg class="icon search-field__icon"><use href="#i-search"></use></svg>
+              <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search dishes">
+            </div>
           </div>
-          <div class="list-controls__sort">
-            <label for="sort">Sort</label>
-            <select id="sort" name="sort">
-              <option value="recent" <%= sort === 'recent' ? 'selected' : '' %>>Recently added</option>
-              <option value="title" <%= sort === 'title' ? 'selected' : '' %>>Title</option>
-              <option value="updated" <%= sort === 'updated' ? 'selected' : '' %>>Last updated</option>
-            </select>
-          </div>
+          <label class="ingredients-toggle">
+            <span class="ingredients-toggle__label">ingredients</span>
+            <input type="checkbox" name="ingredients" value="1" class="ingredients-toggle__input" <%= matchIngredients ? 'checked' : '' %>>
+            <span class="ingredients-toggle__track" aria-hidden="true"></span>
+          </label>
           <button type="submit" class="button">Apply</button>
         </form>
 
@@ -48,20 +52,19 @@
               No recipes yet. <a href="/recipes/new">Add your first recipe</a>.
             <% } %>
           </p>
+        <% } else if (showAZ) { %>
+          <% groups.forEach((group) => { %>
+            <h2 class="recipe-list__section" id="sect-<%= group.letter %>"><%= group.letter %></h2>
+            <ul class="recipe-list">
+              <% group.recipes.forEach((recipe) => { %>
+                <%- include('../partials/recipe-list-row', { recipe, showAuthor: false }) %>
+              <% }) %>
+            </ul>
+          <% }) %>
         <% } else { %>
           <ul class="recipe-list">
             <% recipes.forEach((recipe) => { %>
-              <li class="recipe-list__item">
-                <a class="recipe-list__link" href="/recipes/<%= recipe.id %>">
-                  <span class="recipe-list__title">
-                    <%= recipe.title %>
-                    <% if (recipe.share_enabled) { %><span class="share-badge" title="Public link enabled">🔗</span><% } %>
-                  </span>
-                  <span class="recipe-list__meta">
-                    <%= recipe.yield_amount %> <%= recipe.yield_unit %>
-                  </span>
-                </a>
-              </li>
+              <%- include('../partials/recipe-list-row', { recipe, showAuthor: false }) %>
             <% }) %>
           </ul>
         <% } %>

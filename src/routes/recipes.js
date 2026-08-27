@@ -20,6 +20,7 @@ import {
   parseListOptions,
   parsePublicListOptions,
   parseYieldParam,
+  groupRecipesByInitial,
 } from '../services/recipes.js';
 import { applyShareAction, ShareActionSchema } from '../services/sharing.js';
 
@@ -49,12 +50,18 @@ export function recipesRouter(db, config) {
     const recipes = options.includeArchived
       ? found.filter((recipe) => recipe.is_archived === 1)
       : found;
+    // SPECIFICATION.md section 10.1/10.E: the A-Z rail and its sticky section
+    // headers only make sense when the list is actually sorted A-Z — a
+    // 'recent'/'updated' sort renders a flat list instead.
+    const groups = options.sort === 'title' ? groupRecipesByInitial(recipes) : [];
 
     res.render('recipes/list', {
       recipes,
+      groups,
       archived: options.includeArchived,
       sort: options.sort,
       search: options.search,
+      matchIngredients: options.matchIngredients,
     });
   });
 
@@ -63,9 +70,11 @@ export function recipesRouter(db, config) {
   router.get('/public', requireAuth(), (req, res) => {
     const options = parsePublicListOptions(req.query);
     const recipes = listPublicRecipes(db, options);
+    const groups = options.sort === 'title' ? groupRecipesByInitial(recipes) : [];
 
     res.render('recipes/public', {
       recipes,
+      groups,
       sort: options.sort,
       search: options.search,
     });

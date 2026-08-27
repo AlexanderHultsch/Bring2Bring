@@ -1,0 +1,14 @@
+<li class="recipe-list__item">
+  <a class="recipe-list__link" href="/recipes/<%= recipe.id %>">
+    <span class="recipe-list__row">
+      <span class="recipe-list__title"><%= recipe.title %></span>
+      <span class="recipe-list__count">
+        <svg class="icon"><use href="#i-bring"></use></svg>
+        <%= recipe.bring_import_count %>
+      </span>
+    </span>
+    <% if (showAuthor) { %>
+      <span class="recipe-list__author">@<%= recipe.author_username %></span>
+    <% } %>
+  </a>
+</li>

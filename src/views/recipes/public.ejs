@@ -1,6 +1,10 @@
+<%
+  const showAZ = sort === 'title';
+%>
 <%- include('../partials/head', { title: 'Public — Dishlist' }) %>
       <%- include('../partials/header', { currentUser, csrfToken }) %>
-      <main class="recipes-page has-bottom-nav">
+      <% if (showAZ) { %><%- include('../partials/az-rail', { groups }) %><% } %>
+      <main class="recipes-page has-bottom-nav<%= showAZ ? ' recipes-page--az' : '' %>">
         <div class="recipes-page__bar">
           <h1>Public</h1>
         </div>
@@ -8,10 +12,13 @@
         <form method="get" action="/public" class="list-controls" role="search">
           <div class="list-controls__search">
             <label for="q">Search</label>
-            <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search title or ingredient">
+            <div class="search-field">
+              <svg class="icon search-field__icon"><use href="#i-search"></use></svg>
+              <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search dishes">
+            </div>
           </div>
           <div class="list-controls__sort">
-            <label for="sort">Sort</label>
+            <label for="sort">Sort by</label>
             <select id="sort" name="sort">
               <option value="title" <%= sort === 'title' ? 'selected' : '' %>>A-Z</option>
               <option value="imports" <%= sort === 'imports' ? 'selected' : '' %>>Most imported</option>
@@ -30,18 +37,19 @@
               Public dishes from any Dishlist user appear here once someone publishes one. Nobody has published a dish yet.
             <% } %>
           </p>
+        <% } else if (showAZ) { %>
+          <% groups.forEach((group) => { %>
+            <h2 class="recipe-list__section" id="sect-<%= group.letter %>"><%= group.letter %></h2>
+            <ul class="recipe-list">
+              <% group.recipes.forEach((recipe) => { %>
+                <%- include('../partials/recipe-list-row', { recipe, showAuthor: true }) %>
+              <% }) %>
+            </ul>
+          <% }) %>
         <% } else { %>
           <ul class="recipe-list">
             <% recipes.forEach((recipe) => { %>
-              <li class="recipe-list__item">
-                <a class="recipe-list__link" href="/recipes/<%= recipe.id %>">
-                  <span class="recipe-list__title"><%= recipe.title %></span>
-                  <span class="recipe-list__meta">
-                    @<%= recipe.author_username %>
-                    · <svg class="icon"><use href="#i-bring"></use></svg> <%= recipe.bring_import_count %>
-                  </span>
-                </a>
-              </li>
+              <%- include('../partials/recipe-list-row', { recipe, showAuthor: true }) %>
             <% }) %>
           </ul>
         <% } %>

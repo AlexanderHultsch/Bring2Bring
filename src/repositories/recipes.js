@@ -54,8 +54,11 @@ function escapeLikeTerm(value) {
 // SPECIFICATION.md section 5.1 / 9 (v2.0, D2): "My Dishes" — the acting
 // user's own recipes only, never recipes shared with them (recipe_shares is
 // dormant) and never other users' public recipes (that's /public instead).
+// SPECIFICATION.md section 10.1/10.E: search is title-first — matching by
+// ingredient name is opt-in via matchIngredients (the "ingredients" toggle),
+// not the default.
 export function listRecipesForUser(db, actingUserId, options = {}) {
-  const { includeArchived = false, search = '', sort = 'recent' } = options;
+  const { includeArchived = false, search = '', sort = 'recent', matchIngredients = false } = options;
   const archivedClause = includeArchived ? '' : 'AND is_archived = 0';
   const params = [actingUserId];
 
@@ -63,17 +66,22 @@ export function listRecipesForUser(db, actingUserId, options = {}) {
   const trimmedSearch = search.trim();
   if (trimmedSearch !== '') {
     const likeTerm = `%${escapeLikeTerm(trimmedSearch)}%`;
-    searchClause = `
-      AND (
-        title LIKE ? ESCAPE '\\'
-        OR EXISTS (
-          SELECT 1 FROM ingredients i
-          JOIN ingredient_groups g ON g.id = i.group_id
-          WHERE g.recipe_id = recipes.id AND i.name LIKE ? ESCAPE '\\'
+    if (matchIngredients) {
+      searchClause = `
+        AND (
+          title LIKE ? ESCAPE '\\'
+          OR EXISTS (
+            SELECT 1 FROM ingredients i
+            JOIN ingredient_groups g ON g.id = i.group_id
+            WHERE g.recipe_id = recipes.id AND i.name LIKE ? ESCAPE '\\'
+          )
         )
-      )
-    `;
-    params.push(likeTerm, likeTerm);
+      `;
+      params.push(likeTerm, likeTerm);
+    } else {
+      searchClause = 'AND title LIKE ? ESCAPE \'\\\'';
+      params.push(likeTerm);
+    }
   }
 
   const orderClause = LIST_SORT_CLAUSES[sort] || 'created_at DESC, id DESC';

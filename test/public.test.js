@@ -111,3 +111,32 @@ test('GET /public with no published recipes shows the "nothing published yet" em
     assert.match(res.text, /Public dishes from any Dishlist user appear here/);
   });
 });
+
+// SPECIFICATION.md section 10.1/10.E: letter grouping is meaningless once
+// the list isn't A-Z, so a non-alphabetical sort renders a flat list.
+test('GET /public?sort=imports renders NO letter headers and NO rail', async () => {
+  await withApp(async (app, db) => {
+    const alex = await seedUser(db, 'alex');
+    const recipe = insertRecipe(db, alex.id, { title: 'Apple Pie' });
+    setRecipePublic(db, recipe.id, alex.id, true);
+
+    const agent = await loginAgent(app, 'alex');
+    const res = await agent.get('/public?sort=imports');
+    assert.equal(res.status, 200);
+    assert.doesNotMatch(res.text, /class="recipe-list__section"/);
+    assert.doesNotMatch(res.text, /class="az-rail"/);
+  });
+});
+
+test('GET /public renders the import count and the i-bring icon on each row', async () => {
+  await withApp(async (app, db) => {
+    const alex = await seedUser(db, 'alex');
+    const recipe = insertRecipe(db, alex.id, { title: 'Apple Pie' });
+    setRecipePublic(db, recipe.id, alex.id, true);
+
+    const agent = await loginAgent(app, 'alex');
+    const res = await agent.get('/public');
+    assert.equal(res.status, 200);
+    assert.match(res.text, /class="recipe-list__count">\s*<svg class="icon"><use href="#i-bring"><\/use><\/svg>\s*0/);
+  });
+});
