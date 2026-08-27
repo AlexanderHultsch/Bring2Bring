@@ -88,6 +88,9 @@ const ROUTES = [
   { method: 'post', path: '/recipes/:id', recipeScoped: true, body: minimalRecipeFormBody() },
   { method: 'post', path: '/recipes/:id/duplicate', recipeScoped: true, body: {} },
   // A valid action is required so the assertion below proves the auth check
+  // fired, not the PublishActionSchema validation in src/routes/recipes.js.
+  { method: 'post', path: '/recipes/:id/publish', recipeScoped: true, body: { action: 'publish' } },
+  // A valid action is required so the assertion below proves the auth check
   // fired, not the ShareActionSchema validation in src/routes/recipes.js.
   { method: 'post', path: '/recipes/:id/share/link', recipeScoped: true, body: { action: 'enable' } },
   { method: 'get', path: '/recipes/:id/bring', recipeScoped: true },

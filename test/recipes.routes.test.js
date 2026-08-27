@@ -1044,6 +1044,153 @@ test('the public-link <details> has no open attribute on load, and the expanded 
   });
 });
 
+test('POST /recipes/:id/publish action=publish sets is_public and leaves the recipe with an enabled share token', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const csrfToken = await csrfFor(agent, `/recipes/${recipeId}`);
+    const res = await agent
+      .post(`/recipes/${recipeId}/publish`)
+      .type('form')
+      .send({ _csrf: csrfToken, action: 'publish' });
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.location, `/recipes/${recipeId}`);
+
+    const stored = db.prepare('SELECT is_public, share_enabled FROM recipes WHERE id = ?').get(recipeId);
+    assert.equal(stored.is_public, 1);
+    assert.equal(stored.share_enabled, 1);
+  });
+});
+
+test('POST /recipes/:id/publish action=unpublish clears is_public and leaves the share token enabled', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const publishCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/publish`).type('form').send({ _csrf: publishCsrf, action: 'publish' });
+
+    const unpublishCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    const res = await agent
+      .post(`/recipes/${recipeId}/publish`)
+      .type('form')
+      .send({ _csrf: unpublishCsrf, action: 'unpublish' });
+    assert.equal(res.status, 302);
+
+    const stored = db.prepare('SELECT is_public, share_enabled FROM recipes WHERE id = ?').get(recipeId);
+    assert.equal(stored.is_public, 0);
+    assert.equal(stored.share_enabled, 1);
+  });
+});
+
+test('POST /recipes/:id/publish with an invalid action is a 400', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const csrfToken = await csrfFor(agent, `/recipes/${recipeId}`);
+    const res = await agent
+      .post(`/recipes/${recipeId}/publish`)
+      .type('form')
+      .send({ _csrf: csrfToken, action: 'nonsense' });
+    assert.equal(res.status, 400);
+  });
+});
+
+test('POST /recipes/:id/publish from a non-owner is a 404 and leaves is_public unchanged', async () => {
+  await withApp(async (app, db) => {
+    const owner = await seedUser(db, 'owner');
+    await seedUser(db, 'stranger');
+    const recipe = insertRecipe(db, owner.id, { title: 'Secret Soup' });
+
+    const agent = await loginAgent(app, 'stranger');
+    const csrfToken = await csrfFor(agent, '/');
+    const res = await agent
+      .post(`/recipes/${recipe.id}/publish`)
+      .type('form')
+      .send({ _csrf: csrfToken, action: 'publish' });
+    assert.equal(res.status, 404);
+
+    const stored = db.prepare('SELECT is_public FROM recipes WHERE id = ?').get(recipe.id);
+    assert.equal(stored.is_public, 0);
+  });
+});
+
+test('a published recipe appears on GET /public for a different user', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const owner = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(owner, { title: 'Shelf Soup' });
+
+    const publishCsrf = await csrfFor(owner, `/recipes/${recipeId}`);
+    await owner.post(`/recipes/${recipeId}/publish`).type('form').send({ _csrf: publishCsrf, action: 'publish' });
+
+    await seedUser(db, 'other');
+    const other = await loginAgent(app, 'other');
+    const res = await other.get('/public');
+    assert.equal(res.status, 200);
+    assert.ok(res.text.includes('Shelf Soup'));
+  });
+});
+
+test('the recipe page states, next to the publish control, that publishing creates a link anyone on the internet can open', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.ok(res.text.includes('a link anyone on the internet can open'));
+  });
+});
+
+test('a non-owner viewing a public recipe sees Send to Bring! and Duplicate, but NO Edit link, NO Rotate, NO Disable, and NO publish control', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const owner = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(owner);
+    const publishCsrf = await csrfFor(owner, `/recipes/${recipeId}`);
+    await owner.post(`/recipes/${recipeId}/publish`).type('form').send({ _csrf: publishCsrf, action: 'publish' });
+
+    await seedUser(db, 'other');
+    const other = await loginAgent(app, 'other');
+    const res = await other.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    assert.match(res.text, /Send to Bring!/);
+    assert.match(res.text, /Duplicate\s*<\/button>/);
+
+    assert.doesNotMatch(res.text, /href="\/recipes\/\d+\/edit">Edit</);
+    assert.doesNotMatch(res.text, /Rotate\s*<\/button>/);
+    assert.doesNotMatch(res.text, /Disable\s*<\/button>/);
+    assert.doesNotMatch(res.text, /class="publish-control"/);
+  });
+});
+
+test('the owner\'s view of the same public recipe still contains Edit, Rotate, Disable and the publish control', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const owner = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(owner);
+    const publishCsrf = await csrfFor(owner, `/recipes/${recipeId}`);
+    await owner.post(`/recipes/${recipeId}/publish`).type('form').send({ _csrf: publishCsrf, action: 'publish' });
+
+    const res = await owner.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    assert.match(res.text, /Send to Bring!/);
+    assert.match(res.text, new RegExp(`href="/recipes/${recipeId}/edit">Edit<`));
+    assert.match(res.text, /Rotate\s*<\/button>/);
+    assert.match(res.text, /Disable\s*<\/button>/);
+    assert.match(res.text, /class="publish-control"/);
+  });
+});
+
 test('the recipe page\'s Send to Bring! button now points at /recipes/:id/bring, not directly at api.getbring.com, and carries the data hook recipe-view.js looks for', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
@@ -1170,7 +1317,11 @@ test('GET /recipes/:id/bring answers 302 to /login when unauthenticated', async 
   });
 });
 
-test('the method renders verbatim on the recipe page: a two-line method with a blank line between round-trips into the HTML with its line breaks intact', async () => {
+function methodBlocks(html) {
+  return [...html.matchAll(/<p class="recipe-method__text">([\s\S]*?)<\/p>/g)].map((m) => m[1]);
+}
+
+test('the method renders verbatim on the recipe page, one block per typed line: a two-line method with a blank line between round-trips into the HTML with its line breaks intact as three blocks', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -1179,9 +1330,29 @@ test('the method renders verbatim on the recipe page: a two-line method with a b
 
     const res = await agent.get(`/recipes/${recipeId}`);
     assert.equal(res.status, 200);
-    const bodyMatch = res.text.match(/<p class="recipe-method__text">([\s\S]*?)<\/p>/);
-    assert.ok(bodyMatch, 'expected the method paragraph');
-    assert.equal(bodyMatch[1], method);
+    assert.deepEqual(methodBlocks(res.text), ['Preheat the oven.', '', 'Whisk vigorously.']);
+  });
+});
+
+test('a three-line method renders three separate recipe-method__text blocks, each with the exact typed text, including a leading "1. " the user typed, and adds no numbering of its own', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const method = '1. Mehl, Eier und Milch in eine Schüssel geben und verrühren.\n2. Teig 10 Minuten ruhen lassen.\n3. In der Pfanne backen.';
+    const recipeId = await createScalingRecipe(agent, { method });
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.deepEqual(methodBlocks(res.text), [
+      '1. Mehl, Eier und Milch in eine Schüssel geben und verrühren.',
+      '2. Teig 10 Minuten ruhen lassen.',
+      '3. In der Pfanne backen.',
+    ]);
+
+    const noDigitsMethod = 'Preheat the oven.\nWhisk vigorously.';
+    const otherRecipeId = await createScalingRecipe(agent, { title: 'No Digits', method: noDigitsMethod });
+    const otherRes = await agent.get(`/recipes/${otherRecipeId}`);
+    assert.doesNotMatch(methodBlocks(otherRes.text).join(''), /\d/);
   });
 });
 

@@ -70,76 +70,110 @@
           <% } %>
         </div>
 
-        <details class="public-link">
-          <summary class="public-link__summary">
-            <span class="public-link__summary-label">
-              <svg class="icon"><use href="#i-globe"></use></svg>
-              Public link · <%= recipe.share_enabled ? 'on' : 'off' %>
-            </span>
-            <svg class="icon public-link__chevron public-link__chevron--closed"><use href="#i-chevron-right"></use></svg>
-            <svg class="icon public-link__chevron public-link__chevron--open"><use href="#i-chevron-up"></use></svg>
-          </summary>
-          <div class="public-link__content">
-            <% if (recipe.share_enabled) { %>
-              <%
-                const shareUrl = publicBaseUrl + '/r/' + recipe.share_token;
-              %>
-              <p class="share-panel__url" data-share-url><%= shareUrl %></p>
-              <div class="share-panel__actions">
-                <button type="button" class="button button--ghost" data-copy-share-link data-share-url="<%= shareUrl %>">
-                  <svg class="icon"><use href="#i-copy"></use></svg>
-                  Copy
-                </button>
-                <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <input type="hidden" name="action" value="rotate">
-                  <button type="submit" class="button button--ghost">
-                    <svg class="icon"><use href="#i-rotate"></use></svg>
-                    Rotate
-                  </button>
-                </form>
-                <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
-                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                  <input type="hidden" name="action" value="disable">
-                  <button type="submit" class="button button--danger">
-                    <svg class="icon"><use href="#i-disable"></use></svg>
-                    Disable
-                  </button>
-                </form>
-              </div>
-              <p class="share-panel__warning">Rotating replaces this link immediately — previously imported Bring! entries will no longer link back.</p>
-            <% } else { %>
-              <p class="share-panel__hint">Sharing is off. Enable it to get a public link Bring! can import.</p>
-              <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
+        <% if (isOwner) { %>
+          <section class="publish-control">
+            <% if (recipe.is_public) { %>
+              <p class="publish-control__status">
+                <svg class="icon"><use href="#i-people"></use></svg>
+                On the Public shelf — any logged-in user can find and duplicate it.
+              </p>
+              <form method="post" action="/recipes/<%= recipe.id %>/publish" class="publish-control__form">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <input type="hidden" name="action" value="enable">
-                <button type="submit" class="button">Enable public link</button>
+                <input type="hidden" name="action" value="unpublish">
+                <p class="publish-control__hint">Taking it off the shelf does not touch the public link — anyone who already has it can still open it; use Rotate below to retract it.</p>
+                <button type="submit" class="button button--ghost">Remove from Public shelf</button>
+              </form>
+            <% } else { %>
+              <p class="publish-control__status">
+                <svg class="icon"><use href="#i-people"></use></svg>
+                Not on the Public shelf.
+              </p>
+              <form method="post" action="/recipes/<%= recipe.id %>/publish" class="publish-control__form">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <input type="hidden" name="action" value="publish">
+                <p class="publish-control__hint">Publishing also turns on a link anyone on the internet can open if they have it — Bring! can only import a recipe from a URL its own servers can fetch.</p>
+                <button type="submit" class="button">Publish to Public shelf</button>
               </form>
             <% } %>
-          </div>
-        </details>
+          </section>
 
-        <script src="/js/copy-share-link.js" defer></script>
+          <details class="public-link">
+            <summary class="public-link__summary">
+              <span class="public-link__summary-label">
+                <svg class="icon"><use href="#i-globe"></use></svg>
+                Public link · <%= recipe.share_enabled ? 'on' : 'off' %>
+              </span>
+              <svg class="icon public-link__chevron public-link__chevron--closed"><use href="#i-chevron-right"></use></svg>
+              <svg class="icon public-link__chevron public-link__chevron--open"><use href="#i-chevron-up"></use></svg>
+            </summary>
+            <div class="public-link__content">
+              <% if (recipe.share_enabled) { %>
+                <%
+                  const shareUrl = publicBaseUrl + '/r/' + recipe.share_token;
+                %>
+                <p class="share-panel__url" data-share-url><%= shareUrl %></p>
+                <div class="share-panel__actions">
+                  <button type="button" class="button button--ghost" data-copy-share-link data-share-url="<%= shareUrl %>">
+                    <svg class="icon"><use href="#i-copy"></use></svg>
+                    Copy
+                  </button>
+                  <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="action" value="rotate">
+                    <button type="submit" class="button button--ghost">
+                      <svg class="icon"><use href="#i-rotate"></use></svg>
+                      Rotate
+                    </button>
+                  </form>
+                  <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
+                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                    <input type="hidden" name="action" value="disable">
+                    <button type="submit" class="button button--danger">
+                      <svg class="icon"><use href="#i-disable"></use></svg>
+                      Disable
+                    </button>
+                  </form>
+                </div>
+                <p class="share-panel__warning">Rotating replaces this link immediately — previously imported Bring! entries will no longer link back.</p>
+              <% } else { %>
+                <p class="share-panel__hint">Sharing is off. Enable it to get a public link Bring! can import.</p>
+                <form method="post" action="/recipes/<%= recipe.id %>/share/link" class="share-panel__form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <input type="hidden" name="action" value="enable">
+                  <button type="submit" class="button">Enable public link</button>
+                </form>
+              <% } %>
+            </div>
+          </details>
+
+          <script src="/js/copy-share-link.js" defer></script>
+        <% } %>
 
         <% if (steps.length > 0) { %>
           <section class="recipe-method">
             <h2>Method</h2>
-            <p class="recipe-method__text"><%= steps[0].text %></p>
+            <% steps[0].text.split('\n').forEach((line) => { %>
+              <p class="recipe-method__text"><%= line %></p>
+            <% }) %>
           </section>
         <% } %>
 
         <div class="recipe-actions">
-          <a class="button button--ghost" href="/recipes/<%= recipe.id %>/edit">Edit</a>
+          <% if (isOwner) { %>
+            <a class="button button--ghost" href="/recipes/<%= recipe.id %>/edit">Edit</a>
+          <% } %>
           <form method="post" action="/recipes/<%= recipe.id %>/duplicate" class="recipe-actions__form">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button type="submit" class="button button--ghost">Duplicate</button>
           </form>
-          <form method="post" action="/recipes/<%= recipe.id %>/delete" class="recipe-actions__form">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button type="submit" class="button button--danger">
-              <%= recipe.is_archived ? 'Delete permanently' : 'Archive' %>
-            </button>
-          </form>
+          <% if (isOwner) { %>
+            <form method="post" action="/recipes/<%= recipe.id %>/delete" class="recipe-actions__form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="button button--danger">
+                <%= recipe.is_archived ? 'Delete permanently' : 'Archive' %>
+              </button>
+            </form>
+          <% } %>
         </div>
       </main>
       <%- include('../partials/bottom-nav', { activeNav: null }) %>

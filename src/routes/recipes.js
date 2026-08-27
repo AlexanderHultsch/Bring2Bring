@@ -24,6 +24,7 @@ import {
   groupRecipesByInitial,
 } from '../services/recipes.js';
 import { applyShareAction, ShareActionSchema } from '../services/sharing.js';
+import { publishRecipe, unpublishRecipe, PublishActionSchema } from '../services/publishing.js';
 
 function notFoundError() {
   const error = new Error('Not found');
@@ -133,6 +134,7 @@ export function recipesRouter(db, config) {
       requestedYield,
       locale: config.numberLocale,
       publicBaseUrl: config.publicBaseUrl,
+      isOwner: aggregate.recipe.owner_id === req.currentUser.id,
     });
   });
 
@@ -199,6 +201,42 @@ export function recipesRouter(db, config) {
       return;
     }
     res.redirect(`/recipes/${result.recipeId}`);
+  });
+
+  // SPECIFICATION.md section 9 / 5.1 (v2.0, D1): owner-only, exactly like
+  // every other mutation in this file — findRecipeForWrite, 404 when it
+  // returns undefined, no second access rule. publishRecipe/unpublishRecipe
+  // do the actual write (and, for publish, also enable the share token —
+  // §8.2, §10.1).
+  router.post('/recipes/:id/publish', requireAuth(), (req, res, next) => {
+    const id = parseRecipeId(req.params.id);
+    if (id === null) {
+      next(notFoundError());
+      return;
+    }
+
+    const recipe = findRecipeForWrite(db, id, req.currentUser.id);
+    if (!recipe) {
+      next(notFoundError());
+      return;
+    }
+
+    const parsed = PublishActionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      next(badRequestError());
+      return;
+    }
+
+    const result =
+      parsed.data.action === 'publish'
+        ? publishRecipe(db, id, req.currentUser.id)
+        : unpublishRecipe(db, id, req.currentUser.id);
+    if (!result.success) {
+      next(notFoundError());
+      return;
+    }
+
+    res.redirect(`/recipes/${id}`);
   });
 
   router.post('/recipes/:id/share/link', requireAuth(), (req, res, next) => {

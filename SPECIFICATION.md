@@ -812,7 +812,10 @@ body text, high contrast — unchanged from v1, and still non-negotiable.
   presence there requires no ownership check beyond `is_public = 1` (D2).
 - **Recipe** — title, meta line, yield control (the 1–10 wheel, §7.4),
   ingredients (flat list, with checkboxes that survive scrolling), method
-  (shown exactly as typed, line breaks preserved). **"Send to Bring!" is the
+  (rendered exactly as typed, one block per typed line, with a hanging
+  indent so a wrapped line aligns under the text rather than under any
+  number the user typed — the app still adds no numbering of its own).
+  **"Send to Bring!" is the
   primary action** and is styled as the one obvious thing to do on the page;
   copy, print and edit are secondary. Edit is shown only to the owner (D2).
   The **public-link section is collapsed by default** to a single line

@@ -1,5 +1,10 @@
+import { z } from 'zod';
 import { setRecipePublic } from '../repositories/recipes.js';
 import { applyShareAction } from './sharing.js';
+
+export const PublishActionSchema = z.object({
+  action: z.enum(['publish', 'unpublish']),
+});
 
 // SPECIFICATION.md section 8.5 / D1: Bring!'s servers can only import from a
 // URL they themselves can fetch, so publishing to the Public shelf must also
