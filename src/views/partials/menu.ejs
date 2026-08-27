@@ -13,6 +13,12 @@
         <svg class="icon"><use href="#i-privacy"></use></svg>
         Privacy
       </a>
+      <% if (currentUser.role === 'admin') { %>
+        <a class="menu__item" href="/admin/recipes">
+          <svg class="icon"><use href="#i-admin"></use></svg>
+          Admin
+        </a>
+      <% } %>
       <a class="menu__item" href="https://github.com/AlexanderHultsch/Dishlist/issues" target="_blank" rel="noopener noreferrer">
         <svg class="icon"><use href="#i-bug"></use></svg>
         Report a bug

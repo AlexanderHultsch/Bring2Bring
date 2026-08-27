@@ -99,6 +99,14 @@ const ROUTES = [
   { method: 'post', path: '/account/password', recipeScoped: false, body: {} },
   { method: 'get', path: '/privacy', recipeScoped: false },
   { method: 'post', path: '/logout', recipeScoped: false, body: {} },
+  // Admin routes (SPECIFICATION.md section 6.4 / 9, v2.0, D3): requireAuth()
+  // then requireAdmin(), so a logged-in non-admin — exactly the "stranger" of
+  // Group B/D below — gets 404 like any other recipe this user doesn't own.
+  { method: 'get', path: '/admin/recipes', recipeScoped: false },
+  { method: 'post', path: '/admin/recipes/:id/unpublish', recipeScoped: true, body: {} },
+  { method: 'post', path: '/admin/recipes/:id/delete', recipeScoped: true, body: {} },
+  { method: 'get', path: '/admin/users', recipeScoped: false },
+  { method: 'post', path: '/admin/users/:id/delete', recipeScoped: true, body: {} },
 ];
 
 // Routes deliberately excluded from the completeness guard below: reachable

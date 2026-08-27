@@ -1,0 +1,47 @@
+<%- include('../partials/head', { title: 'Admin · Users — Dishlist' }) %>
+      <%- include('../partials/header', { currentUser, csrfToken, backHref: '/admin/recipes', pageTitle: 'Admin' }) %>
+      <main class="admin-page has-bottom-nav">
+        <div class="admin-page__bar">
+          <h1>Users</h1>
+          <a class="button button--ghost" href="/admin/recipes">Recipes</a>
+        </div>
+
+        <% if (deleteError) { %>
+          <p class="form-error"><%= deleteError %></p>
+        <% } %>
+
+        <ul class="admin-list">
+          <% users.forEach((user) => { %>
+            <% const isLastAdmin = user.role === 'admin' && adminCount <= 1; %>
+            <li class="admin-list__item">
+              <div class="admin-list__main">
+                <span class="admin-list__title"><%= user.username %></span>
+                <span class="admin-list__meta">
+                  <%= user.role %> ·
+                  <%= user.recipe_count %> recipe<%= user.recipe_count === 1 ? '' : 's' %> ·
+                  joined <%= user.created_at.slice(0, 10) %> ·
+                  last login <%= user.last_login_at ? user.last_login_at.slice(0, 10) : 'never' %>
+                </span>
+              </div>
+              <div class="admin-list__actions">
+                <% if (isLastAdmin) { %>
+                  <p class="admin-list__disabled-hint">Last admin — can't be deleted</p>
+                <% } else { %>
+                  <details class="admin-confirm">
+                    <summary class="button button--danger">Delete</summary>
+                    <div class="admin-confirm__panel">
+                      <p class="admin-confirm__warning">Deletes "<%= user.username %>" and all <%= user.recipe_count %> of their recipes. This cannot be undone.</p>
+                      <form method="post" action="/admin/users/<%= user.id %>/delete" class="admin-list__form">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit" class="button button--danger">Confirm delete</button>
+                      </form>
+                    </div>
+                  </details>
+                <% } %>
+              </div>
+            </li>
+          <% }) %>
+        </ul>
+      </main>
+      <%- include('../partials/bottom-nav', { activeNav: null }) %>
+<%- include('../partials/foot') %>

@@ -862,3 +862,104 @@ label {
   margin: 0;
   color: var(--color-text);
 }
+
+.admin-page__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.admin-page__hint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.admin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.admin-list__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.admin-list__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.admin-list__title {
+  font-size: var(--text-body-size);
+  line-height: var(--text-body-line-height);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.admin-list__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  font-size: var(--text-secondary-size);
+  line-height: var(--text-secondary-line-height);
+  color: var(--color-text-muted);
+}
+
+.admin-list__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.admin-list__form {
+  margin: 0;
+}
+
+.admin-list__disabled-hint {
+  margin: 0;
+  min-height: var(--min-tap-target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-secondary-size);
+}
+
+.admin-confirm {
+  display: inline-block;
+}
+
+.admin-confirm > summary {
+  list-style: none;
+}
+
+.admin-confirm > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-confirm__panel {
+  margin-top: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.admin-confirm__warning {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text);
+  font-size: var(--text-secondary-size);
+}

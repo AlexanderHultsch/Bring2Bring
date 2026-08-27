@@ -1,0 +1,66 @@
+<%- include('../partials/head', { title: 'Admin · Recipes — Dishlist' }) %>
+      <%- include('../partials/header', { currentUser, csrfToken, backHref: '/', pageTitle: 'Admin' }) %>
+      <main class="admin-page has-bottom-nav">
+        <div class="admin-page__bar">
+          <h1>Recipes</h1>
+          <a class="button button--ghost" href="/admin/users">Users</a>
+        </div>
+        <p class="admin-page__hint">Title, author, and state only — no admin screen ever shows an ingredient or a method.</p>
+
+        <form method="get" action="/admin/recipes" class="list-controls" role="search">
+          <div class="list-controls__search">
+            <label for="q">Search</label>
+            <div class="search-field">
+              <svg class="icon search-field__icon"><use href="#i-search"></use></svg>
+              <input type="search" id="q" name="q" value="<%= search %>" placeholder="Search by title">
+            </div>
+          </div>
+          <button type="submit" class="button">Apply</button>
+        </form>
+
+        <% if (recipes.length === 0) { %>
+          <p class="empty-state">
+            <% if (search.trim() !== '') { %>
+              No recipes match your search. <a href="/admin/recipes">Clear filters</a>.
+            <% } else { %>
+              No recipes yet.
+            <% } %>
+          </p>
+        <% } else { %>
+          <ul class="admin-list">
+            <% recipes.forEach((recipe) => { %>
+              <li class="admin-list__item">
+                <div class="admin-list__main">
+                  <span class="admin-list__title"><%= recipe.title %></span>
+                  <span class="admin-list__meta">
+                    @<%= recipe.author_username %> ·
+                    <%= recipe.is_public ? 'Public' : 'Private' %> ·
+                    <%= recipe.created_at.slice(0, 10) %> ·
+                    <svg class="icon"><use href="#i-bring"></use></svg><%= recipe.bring_import_count %>
+                  </span>
+                </div>
+                <div class="admin-list__actions">
+                  <% if (recipe.is_public) { %>
+                    <form method="post" action="/admin/recipes/<%= recipe.id %>/unpublish" class="admin-list__form">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="submit" class="button button--ghost">Unpublish</button>
+                    </form>
+                  <% } %>
+                  <details class="admin-confirm">
+                    <summary class="button button--danger">Delete</summary>
+                    <div class="admin-confirm__panel">
+                      <p class="admin-confirm__warning">Permanently deletes "<%= recipe.title %>". This cannot be undone.</p>
+                      <form method="post" action="/admin/recipes/<%= recipe.id %>/delete" class="admin-list__form">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit" class="button button--danger">Confirm delete</button>
+                      </form>
+                    </div>
+                  </details>
+                </div>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </main>
+      <%- include('../partials/bottom-nav', { activeNav: null }) %>
+<%- include('../partials/foot') %>

@@ -361,7 +361,7 @@ ALTER TABLE recipes ADD COLUMN bring_import_count INTEGER NOT NULL DEFAULT 0;
 bring_imports (
   recipe_id -> recipes.id ON DELETE CASCADE,
   device_id TEXT NOT NULL,               -- from the dishlist.did cookie
-  day TEXT NOT NULL,                     -- YYYY-MM-DD, server-local date
+  day TEXT NOT NULL,                     -- YYYY-MM-DD, UTC date (the daily boundary is not local midnight)
   PRIMARY KEY(recipe_id, device_id, day)
 )
 ```

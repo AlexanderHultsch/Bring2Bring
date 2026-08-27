@@ -12,6 +12,7 @@ import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
 import { recipesRouter } from './routes/recipes.js';
 import { accountRouter } from './routes/account.js';
+import { adminRouter } from './routes/admin.js';
 import { shareRouter } from './routes/share.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -73,6 +74,7 @@ export function createApp({ db, config }) {
   app.use(authRouter(db, config));
   app.use(recipesRouter(db, config));
   app.use(accountRouter(db, config));
+  app.use(adminRouter(db));
 
   app.use(notFoundHandler());
   app.use(errorHandler(config));
