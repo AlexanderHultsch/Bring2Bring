@@ -56,13 +56,18 @@ h3 {
 }
 
 h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--text-title-size);
+  line-height: var(--text-title-line-height);
+  font-weight: var(--text-title-weight);
   margin: 0 0 var(--space-3);
 }
 
 h2 {
-  font-size: var(--font-size-lg);
-  margin: var(--space-5) 0 var(--space-2);
+  font-size: var(--text-heading-size);
+  line-height: var(--text-heading-line-height);
+  font-weight: var(--text-heading-weight);
+  color: var(--color-accent);
+  margin: var(--space-4) 0 var(--space-2);
 }
 
 p {
@@ -470,20 +475,6 @@ label {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   margin-bottom: var(--space-2);
-}
-
-.recipe-page h1 {
-  font-size: var(--text-title-size);
-  line-height: var(--text-title-line-height);
-  font-weight: var(--text-title-weight);
-}
-
-.recipe-page h2 {
-  font-size: var(--text-heading-size);
-  line-height: var(--text-heading-line-height);
-  font-weight: var(--text-heading-weight);
-  color: var(--color-accent);
-  margin: var(--space-4) 0 var(--space-2);
 }
 
 .servings-section {
