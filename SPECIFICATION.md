@@ -80,8 +80,9 @@ The full set of decisions:
   nav (My Dishes / Public / + New), a burger menu (Account, Privacy, Report
   a bug, Log out) that now also holds the archive, title-first search with
   ingredient search as a secondary toggle, alphabetical default sort with an
-  A–Z rail, author + import count on cards instead of servings, a collapsed
-  public-link section, and a new Privacy page (§10).
+  A–Z rail, import count on cards instead of servings (author too, on
+  Public cards only), a collapsed public-link section, and a new Privacy
+  page (§10).
 - **Servings control constrained (D6).** The free-form yield control is
   replaced by a snap-scroll wheel of integers 1–10, default 4. The scaling
   engine (§7.1–7.3) does not change, only the control that drives it — this
