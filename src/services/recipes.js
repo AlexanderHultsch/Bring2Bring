@@ -124,14 +124,25 @@ function emptyIngredientRow() {
   return { amount: '', unit: '', name: '' };
 }
 
-// SPECIFICATION.md section 2.1 A3: a recipe has a numeric servings count and
-// nothing else. Stored in the existing yield_amount column; yield_unit is
-// always the constant 'servings' (section 5 schema note).
+// SPECIFICATION.md section 2.1 A3 / 7.4 (E7, v2.1): a recipe has a numeric
+// servings count and nothing else. Stored in the existing yield_amount
+// column; yield_unit is always the constant 'servings' (section 5 schema
+// note). Since v2.1, that count is bounded to the same MIN_YIELD..MAX_YIELD
+// range as the ?yield= control (parseYieldParam above) — one source of truth
+// for the range, not two — and must be a whole number.
 const requiredYieldAmount = z.string().transform((raw, ctx) => {
   const trimmed = raw.trim();
   const value = Number(trimmed);
-  if (trimmed === '' || !Number.isFinite(value) || value <= 0 || value > 10000) {
-    ctx.addIssue({ code: 'custom', message: 'must be a positive number up to 10000' });
+  if (
+    trimmed === '' ||
+    !Number.isInteger(value) ||
+    value < MIN_YIELD ||
+    value > MAX_YIELD
+  ) {
+    ctx.addIssue({
+      code: 'custom',
+      message: `must be a whole number of servings between ${MIN_YIELD} and ${MAX_YIELD}`,
+    });
     return z.NEVER;
   }
   return value;

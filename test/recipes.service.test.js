@@ -1,9 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { groupRecipesByInitial } from '../src/services/recipes.js';
+import { groupRecipesByInitial, parseRecipeForm } from '../src/services/recipes.js';
 
 function recipe(title) {
   return { title };
+}
+
+function validRecipeBody(servings) {
+  return {
+    title: 'Tomato Soup',
+    servings,
+    ingredients: [{ name: 'Tomatoes', amount: '500', unit: 'g' }],
+    method: 'Cook it.',
+  };
 }
 
 // SPECIFICATION.md section 10.1/10.E: the A-Z rail groups by the title's
@@ -57,5 +66,61 @@ test('groupRecipesByInitial preserves the input order within a group and does no
   assert.deepEqual(
     groups[0].recipes.map((r) => r.title),
     ['Zitronenkuchen', 'Zwiebelsuppe']
+  );
+});
+
+// SPECIFICATION.md section 2.1 A3 / 7.4 (E7, v2.1): a recipe's own servings
+// are validated as an integer in 1..10, the same bound the ?yield= control
+// uses — one source of truth for the range, not two.
+test('parseRecipeForm accepts servings 4 and stores it as the number 4', () => {
+  const result = parseRecipeForm(validRecipeBody('4'));
+  assert.equal(result.success, true);
+  assert.equal(result.fields.yield_amount, 4);
+});
+
+test('parseRecipeForm accepts the inclusive bounds servings 1 and 10', () => {
+  for (const servings of ['1', '10']) {
+    const result = parseRecipeForm(validRecipeBody(servings));
+    assert.equal(result.success, true, `servings ${servings}`);
+    assert.equal(result.fields.yield_amount, Number(servings), `servings ${servings}`);
+  }
+});
+
+test('parseRecipeForm rejects servings 11, above the bound', () => {
+  const result = parseRecipeForm(validRecipeBody('11'));
+  assert.equal(result.success, false);
+});
+
+test('parseRecipeForm rejects servings 0', () => {
+  const result = parseRecipeForm(validRecipeBody('0'));
+  assert.equal(result.success, false);
+});
+
+test('parseRecipeForm rejects a negative servings value', () => {
+  const result = parseRecipeForm(validRecipeBody('-2'));
+  assert.equal(result.success, false);
+});
+
+test('parseRecipeForm rejects a non-integer servings value inside the range', () => {
+  const result = parseRecipeForm(validRecipeBody('4.5'));
+  assert.equal(result.success, false);
+});
+
+test('parseRecipeForm rejects a non-numeric servings value', () => {
+  const result = parseRecipeForm(validRecipeBody('abc'));
+  assert.equal(result.success, false);
+});
+
+test('parseRecipeForm rejects an empty servings value', () => {
+  const result = parseRecipeForm(validRecipeBody(''));
+  assert.equal(result.success, false);
+});
+
+test('parseRecipeForm reports the servings bound in the error message, so a future bound change cannot silently pass', () => {
+  const result = parseRecipeForm(validRecipeBody('11'));
+  assert.equal(result.success, false);
+  assert.ok(
+    result.errors.some((message) => message.includes('between 1 and 10')),
+    `expected an error mentioning "between 1 and 10", got: ${result.errors.join(', ')}`
   );
 });
