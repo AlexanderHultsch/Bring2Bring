@@ -124,3 +124,16 @@ test('parseRecipeForm reports the servings bound in the error message, so a futu
     `expected an error mentioning "between 1 and 10", got: ${result.errors.join(', ')}`
   );
 });
+
+test('parseRecipeForm labels an out-of-range servings error with the form field name, not the database column', () => {
+  const result = parseRecipeForm(validRecipeBody('11'));
+  assert.equal(result.success, false);
+  assert.ok(
+    result.errors.some((message) => message === 'Servings must be a whole number between 1 and 10'),
+    `expected an error equal to "Servings must be a whole number between 1 and 10", got: ${result.errors.join(', ')}`
+  );
+  assert.ok(
+    !result.errors.some((message) => message.includes('yield_amount')),
+    `expected no error mentioning "yield_amount", got: ${result.errors.join(', ')}`
+  );
+});

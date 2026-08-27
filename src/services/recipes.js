@@ -141,7 +141,7 @@ const requiredYieldAmount = z.string().transform((raw, ctx) => {
   ) {
     ctx.addIssue({
       code: 'custom',
-      message: `must be a whole number of servings between ${MIN_YIELD} and ${MAX_YIELD}`,
+      message: `must be a whole number between ${MIN_YIELD} and ${MAX_YIELD}`,
     });
     return z.NEVER;
   }
@@ -160,12 +160,20 @@ const optionalNonNegativeAmount = z.string().transform((raw, ctx) => {
   return value;
 });
 
+// The schema's field names are database column names (yield_amount); the
+// form the user sees calls them Title and Servings, so validation errors
+// must speak that language, not the column's.
+const FIELD_LABELS = {
+  title: 'Title',
+  yield_amount: 'Servings',
+};
+
 const RecipeFieldsSchema = z.object({
   title: z
     .string()
     .trim()
-    .min(1, { message: 'Title is required' })
-    .max(200, { message: 'Title must be at most 200 characters' }),
+    .min(1, { message: 'is required' })
+    .max(200, { message: 'must be at most 200 characters' }),
   yield_amount: requiredYieldAmount,
 });
 
@@ -220,7 +228,8 @@ export function parseRecipeForm(body) {
   });
   if (!scalarResult.success) {
     for (const issue of scalarResult.error.issues) {
-      issues.push(`${issue.path.join('.')}: ${issue.message}`);
+      const label = FIELD_LABELS[issue.path.join('.')] ?? issue.path.join('.');
+      issues.push(`${label} ${issue.message}`);
     }
   }
 
