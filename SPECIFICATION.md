@@ -263,6 +263,8 @@ the client-side live recalculation must use the exact same code — two
 implementations of the same rounding rules will drift, and a drifting shopping
 list is the one failure mode this project cannot afford.
 
+`docs/design/` holds the approved visual mockups (§10); `src/views/partials/icons.ejs` holds the icon sprite (§10.D).
+
 ---
 
 ## 5. Data model
@@ -795,9 +797,11 @@ body text, high contrast — unchanged from v1, and still non-negotiable.
 
 ### 10.1 Pages
 
-- **My Dishes / Public** — cards: title, **author**, **import count**
+- **My Dishes / Public** — cards: title and **import count**
   (`bring_import_count`) — no longer the servings; it isn't interesting at a
-  glance (D5). Search box is **title-first**; ingredient search is a
+  glance (D5). **Public** cards also show the **author** as `@username`; My
+  Dishes omits it, since every dish listed there is by definition the
+  signed-in user's own (§10.E). Search box is **title-first**; ingredient search is a
   secondary toggle beside it, not the default — finding a dish by name is
   the common case, ingredient search is occasional, and the control reflects
   that. **Default sort is alphabetical**, with an **A–Z rail** down the edge
@@ -832,24 +836,133 @@ body text, high contrast — unchanged from v1, and still non-negotiable.
 - **Admin** — `/admin/recipes` and `/admin/users` (§6.4, D3): plain lists,
   metadata only, no recipe content.
 
-### 10.2 Design
+### 10.A The theming contract
 
-- Follow the ProjectIndex convention: **all visual parameters in
-  `css/tokens.css`** (colors, fonts, type scale, spacing, radii), with
-  `style.css` reading only tokens. Restyling must not require touching
-  components.
-- Dark mode default from `prefers-color-scheme`, manual toggle persisted in
-  `localStorage`, applied before first paint to avoid a flash (same
-  `theme-init.js` trick as ProjectIndex).
-- Visually consistent with ahultsch.com — minimal, calm, developer aesthetic —
-  but warmer: this one is a cookbook, not a terminal. One accent color.
-- Large tap targets (min 44 px), readable body text (min 16 px), high
-  contrast. A "keep screen awake" toggle on the recipe page using the Wake Lock
-  API where available, degrading silently where not.
-- No third-party scripts, no fonts loaded from a CDN, no analytics.
-- **Mobile-first is binding** (D5, §10) — every screen added in v2.0 (Public
-  shelf, admin lists, Privacy page) follows the same rules above, not a
-  desktop-first afterthought.
+The approved v2.0 mockups (`docs/design/v2-mockups.png`) are written into
+this document as a binding contract, not just a picture, because Alex's
+explicit requirement is that the app must be easy to re-theme later —
+"easily change symbols, colors, etc." — without touching component code:
+
+- **Every colour, font, size, spacing, radius and shadow is a CSS custom
+  property in `public/css/tokens.css`.** `public/css/style.css` and every
+  template read **only** `var(--…)` — no literal hex, no literal font name,
+  no magic pixel value anywhere outside `tokens.css`. This already holds
+  (§4.1) and must continue to.
+- **Every icon is a `<symbol>` in one file, `src/views/partials/icons.ejs`**,
+  rendered wherever it is used as `<svg class="icon"><use
+  href="#i-name"></use></svg>`.
+- Therefore: changing the whole colour scheme is a one-file edit; changing
+  any icon is a one-symbol edit in one file. Neither requires touching a
+  component or a route.
+
+### 10.B Colour tokens
+
+Exact values from the approved mockup:
+
+| Token | Dark (default) | Light |
+| --- | --- | --- |
+| background | `#0F1113` | `#FAFAF8` |
+| surface | `#181B1E` | `#FFFFFF` |
+| surface-2 | `#23272B` | `#F1F3F5` |
+| text-primary | `#E8ECEF` | `#0D0F11` |
+| text-secondary | `#A6ACB3` | `#4B535C` |
+| accent | `#6BCB77` | `#2E7D32` |
+| divider | `#2E343A` | `#E3E6EA` |
+
+A **danger** token is also required — the mockup shows "Disable" and
+"Log out" in red — but the mockup does not give its hex. It must be defined
+as a token in both themes and chosen to meet contrast against `surface`;
+the specific hex is an implementation choice, recorded in `tokens.css` when
+picked, not invented here.
+
+Dark is the default: `prefers-color-scheme` decides which set applies, and
+an explicit `[data-theme]` attribute on the root overrides it in both
+directions — the existing mechanism, unchanged. The existing manual-toggle
+behaviour is also unchanged: a toggle persists the user's choice to
+`localStorage` as the `data-theme` attribute, applied before first paint
+(the `theme-init.js` trick) so there is no flash of the wrong theme.
+
+### 10.C Type scale
+
+| Style | Size / line-height | Weight | Notes |
+| --- | --- | --- | --- |
+| Title | 24 / 32 | Bold | |
+| Section heading | 18 / 24 | Semibold | rendered in the accent colour |
+| Body | 16 / 24 | Regular | the minimum body size (§10.F) |
+| Secondary | 14 / 20 | Regular | |
+| Caption | 12 / 16 | Regular | |
+
+The mockup names SF Pro as the typeface. The app loads no webfont: the CSP
+(§11) is `default-src 'self'` with no font-host exception carved out, so an
+external font could not load even if one were referenced. The font stack is
+therefore the system UI font (`-apple-system, BlinkMacSystemFont,
+'Segoe UI', Roboto, sans-serif` or equivalent) — which **is** SF Pro on
+iOS/macOS, and the platform-native equivalent everywhere else.
+
+### 10.D Icons
+
+The icon set the mockups use, each a `<symbol id="i-…">` in
+`src/views/partials/icons.ejs`:
+
+`i-search`, `i-back`, `i-menu`, `i-close`, `i-chevron-right`,
+`i-chevron-up`, `i-book` (My Dishes), `i-people` (Public), `i-plus` (New),
+`i-bring` (the import mark), `i-globe` (public link), `i-copy`, `i-rotate`,
+`i-disable`, `i-account`, `i-privacy`, `i-bug`, `i-archive`, `i-logout`,
+`i-filter`.
+
+The sprite is **inlined into every page**, not linked as an external `.svg`
+referenced by URL: Safari on iOS does not reliably support `<use>` pointing
+at an external file, and the primary device for this app is a phone. Icons
+take their colour from `currentColor`, never a hard-coded `fill` — so an
+icon always follows the token colouring the text around it, and never needs
+a separate colour kept in sync.
+
+`i-bring` — the mark shown next to every import count and on the "Send to
+Bring!" button — is a leaf with an arrow, per the mockup: natural,
+movement, deliberately not a shopping-cart cliché.
+
+### 10.E Screen anatomy
+
+One paragraph per screen, matching the mockup:
+
+1. **My Dishes** — a search field with a secondary "ingredients" toggle
+   beside it, off by default. Rows are sorted A–Z with letter section
+   headers, and an A–Z rail runs down the right edge (starting with `#`)
+   that jumps to a section. Each row shows the dish name as body text and
+   the import count with the `i-bring` mark, above the bottom nav.
+   **Deliberate deviation from the mockup:** the mockup also shows an
+   author name under each dish on this screen, but on My Dishes every dish
+   is by definition the signed-in user's own, so the author line is
+   omitted here and shown only on the Public shelf (§10.1).
+2. **Recipe** — a back arrow and a burger control in the header, the
+   title, a "Servings" section with the 1–10 integer wheel and the current
+   value marked, then "Ingredients (for N servings)" where N is the
+   selected servings, the ingredient list, the primary "Send to Bring!"
+   button, the collapsed public-link row, then "Method".
+3. **Public** — laid out as My Dishes, except each row also shows the
+   author as `@username`, and the header carries a sort control ("Most
+   imported" / A–Z / "Recently added") in place of the ingredients toggle
+   alone.
+4. **Burger** — a panel over the page from the right, with a close control
+   and the items Account, Privacy, Report a bug, Archive, Log out. Log out
+   and other destructive items use the `danger` token (§10.B).
+
+**Bottom nav** — three items, always present on list and recipe screens:
+My Dishes, Public, and New. New is visually raised as the primary action.
+This is also the way back from a recipe to a list.
+
+### 10.F Rules that survive
+
+Restated, not weakened:
+
+- Mobile-first.
+- Minimum 44 px tap targets, minimum 16 px body text, high contrast. A
+  "keep screen awake" toggle on the Recipe page using the Wake Lock API
+  where available, degrading silently where not.
+- No inline scripts anywhere, so the CSP (§11) needs no nonces and gets
+  none.
+- No webfonts, no third-party scripts, no analytics.
+- All client JS ships as external files under `public/js/`.
 
 ---
 
