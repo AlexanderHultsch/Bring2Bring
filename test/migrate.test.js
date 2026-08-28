@@ -21,7 +21,7 @@ const EXPECTED_TABLES = [
 ].sort();
 
 function withTempDir(fn) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dishlist-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bring2bring-'));
   try {
     return fn(dir);
   } finally {
@@ -31,7 +31,7 @@ function withTempDir(fn) {
 
 test('openDatabase creates a missing parent directory', () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'nested', 'deeper', 'dishlist.db');
+    const dbPath = path.join(dir, 'nested', 'deeper', 'bring2bring.db');
     const db = openDatabase(dbPath);
     assert.ok(fs.existsSync(path.dirname(dbPath)));
     db.close();
@@ -40,7 +40,7 @@ test('openDatabase creates a missing parent directory', () => {
 
 test('pragma foreign_keys is 1 and journal_mode is wal after openDatabase', () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'dishlist.db');
+    const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     assert.equal(db.pragma('foreign_keys', { simple: true }), 1);
     assert.equal(db.pragma('journal_mode', { simple: true }), 'wal');
@@ -50,7 +50,7 @@ test('pragma foreign_keys is 1 and journal_mode is wal after openDatabase', () =
 
 test('runMigrations on a fresh db returns 001, 002 and 003 in order and creates every table', () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'dishlist.db');
+    const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     const applied = runMigrations(db);
     assert.deepEqual(applied, ['001_init.sql', '002_public_shelf.sql', '003_bring_imports.sql']);
@@ -67,7 +67,7 @@ test('runMigrations on a fresh db returns 001, 002 and 003 in order and creates 
 
 test('runMigrations called a second time returns [] and leaves schema_migrations with three rows', () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'dishlist.db');
+    const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     runMigrations(db);
     const secondRun = runMigrations(db);
@@ -81,7 +81,7 @@ test('runMigrations called a second time returns [] and leaves schema_migrations
 
 test('migration 002 adds recipes.is_public NOT NULL DEFAULT 0, indexed', () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'dishlist.db');
+    const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     runMigrations(db);
 
@@ -105,7 +105,7 @@ test('migration 002 adds recipes.is_public NOT NULL DEFAULT 0, indexed', () => {
 
 test('migration 003 adds recipes.bring_import_count and the bring_imports table with its composite primary key', () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'dishlist.db');
+    const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     runMigrations(db);
 
@@ -137,7 +137,7 @@ test('migration 003 adds recipes.bring_import_count and the bring_imports table 
 
 test('migrations 002 and 003 are idempotent: applying them twice leaves the schema unchanged', () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'dishlist.db');
+    const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     runMigrations(db);
     assert.doesNotThrow(() => runMigrations(db));
@@ -154,7 +154,7 @@ test('migrations 002 and 003 are idempotent: applying them twice leaves the sche
 
 test('deleting a recipe cascades to its ingredient_groups, ingredients, steps, recipe_tags and recipe_shares', () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'dishlist.db');
+    const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     runMigrations(db);
 
@@ -216,7 +216,7 @@ test('deleting a recipe cascades to its ingredient_groups, ingredients, steps, r
 
 test("inserting a user with role 'superuser' throws", () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'dishlist.db');
+    const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     runMigrations(db);
 
@@ -233,7 +233,7 @@ test("inserting a user with role 'superuser' throws", () => {
 
 test('inserting two users with the same username throws', () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'dishlist.db');
+    const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     runMigrations(db);
 
@@ -247,7 +247,7 @@ test('inserting two users with the same username throws', () => {
 
 test('inserting two recipes with the same share_token throws', () => {
   withTempDir((dir) => {
-    const dbPath = path.join(dir, 'dishlist.db');
+    const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     runMigrations(db);
 

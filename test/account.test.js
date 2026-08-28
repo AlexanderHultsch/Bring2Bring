@@ -77,14 +77,14 @@ test('GET /account and GET /privacy return 200 logged in, 302 to /login otherwis
 
 // SPECIFICATION.md section 8.5 / 11 (v2.0, D4): the device cookie exists now
 // and must be documented on the Privacy page, by name.
-test('GET /privacy mentions the dishlist.did device cookie by name', async () => {
+test('GET /privacy mentions the bring2bring.did device cookie by name', async () => {
   await withApp(async (app, db) => {
     await seedKnownUser(db);
     const agent = await loginAgent(app);
 
     const res = await agent.get('/privacy');
     assert.equal(res.status, 200);
-    assert.match(res.text, /dishlist\.did/);
+    assert.match(res.text, /bring2bring\.did/);
   });
 });
 

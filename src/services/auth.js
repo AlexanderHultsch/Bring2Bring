@@ -12,7 +12,7 @@ let dummyHashPromise;
 
 function getDummyHash() {
   if (!dummyHashPromise) {
-    dummyHashPromise = argon2.hash('dishlist-timing-defence-dummy-password', ARGON2_OPTIONS);
+    dummyHashPromise = argon2.hash('bring2bring-timing-defence-dummy-password', ARGON2_OPTIONS);
   }
   return dummyHashPromise;
 }

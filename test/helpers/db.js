@@ -5,7 +5,7 @@ import { openDatabase } from '../../src/db/index.js';
 import { runMigrations } from '../../src/db/migrate.js';
 
 export function createTestDb() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dishlist-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bring2bring-'));
   const dbPath = path.join(dir, 'test.db');
   const db = openDatabase(dbPath);
   runMigrations(db);

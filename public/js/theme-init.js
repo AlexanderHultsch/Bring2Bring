@@ -1,6 +1,6 @@
 (function () {
   try {
-    var theme = localStorage.getItem('dishlist-theme');
+    var theme = localStorage.getItem('bring2bring-theme');
     if (theme === 'dark' || theme === 'light') {
       document.documentElement.dataset.theme = theme;
     }

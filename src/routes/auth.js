@@ -2,6 +2,7 @@ import express from 'express';
 import { authenticate } from '../services/auth.js';
 import { updateUserLastLoginAt } from '../repositories/users.js';
 import { loginIpLimiter, loginUsernameLimiter } from '../middleware/rate-limits.js';
+import { SESSION_COOKIE_NAME } from '../middleware/session.js';
 
 const LOGIN_ERROR_MESSAGE = 'Invalid username or password.';
 
@@ -56,7 +57,7 @@ export function authRouter(db, config) {
       if (req.session) {
         await destroySession(req);
       }
-      res.clearCookie('dishlist.sid');
+      res.clearCookie(SESSION_COOKIE_NAME);
       res.redirect('/login');
     } catch (err) {
       next(err);

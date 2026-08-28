@@ -13,7 +13,7 @@
 
     var ingredientsContainer = form.querySelector('[data-ingredients]');
     var ingredientTemplate = form.querySelector('[data-ingredient-row-template]');
-    var draftKey = 'dishlist-draft-' + (form.dataset.recipeId || 'new');
+    var draftKey = 'bring2bring-draft-' + (form.dataset.recipeId || 'new');
 
     function setName(el, name) {
       if (el) el.name = name;

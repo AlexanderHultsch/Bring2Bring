@@ -38,7 +38,7 @@ const FIELDS = [
     envKey: 'DB_PATH',
     configKey: 'dbPath',
     required: false,
-    default: './data/dishlist.db',
+    default: './data/bring2bring.db',
     schema: nonEmptyString,
   },
   {

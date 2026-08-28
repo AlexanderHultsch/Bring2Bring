@@ -1,6 +1,6 @@
 import { doubleCsrf } from 'csrf-csrf';
 
-const CSRF_COOKIE_NAME = 'dishlist.csrf';
+const CSRF_COOKIE_NAME = 'bring2bring.csrf';
 
 export function csrfProtection(config) {
   const { doubleCsrfProtection } = doubleCsrf({

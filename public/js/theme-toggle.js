@@ -16,7 +16,7 @@
     var next = currentTheme() === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = next;
     try {
-      localStorage.setItem('dishlist-theme', next);
+      localStorage.setItem('bring2bring-theme', next);
     } catch {
       // localStorage unavailable (private mode) — theme still applies for this load
     }

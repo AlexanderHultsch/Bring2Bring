@@ -1581,7 +1581,7 @@ test('ACCEPTANCE 13: the same request from a different device id increments brin
   });
 });
 
-test('the first GET /recipes/:id/bring sets dishlist.did, httpOnly and SameSite=Lax; the second reuses the same value', async () => {
+test('the first GET /recipes/:id/bring sets bring2bring.did, httpOnly and SameSite=Lax; the second reuses the same value', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -1590,16 +1590,16 @@ test('the first GET /recipes/:id/bring sets dishlist.did, httpOnly and SameSite=
     await agent.post(`/recipes/${recipeId}/share/link`).type('form').send({ _csrf: enableCsrf, action: 'enable' });
 
     const first = await agent.get(`/recipes/${recipeId}/bring`);
-    const firstCookie = setCookieFor(first, 'dishlist.did');
-    assert.ok(firstCookie, 'expected dishlist.did to be set on the first request');
+    const firstCookie = setCookieFor(first, 'bring2bring.did');
+    assert.ok(firstCookie, 'expected bring2bring.did to be set on the first request');
     assert.match(firstCookie, /HttpOnly/);
     assert.match(firstCookie, /SameSite=Lax/i);
     const firstValue = firstCookie.split(';')[0].split('=')[1];
     assert.ok(firstValue.length > 0);
 
     const second = await agent.get(`/recipes/${recipeId}/bring`);
-    const secondCookie = setCookieFor(second, 'dishlist.did');
-    assert.equal(secondCookie, undefined, 'expected no new dishlist.did cookie on the second request');
+    const secondCookie = setCookieFor(second, 'bring2bring.did');
+    assert.equal(secondCookie, undefined, 'expected no new bring2bring.did cookie on the second request');
   });
 });
 

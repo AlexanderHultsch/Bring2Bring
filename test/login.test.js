@@ -6,7 +6,7 @@ import { loadConfig } from '../src/config.js';
 import { createApp } from '../src/app.js';
 import { hashPassword } from '../src/services/auth.js';
 import { insertUser, findUserByUsername } from '../src/repositories/users.js';
-import { resetSessionCookieWarning } from '../src/middleware/session.js';
+import { resetSessionCookieWarning, SESSION_COOKIE_NAME } from '../src/middleware/session.js';
 
 const KNOWN_USERNAME = 'alex';
 const KNOWN_PASSWORD = 'correct-horse-battery';
@@ -166,8 +166,8 @@ test('the session cookie is HttpOnly and SameSite=Lax', async () => {
       .type('form')
       .send({ _csrf: csrfToken, username: KNOWN_USERNAME, password: KNOWN_PASSWORD });
 
-    const setCookie = res.headers['set-cookie'].find((c) => c.startsWith('dishlist.sid='));
-    assert.ok(setCookie, 'expected a dishlist.sid cookie to be set once a session holds data');
+    const setCookie = res.headers['set-cookie'].find((c) => c.startsWith('bring2bring.sid='));
+    assert.ok(setCookie, 'expected a bring2bring.sid cookie to be set once a session holds data');
     assert.match(setCookie, /HttpOnly/);
     assert.match(setCookie, /SameSite=Lax/i);
   });
@@ -213,6 +213,34 @@ test('POST /logout with a valid CSRF token destroys the session: a subsequent GE
   });
 });
 
+test('POST /logout clears the same cookie the session middleware sets', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = request.agent(app);
+
+    const loginPage = await agent.get('/login');
+    const loginCsrf = csrfFieldFrom(loginPage.text);
+    const loginRes = await agent
+      .post('/login')
+      .type('form')
+      .send({ _csrf: loginCsrf, username: KNOWN_USERNAME, password: KNOWN_PASSWORD });
+    const sessionCookie = loginRes.headers['set-cookie'].find((c) =>
+      c.startsWith(`${SESSION_COOKIE_NAME}=`)
+    );
+    assert.ok(sessionCookie, `expected a ${SESSION_COOKIE_NAME} cookie to be set on login`);
+
+    const homePage = await agent.get('/');
+    const logoutCsrf = csrfFieldFrom(homePage.text);
+    const logoutRes = await agent.post('/logout').type('form').send({ _csrf: logoutCsrf });
+
+    const clearedCookie = logoutRes.headers['set-cookie'].find((c) =>
+      c.startsWith(`${SESSION_COOKIE_NAME}=`)
+    );
+    assert.ok(clearedCookie, `expected logout to clear the ${SESSION_COOKIE_NAME} cookie`);
+    assert.match(clearedCookie, /Expires=Thu, 01 Jan 1970/);
+  });
+});
+
 test('the session id changes between the pre-login request and the post-login request', async () => {
   // With saveUninitialized false (D1), an anonymous GET /login never gets a
   // persisted session, so there is no pre-login session id to capture and
@@ -230,7 +258,7 @@ test('the session id changes between the pre-login request and the post-login re
       .type('form')
       .send({ _csrf: firstCsrf, username: KNOWN_USERNAME, password: KNOWN_PASSWORD });
     const firstSessionCookie = firstLoginRes.headers['set-cookie'].find((c) =>
-      c.startsWith('dishlist.sid=')
+      c.startsWith('bring2bring.sid=')
     );
 
     const homePage = await agent.get('/');
@@ -244,7 +272,7 @@ test('the session id changes between the pre-login request and the post-login re
       .type('form')
       .send({ _csrf: secondCsrf, username: KNOWN_USERNAME, password: KNOWN_PASSWORD });
     const secondSessionCookie = secondLoginRes.headers['set-cookie'].find((c) =>
-      c.startsWith('dishlist.sid=')
+      c.startsWith('bring2bring.sid=')
     );
 
     assert.ok(firstSessionCookie);
@@ -369,7 +397,7 @@ test('the session-cookie-suppressed warning names X-Forwarded-Proto and carries 
       assert.equal(warnings.length, 1);
       const [message] = warnings;
       assert.match(message, /X-Forwarded-Proto/);
-      assert.ok(!message.includes('dishlist.sid'));
+      assert.ok(!message.includes('bring2bring.sid'));
       assert.ok(!message.includes(KNOWN_USERNAME));
       assert.ok(!/[A-Za-z0-9]{24,}/.test(message));
     } finally {

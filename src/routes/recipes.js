@@ -32,7 +32,7 @@ import { recordImport } from '../services/imports.js';
 // httpOnly, sameSite=lax, secure in production, long expiry — mirrors the
 // session and CSRF cookie options (src/middleware/session.js,
 // src/middleware/csrf.js).
-const DEVICE_COOKIE_NAME = 'dishlist.did';
+const DEVICE_COOKIE_NAME = 'bring2bring.did';
 const DEVICE_COOKIE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
 
 function generateDeviceId() {

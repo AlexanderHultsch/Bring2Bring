@@ -13,7 +13,7 @@ test('a fully valid minimal env returns the expected object with all defaults ap
   const config = loadConfig(validEnv());
   assert.deepEqual(config, {
     port: 3000,
-    dbPath: './data/dishlist.db',
+    dbPath: './data/bring2bring.db',
     uploadDir: './data/uploads',
     sessionSecret: 'a'.repeat(16),
     adminUser: 'admin',
