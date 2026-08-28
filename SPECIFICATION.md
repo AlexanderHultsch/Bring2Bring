@@ -264,6 +264,46 @@ changes, no route changes, no schema changes. The full set of decisions:
   and every health check passes. The move is an explicit, separate step, taken
   with the container stopped, after a backup.
 
+## Changes in v2.4
+
+v2.3 renamed the product and touched nothing else. v2.4 closes two gaps that
+were already on the open list rather than adding anything new — one where the
+app could take an action it could not undo, one where a correct-looking date
+calculation is wrong for the person using it. The full set of decisions:
+
+- **Archiving is reversible (H1).** `POST /recipes/:id/delete` archived a
+  recipe on the first press and permanently deleted it on the second — there
+  was no way back from the archive, so it was not an archive, it was a
+  staging area for deletion. The repository function `setRecipeArchived`
+  already took a boolean and had simply never been called with `false`. A new
+  route, **`POST /recipes/:id/restore`**, sets `is_archived = 0`. Owner-only,
+  enforced in SQL like every other write (§5.1), answering `404` and never
+  `403` for a recipe the acting user may not write. It appears on the recipe
+  page, inside the "Manage" disclosure that already holds publishing, the
+  public link and Archive, and only when the recipe is archived — shown
+  before "Delete permanently", so the reversible action precedes the
+  irreversible one. A new route means two places to register it, not one:
+  §9's route table and the authorization sweep table in
+  `test/authorization.test.js`, which fails loudly if a route is left out of
+  it.
+- **The import day is local, not UTC (H2).** The Bring! import counter
+  (§8.5) records at most one import per recipe per device per day, keyed on a
+  day string computed with `new Date().toISOString().slice(0, 10)` — UTC.
+  Alex is in Germany; between midnight and 01:00 (winter) or 02:00 (summer),
+  the UTC date is still yesterday, so an import in that window is filed under
+  the wrong day — if the same device already imported that recipe yesterday,
+  the `INSERT OR IGNORE` swallows it and the count does not rise, silently,
+  looking exactly like the anti-cheat working as designed. The day is now
+  computed in a configured timezone instead of UTC. A new environment
+  variable, **`IMPORT_TIMEZONE`**, config key `importTimezone`, optional,
+  default **`Europe/Berlin`** — the same shape as `NUMBER_LOCALE` /
+  `numberLocale` (§3.1), which is the precedent for a locale-ish setting with
+  a sensible default. The anti-cheat's meaning is unchanged: still one count
+  per recipe per device per calendar day, only which calendar the day is
+  read from changes. What this does not fix, so nobody expects it to: the
+  boundary still exists, it has only moved to local midnight, which is where
+  a person would expect it.
+
 ---
 
 ## 1. Purpose
@@ -365,6 +405,8 @@ This repo **must** satisfy the ecosystem standard from
 | `PUBLIC_BASE_URL` | **yes** | — | e.g. `https://dishlist.ahultsch.com`; used to build absolute share URLs for Bring! |
 | `TRUST_PROXY` | no | `1` | Express `trust proxy` hops (Caddy + cloudflared) |
 | `NODE_ENV` | no | `production` | |
+| `NUMBER_LOCALE` | no | `de-DE` | Locale used to format scaled ingredient quantities |
+| `IMPORT_TIMEZONE` | no | `Europe/Berlin` | Timezone the Bring! import counter's day boundary is computed in (§8.5, H2) |
 
 `PUBLIC_BASE_URL` is not optional: Bring! fetches the share page from its own
 servers, so the app must be able to construct an absolute, externally valid
@@ -531,7 +573,7 @@ ALTER TABLE recipes ADD COLUMN bring_import_count INTEGER NOT NULL DEFAULT 0;
 bring_imports (
   recipe_id -> recipes.id ON DELETE CASCADE,
   device_id TEXT NOT NULL,               -- from the bring2bring.did cookie
-  day TEXT NOT NULL,                     -- YYYY-MM-DD, UTC date (the daily boundary is not local midnight)
+  day TEXT NOT NULL,                     -- YYYY-MM-DD in IMPORT_TIMEZONE (H2)
   PRIMARY KEY(recipe_id, device_id, day)
 )
 ```
@@ -941,6 +983,7 @@ Authenticated unless marked public.
 | GET | `/recipes/:id` | View (`?yield=N`, `?print=1`) |
 | GET | `/recipes/:id/edit`, POST `/recipes/:id` | Edit — owner only (D2); 404 for anyone else, including on a public recipe |
 | POST | `/recipes/:id/delete` | Soft-delete → archive; hard delete from archive. Owner only — an admin deletes through `/admin/recipes/:id/delete` instead (D2, D3) |
+| POST | `/recipes/:id/restore` | **since v2.4** — un-archives (`is_archived = 0`). Owner only, enforced in SQL; `404` not `403` (§5.1, H1) |
 | POST | `/recipes/:id/duplicate` | **since v2.0** — anyone who can read the recipe (owner or public, D2); copy is private, no share token, import count 0 |
 | POST | `/recipes/:id/publish` | **since v2.0** — toggle `is_public` (D1); enabling also enables the share token (§8.2, §10) |
 | POST | `/recipes/:id/share/link` | Enable / rotate / disable public token |
@@ -1158,9 +1201,10 @@ One paragraph per screen, matching the mockup:
    the current value marked, then "Ingredients (for N servings)" where N
    is the selected servings, the ingredient list, the primary "Send to
    Bring!" button, then "Method", then Edit and Duplicate, then a single
-   collapsed disclosure holding publishing, the public link and Archive.
-   Edit and Duplicate stay one tap away; the disclosure holds only what
-   is touched once per recipe rather than once per cook.
+   collapsed disclosure holding publishing, the public link, Archive, and
+   — for an archived recipe only, before "Delete permanently" — Restore
+   (since v2.4, H1). Edit and Duplicate stay one tap away; the disclosure
+   holds only what is touched once per recipe rather than once per cook.
 3. **Public** — laid out as My Recipes, except each row also shows the
    author as `@username`, and the header carries a sort control of three
    segmented links — A–Z / Most imported / Recently added — rather than
