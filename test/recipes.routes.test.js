@@ -482,6 +482,77 @@ test('POST /recipes/:id/delete archives on the first call and hard-deletes on th
   });
 });
 
+test('POST /recipes/:id/restore un-archives a recipe: is_archived returns to 0 and it reappears in GET / and drops out of GET /?archived=1', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const createCsrf = await csrfFor(agent, '/recipes/new');
+    const createRes = await agent
+      .post('/recipes')
+      .type('form')
+      .send(encodeForm({ _csrf: createCsrf, ...basicRecipeBody() }));
+    const recipeId = recipeIdFromLocation(createRes.headers.location);
+
+    const deleteCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/delete`).type('form').send({ _csrf: deleteCsrf });
+    assert.equal(db.prepare('SELECT is_archived FROM recipes WHERE id = ?').get(recipeId).is_archived, 1);
+
+    const restoreCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    const restoreRes = await agent
+      .post(`/recipes/${recipeId}/restore`)
+      .type('form')
+      .send({ _csrf: restoreCsrf });
+    assert.equal(restoreRes.status, 302);
+    assert.equal(restoreRes.headers.location, `/recipes/${recipeId}`);
+    assert.equal(db.prepare('SELECT is_archived FROM recipes WHERE id = ?').get(recipeId).is_archived, 0);
+
+    const listRes = await agent.get('/');
+    assert.ok(listRes.text.includes('Tomato Soup'));
+
+    const archiveRes = await agent.get('/?archived=1');
+    assert.ok(!archiveRes.text.includes('Tomato Soup'));
+  });
+});
+
+test('the archived recipe page renders the Restore control; a non-archived recipe page does not', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const beforeRes = await agent.get(`/recipes/${recipeId}`);
+    assert.doesNotMatch(beforeRes.text, /Restore from archive/);
+
+    const deleteCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/delete`).type('form').send({ _csrf: deleteCsrf });
+
+    const afterRes = await agent.get(`/recipes/${recipeId}`);
+    assert.match(afterRes.text, /Restore from archive/);
+    assert.match(afterRes.text, new RegExp(`action="/recipes/${recipeId}/restore"`));
+  });
+});
+
+test('POST /recipes/:id/restore from a non-owner is a 404 and leaves the target recipe archived', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const owner = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(owner);
+    const deleteCsrf = await csrfFor(owner, `/recipes/${recipeId}`);
+    await owner.post(`/recipes/${recipeId}/delete`).type('form').send({ _csrf: deleteCsrf });
+    assert.equal(db.prepare('SELECT is_archived FROM recipes WHERE id = ?').get(recipeId).is_archived, 1);
+
+    await seedUser(db, 'stranger');
+    const stranger = await loginAgent(app, 'stranger');
+    const strangerCsrf = await csrfFor(stranger, '/');
+    const restoreRes = await stranger
+      .post(`/recipes/${recipeId}/restore`)
+      .type('form')
+      .send({ _csrf: strangerCsrf });
+    assert.equal(restoreRes.status, 404);
+    assert.equal(db.prepare('SELECT is_archived FROM recipes WHERE id = ?').get(recipeId).is_archived, 1);
+  });
+});
+
 test('POST /recipes/:id/duplicate creates a second recipe owned by the acting user with a (Copy) title and no share token', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');

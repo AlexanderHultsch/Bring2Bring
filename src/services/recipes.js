@@ -359,6 +359,10 @@ export function archiveRecipe(db, recipeId, actingUserId) {
   return setRecipeArchived(db, recipeId, actingUserId, true) > 0;
 }
 
+export function restoreRecipe(db, recipeId, actingUserId) {
+  return setRecipeArchived(db, recipeId, actingUserId, false) > 0;
+}
+
 export function hardDeleteRecipe(db, recipeId, actingUserId) {
   return deleteRecipe(db, recipeId, actingUserId) > 0;
 }

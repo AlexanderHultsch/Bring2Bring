@@ -95,6 +95,7 @@ const ROUTES = [
   { method: 'post', path: '/recipes/:id/share/link', recipeScoped: true, body: { action: 'enable' } },
   { method: 'get', path: '/recipes/:id/bring', recipeScoped: true },
   { method: 'post', path: '/recipes/:id/delete', recipeScoped: true, body: {} },
+  { method: 'post', path: '/recipes/:id/restore', recipeScoped: true, body: {} },
   { method: 'get', path: '/account', recipeScoped: false },
   { method: 'post', path: '/account/password', recipeScoped: false, body: {} },
   { method: 'get', path: '/privacy', recipeScoped: false },

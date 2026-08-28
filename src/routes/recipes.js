@@ -16,6 +16,7 @@ import {
   updateRecipeFromForm,
   duplicateRecipe,
   archiveRecipe,
+  restoreRecipe,
   hardDeleteRecipe,
   emptyFormValues,
   formValuesFromAggregate,
@@ -355,6 +356,26 @@ export function recipesRouter(db, config) {
       return;
     }
     res.redirect('/');
+  });
+
+  // SPECIFICATION.md section 9 / 5.1 (v2.4, H1): un-archives a recipe.
+  // Owner-only, enforced in SQL via setRecipeArchived's write predicate —
+  // 404, never 403, for a recipe the acting user may not write.
+  router.post('/recipes/:id/restore', requireAuth(), (req, res, next) => {
+    const id = parseRecipeId(req.params.id);
+    if (id === null) {
+      next(notFoundError());
+      return;
+    }
+
+    const recipe = findRecipeForWrite(db, id, req.currentUser.id);
+    if (!recipe) {
+      next(notFoundError());
+      return;
+    }
+
+    restoreRecipe(db, id, req.currentUser.id);
+    res.redirect(`/recipes/${id}`);
   });
 
   return router;

@@ -179,6 +179,13 @@
                 </div>
               </details>
 
+              <% if (recipe.is_archived) { %>
+                <form method="post" action="/recipes/<%= recipe.id %>/restore" class="recipe-actions__form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="button button--ghost">Restore from archive</button>
+                </form>
+              <% } %>
+
               <form method="post" action="/recipes/<%= recipe.id %>/delete" class="recipe-actions__form">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button type="submit" class="button button--danger">
