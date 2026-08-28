@@ -66,6 +66,20 @@ test('the burger menu markup contains the Log out form with a CSRF field, and th
   });
 });
 
+test('the burger menu toggle is a summary child of .menu, with both open and close icons present', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+
+    assert.match(res.text, /<details class="menu"[^>]*>\s*<summary class="menu__toggle"/);
+    assert.match(res.text, /class="icon menu__icon-open"/);
+    assert.match(res.text, /class="icon menu__icon-close"/);
+  });
+});
+
 test('the bottom nav appears on / and on a recipe page, and does NOT appear in the response of GET /r/:token', async () => {
   await withApp(async (app, db) => {
     const owner = await seedUser(db, 'alex');

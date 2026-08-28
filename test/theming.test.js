@@ -80,6 +80,23 @@ test('tokens.css contains only custom properties: every opening brace belongs to
   }
 });
 
+test('GUARD: the pinned menu toggle sits above the menu overlay in the stacking order', () => {
+  const css = fs.readFileSync(stylePath, 'utf8');
+
+  const overlayMatch = css.match(/\.menu__overlay\s*\{[^}]*z-index:\s*(\d+)/);
+  assert.ok(overlayMatch, 'expected .menu__overlay to declare a z-index in style.css');
+
+  const toggleMatch = css.match(/\.menu\[open\]\s*>\s*\.menu__toggle\s*\{[^}]*z-index:\s*(\d+)/);
+  assert.ok(toggleMatch, 'expected .menu[open] > .menu__toggle to declare a z-index in style.css');
+
+  const overlayZIndex = Number(overlayMatch[1]);
+  const toggleZIndex = Number(toggleMatch[1]);
+  assert.ok(
+    toggleZIndex > overlayZIndex,
+    `the close control (z-index ${toggleZIndex}) must be painted above its own scrim (z-index ${overlayZIndex}), or it becomes unclickable`
+  );
+});
+
 test('style.css has no literal hex colours or literal font-family names', () => {
   const css = fs.readFileSync(stylePath, 'utf8');
   assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b/, 'style.css must reference colours only via var(--…)');

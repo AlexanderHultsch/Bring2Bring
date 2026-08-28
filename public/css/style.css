@@ -851,6 +851,15 @@ label {
   position: relative;
 }
 
+.menu[open] > .menu__toggle {
+  position: fixed;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 31;
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
 .menu__toggle {
   display: inline-flex;
   align-items: center;
@@ -894,7 +903,7 @@ label {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-5) var(--space-3) var(--space-3);
+  padding: calc(var(--min-tap-target) + var(--space-3)) var(--space-3) var(--space-3);
   background: var(--color-surface);
   box-shadow: var(--shadow-md);
   overflow-y: auto;

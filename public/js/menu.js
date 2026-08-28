@@ -4,7 +4,10 @@
 
   document.addEventListener('click', function (event) {
     if (!menu.open) return;
-    if (menu.contains(event.target)) return;
+    var toggle = menu.querySelector('.menu__toggle');
+    if (toggle && toggle.contains(event.target)) return;
+    var panel = menu.querySelector('.menu__panel');
+    if (panel && panel.contains(event.target)) return;
     menu.open = false;
   });
 
