@@ -12,8 +12,14 @@ if (container) {
 
   if (Number.isFinite(baseYield) && baseYield > 0) {
     const yieldWheel = document.querySelector('[data-yield-wheel]');
+    const yieldScroll = document.querySelector('[data-yield-scroll]');
     const servingsCount = document.querySelector('[data-servings-count]');
     const bringLink = document.querySelector('[data-bring-link]');
+
+    // How long to wait, after the last scroll event, before treating the
+    // wheel as settled (F5). A flick fires many scroll events; we only act
+    // once, when it stops.
+    const SCROLL_SETTLE_MS = 100;
 
     const emptyToNull = (raw) => {
       if (raw === undefined || raw === '') return null;
@@ -92,6 +98,36 @@ if (container) {
       window.history.replaceState(window.history.state, '', url.toString());
     }
 
+    // Scrolls the wheel's own container so `option` sits under the lens.
+    // Uses the container's scrollTo, never scrollIntoView, so this can never
+    // also scroll the page vertically.
+    function centerYieldOption(option, behavior) {
+      if (!yieldScroll || !option) return;
+      const target = option.offsetLeft + option.offsetWidth / 2 - yieldScroll.clientWidth / 2;
+      yieldScroll.scrollTo({ left: target, behavior });
+    }
+
+    function nearestYieldOption() {
+      if (!yieldWheel || !yieldScroll) return null;
+      const center = yieldScroll.scrollLeft + yieldScroll.clientWidth / 2;
+      let nearest = null;
+      let nearestDistance = Infinity;
+      yieldWheel.querySelectorAll('[data-yield-option]').forEach((el) => {
+        const elCenter = el.offsetLeft + el.offsetWidth / 2;
+        const distance = Math.abs(elCenter - center);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearest = el;
+        }
+      });
+      return nearest;
+    }
+
+    // Set by the click handler right before it starts a programmatic scroll,
+    // so the settle handler below can tell that scroll apart from a genuine
+    // finger-drag instead of racing it.
+    let programmaticScroll = false;
+
     if (yieldWheel) {
       yieldWheel.addEventListener('click', (event) => {
         const option = event.target.closest('[data-yield-option]');
@@ -99,8 +135,40 @@ if (container) {
 
         event.preventDefault();
         const next = Number(option.dataset.yieldOption);
-        if (Number.isInteger(next) && next >= 1 && next <= 10) applyYield(next);
+        if (Number.isInteger(next) && next >= 1 && next <= 10) {
+          applyYield(next);
+          programmaticScroll = true;
+          centerYieldOption(option, 'smooth');
+        }
       });
+
+      const initialSelected = yieldWheel.querySelector('[data-yield-option].servings-wheel__item--selected');
+      centerYieldOption(initialSelected, 'auto');
+    }
+
+    // markSelected only toggles classes/attributes and never scrolls, so
+    // settling here cannot re-trigger this handler (no feedback loop).
+    let scrollSettleTimer = null;
+    if (yieldScroll) {
+      yieldScroll.addEventListener(
+        'scroll',
+        () => {
+          if (scrollSettleTimer) clearTimeout(scrollSettleTimer);
+          scrollSettleTimer = setTimeout(() => {
+            if (programmaticScroll) {
+              programmaticScroll = false;
+              const selected = yieldWheel && yieldWheel.querySelector('[data-yield-option].servings-wheel__item--selected');
+              centerYieldOption(selected, 'auto');
+              return;
+            }
+            const nearest = nearestYieldOption();
+            if (!nearest || nearest.classList.contains('servings-wheel__item--selected')) return;
+            const next = Number(nearest.dataset.yieldOption);
+            if (Number.isInteger(next) && next >= 1 && next <= 10) applyYield(next);
+          }, SCROLL_SETTLE_MS);
+        },
+        { passive: true }
+      );
     }
   }
 }

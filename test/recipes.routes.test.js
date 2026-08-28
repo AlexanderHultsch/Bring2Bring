@@ -1716,3 +1716,53 @@ test('each servings-wheel item wraps its number in a servings-wheel__value span'
     values.forEach((m, i) => assert.equal(Number(m[1]), i + 1));
   });
 });
+
+// SPECIFICATION.md decision F5 (v2.2): the servings wheel is centre-locked —
+// a fixed lens over a scrolling strip. The scroll interaction itself is not
+// testable by this server-rendered suite; this only pins the markup shape.
+test('the servings wheel renders one lens, one scroll container, and role="list" on the data-yield-wheel track', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    assert.equal((res.text.match(/class="servings-wheel__lens"/g) || []).length, 1);
+    assert.equal((res.text.match(/data-yield-scroll/g) || []).length, 1);
+    assert.equal((res.text.match(/data-yield-wheel/g) || []).length, 1);
+    assert.match(
+      res.text,
+      /<div class="servings-wheel__track" data-yield-wheel role="list" aria-label="Servings">/
+    );
+  });
+});
+
+test('all ten servings anchors still sit inside the data-yield-wheel track with their ?yield=N hrefs', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    const trackStart = res.text.indexOf(
+      '<div class="servings-wheel__track" data-yield-wheel role="list" aria-label="Servings">'
+    );
+    assert.ok(trackStart >= 0, 'expected the servings-wheel__track markup');
+    const track = res.text.slice(trackStart, res.text.indexOf('</section>', trackStart));
+
+    const items = [
+      ...track.matchAll(
+        /<a\s+class="servings-wheel__item[^"]*"\s+href="\?yield=(\d+)"\s+data-yield-option="(\d+)"/g
+      ),
+    ];
+    assert.equal(items.length, 10);
+    items.forEach((m, i) => {
+      assert.equal(Number(m[1]), i + 1);
+      assert.equal(Number(m[2]), i + 1);
+    });
+  });
+});

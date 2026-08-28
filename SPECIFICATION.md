@@ -931,7 +931,7 @@ never leak version details of dependencies.
 **Mobile-first, restated as binding.** The primary usage context is a phone
 on a kitchen counter with wet hands. Minimum 44 px tap targets, minimum 16 px
 body text, high contrast — unchanged from v1, and still non-negotiable, save
-for the two recorded tap-target exceptions in §10.E.
+for the recorded tap-target exception in §10.E.
 
 ### 10.0 Navigation
 
@@ -1131,13 +1131,14 @@ One paragraph per screen, matching the mockup:
    is open, and closing the panel works with JavaScript off (F4, since
    v2.2).
 
-**Tap-target exceptions (since v2.1, updated in v2.2).** Two controls
-fall short of the 44 px minimum restated in §10.F, both deliberately and
-both recorded here rather than taken silently: the A–Z rail's letters —
+**Tap-target exceptions (since v2.1, updated in v2.2).** One control
+falls short of the 44 px minimum restated in §10.F, deliberately and
+recorded here rather than taken silently: the A–Z rail's letters —
 its drag-magnified bubble (F6) makes them easier to hit in practice
-without making the letters themselves any bigger — and each position on
-the servings wheel (F5) — 29 px wide, though its hit area is the full
-46 px height of the wheel's strip.
+without making the letters themselves any bigger. The servings wheel
+is no longer an exception: F5's scroll wheel gives each position the
+full `--min-tap-target` width, where the v2.1 ruler it replaced only
+had about 29 px per position.
 
 **Bottom nav** — three equal items, always present on list and recipe
 screens: My Recipes, Public, and New — the accent colour marks only
@@ -1150,9 +1151,9 @@ Restated, not weakened:
 
 - Mobile-first.
 - Minimum 44 px tap targets, minimum 16 px body text, high contrast — see
-  §10.E for the two recorded exceptions (the A–Z rail and the servings
-  wheel). A "keep screen awake" toggle on the Recipe page using the Wake
-  Lock API where available, degrading silently where not.
+  §10.E for the recorded exception (the A–Z rail). A "keep screen awake"
+  toggle on the Recipe page using the Wake Lock API where available,
+  degrading silently where not.
 - No inline scripts anywhere, so the CSP (§11) needs no nonces and gets
   none.
 - No webfonts, no third-party scripts, no analytics.
