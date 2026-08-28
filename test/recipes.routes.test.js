@@ -1454,6 +1454,83 @@ test('the A-Z rail renders 27 entries, and a letter with no recipes is not a lin
   });
 });
 
+// SPECIFICATION.md section 10.E, F6: az-rail.js reads data-az-letter to know
+// which letter each rail element is, since textContent would break once the
+// markup gains a wrapper.
+test('every A-Z rail entry carries data-az-letter, values # then A-Z in order', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    const railMatch = res.text.match(/<nav class="az-rail"[\s\S]*?<\/nav>/);
+    assert.ok(railMatch, 'expected the A-Z rail in the response');
+    const letters = [...railMatch[0].matchAll(/data-az-letter="([^"]*)"/g)].map((m) => m[1]);
+    const expected = ['#', ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i))];
+    assert.deepEqual(letters, expected);
+  });
+});
+
+// SPECIFICATION.md section 10.E, F6: the magnification bubble is decorative
+// (it repeats a letter already in the rail), so it must be aria-hidden and
+// there must be exactly one of it.
+test('the A-Z rail renders exactly one magnification bubble, and it is aria-hidden', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    const railMatch = res.text.match(/<nav class="az-rail"[\s\S]*?<\/nav>/);
+    assert.ok(railMatch, 'expected the A-Z rail in the response');
+    const bubbleTags = [...railMatch[0].matchAll(/<span[^>]*data-az-bubble[^>]*>/g)];
+    assert.equal(bubbleTags.length, 1);
+    assert.match(bubbleTags[0][0], /aria-hidden="true"/);
+  });
+});
+
+// SPECIFICATION.md section 10.E, F6: the JavaScript-free path — a letter with
+// a recipe is a real #sect-X anchor, a letter without one stays an inert span.
+// draggable="false" is required on the anchor: without it, the browser's
+// native link-drag gesture cancels the pointer on the first move and the
+// rail cannot be dragged.
+test('letters with recipes are real anchors and letters without stay inert spans', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+    await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...basicRecipeBody() }));
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    const railMatch = res.text.match(/<nav class="az-rail"[\s\S]*?<\/nav>/);
+    assert.ok(railMatch, 'expected the A-Z rail in the response');
+    assert.match(railMatch[0], /<a class="az-rail__letter" href="#sect-T" data-az-letter="T" draggable="false">T<\/a>/);
+    assert.match(railMatch[0], /<span class="az-rail__letter az-rail__letter--inert" data-az-letter="B" aria-hidden="true">B<\/span>/);
+  });
+});
+
+// SPECIFICATION.md section 10.E, F6: az-rail.js ships as an external file
+// (CLAUDE.md: no inline scripts) with the same cache buster as the other
+// deferred scripts.
+test('the page references az-rail.js with a non-empty ?v= cache buster', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    const scriptMatch = res.text.match(/\/js\/az-rail\.js\?v=([^"]+)"/);
+    assert.ok(scriptMatch, 'expected az-rail.js to carry ?v=');
+    assert.notEqual(scriptMatch[1], '');
+  });
+});
+
 function setCookieFor(res, name) {
   const raw = res.headers['set-cookie'] || [];
   return raw.find((cookie) => cookie.startsWith(`${name}=`));

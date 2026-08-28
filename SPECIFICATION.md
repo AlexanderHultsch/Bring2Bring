@@ -213,9 +213,12 @@ of decisions:
 - **The A–Z rail is dragged, not read (F6).** All 27 letters at caption
   size on a phone are too small to read and too small to hit. They stop
   being something you read: dragging along the rail magnifies the letter
-  under your finger into a bubble and jumps to that section, letters with
-  no recipes stay dim and do not jump, and scrolling the list brightens
-  the letter you are currently in. Every letter remains a real anchor.
+  under your finger into a bubble that tracks the finger, and the list
+  jumps to that section when the finger lifts — scrolling the document
+  mid-gesture makes the browser cancel the pointer, which would end the
+  drag, so the jump is deferred to release — letters with no recipes stay
+  dim and do not jump, and scrolling the list brightens the letter you are
+  currently in. Every letter remains a real anchor.
 
 F5 and F6 both rest on the same **progressive enhancement rule**: both
 are enhancements over markup that already works. With JavaScript off, the
@@ -1101,7 +1104,9 @@ One paragraph per screen, matching the mockup:
    script. Rows are sorted A–Z with letter section headers. An A–Z rail
    runs down the right edge (starting with `#`); it is dragged, not read
    (F6, since v2.2) — dragging along it magnifies the letter under the
-   finger into a bubble and jumps to that section, a letter with no
+   finger into a bubble that tracks the finger, and the list jumps to
+   that section when the finger lifts (scrolling mid-gesture would make
+   the browser cancel the pointer and end the drag), a letter with no
    recipes stays dim and does not jump, and scrolling the list brightens
    the letter currently in view; every letter remains a real anchor.
    Each row shows the recipe name as body text and the import count with

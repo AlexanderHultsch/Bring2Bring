@@ -426,6 +426,7 @@ label {
   border-radius: var(--radius-lg);
   background: var(--color-surface-2);
   border: 1px solid var(--color-border);
+  touch-action: none;
 }
 
 .az-rail__letter {
@@ -439,11 +440,49 @@ label {
   font-weight: 600;
   color: var(--color-text-muted);
   text-decoration: none;
+  transform-origin: right center;
+  transition: transform 0.12s ease, color 0.12s ease, opacity 0.12s ease;
 }
 
 .az-rail__letter--inert {
   color: var(--color-text-muted);
   opacity: 0.3;
+}
+
+.az-rail__letter--current {
+  color: var(--color-accent);
+}
+
+.az-rail__bubble {
+  position: absolute;
+  right: 100%;
+  margin-right: var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-size: var(--font-size-lg);
+  font-weight: var(--text-title-weight);
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  pointer-events: none;
+}
+
+.az-rail__bubble[data-visible] {
+  opacity: 1;
+  transform: scale(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .az-rail__letter,
+  .az-rail__bubble {
+    transition: none;
+  }
 }
 
 .recipe-list {
