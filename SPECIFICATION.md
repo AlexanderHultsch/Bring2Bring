@@ -157,6 +157,75 @@ The full set of decisions:
 
 ---
 
+## Changes in v2.2
+
+v2.1 made the design reach the screen. v2.2 is about what the interface
+*claims* and what it lets you *do with your thumb* — two controls that
+were static become things you drag, one control stops claiming to be the
+main feature, and one menu that could not be closed can be. The full set
+of decisions:
+
+- **"My Recipes", not "Recipes" (F1, partly reverses E4).** v2.1 settled
+  on the single word "Recipes" for the user's own shelf. Sitting next to
+  the Public shelf, that word reads as *all* recipes, not just the
+  signed-in user's own. The screen and its bottom-nav item are now **My
+  Recipes**; Public stays Public. This reverses part of E4, it does not
+  quietly restate it. The **admin** recipe list (§6.4) is not renamed —
+  it lists every user's recipes, and "Recipes" is the correct word there.
+- **The wordmark is on every screen (F2).** The header showed either the
+  wordmark or a page title, never both, so the admin screens replaced the
+  app's name with the word "Admin". The wordmark is now present on every
+  screen, larger, and in the accent colour. It is the header's only
+  identity; page titles live in the `<h1>`, per E5.
+- **New is an ordinary navigation item (F3).** A raised, accent-coloured
+  circle is the strongest claim the interface can make, and it was making
+  it for *adding* a recipe — something done occasionally. The app exists
+  to send an existing recipe to Bring! (§1 principle 1). The bottom
+  navigation becomes three equal items — My Recipes, Public, New — with
+  the accent used only to mark which one you are on. After this, **"Send
+  to Bring!" is the only accent-coloured primary button anywhere in the
+  app**, which is the claim the interface should be making.
+- **The burger menu must be closable without a keyboard (F4).** It could
+  not be. Two defects, and both are recorded, because they are the kind
+  that hide behind a plausible-looking implementation: the full-screen
+  scrim is a *descendant* of the `<details>` element, so the
+  close-on-outside-click handler asked `menu.contains(event.target)`, got
+  true for every tap on the scrim, and did nothing; and the scrim is
+  `position: fixed; z-index: 30` while the summary that owns it is not
+  raised at all, so the close icon — which does swap in correctly — was
+  painted over by its own overlay. Escape worked, which is no use on a
+  phone. The rule going forward: **the control that opens an overlay must
+  remain reachable above it, and closing must never depend on
+  JavaScript.**
+- **The servings control is a wheel, not a ruler (F5).** v2.1's ruler
+  showed all ten values at once and was static. It becomes a
+  centre-locked wheel: a fixed lens at the middle of the strip, the
+  numbers scroll under it, and whatever is in the lens is the selection.
+  Momentum is deliberate — a flick travels several numbers and settles on
+  the nearest. Stated honestly, the trade-off: momentum can overshoot,
+  which §1 principle 5 ("a wrong quantity is worse than no export") makes
+  worth recording. It is acceptable because the ingredient amounts and
+  the "for N servings" heading update live as the wheel moves, and the
+  Bring! deeplink is built server-side from the same value, so a wrong
+  quantity is always **visible before it is sent, never sent silently**.
+  Tapping a number still selects it, and the ten `?yield=N` anchors
+  remain.
+- **The A–Z rail is dragged, not read (F6).** All 27 letters at caption
+  size on a phone are too small to read and too small to hit. They stop
+  being something you read: dragging along the rail magnifies the letter
+  under your finger into a bubble and jumps to that section, letters with
+  no recipes stay dim and do not jump, and scrolling the list brightens
+  the letter you are currently in. Every letter remains a real anchor.
+
+F5 and F6 both rest on the same **progressive enhancement rule**: both
+are enhancements over markup that already works. With JavaScript off, the
+wheel is a tappable row of `?yield=N` links and the rail is a column of
+`#sect-X` anchors. Neither interaction may become the only way to reach a
+value — the same rule §7.4 already states for the yield control, now
+stated once for both.
+
+---
+
 ## 1. Purpose
 
 Dishlist is Alex's own private cookbook on the web. Recipes are entered once,
@@ -618,11 +687,18 @@ setting in `config.js`, not scattered through templates.
 
 ### 7.4 UI behaviour — servings control rebuilt (D6, since v2.0)
 
-- The recipe page has a yield control: a ruler of **integers 1 to 10**,
-  default 4 — all ten values laid out across the full width, a tick
-  beneath each, the selected value in a filled accent circle (E6, since
-  v2.1). The old `−/+` buttons, the `×0.5`/`×2` presets and free numeric
-  entry are all **removed**.
+- The recipe page has a yield control: a centre-locked wheel of
+  **integers 1 to 10**, default 4 (F5, since v2.2, replacing the v2.1
+  ruler, E6) — a fixed lens sits at the middle of the strip, the numbers
+  scroll under it, and whatever sits in the lens is the selection.
+  Momentum carries a flick past several numbers and settles on the
+  nearest one; this can overshoot the intended value, which §1 principle
+  5 ("a wrong quantity is worse than no export") makes worth stating — it
+  is acceptable because the ingredient amounts and the heading update
+  live as the wheel moves, so a wrong quantity is visible before it is
+  sent, never sent silently. Tapping a number still selects it directly.
+  The old `−/+` buttons, the `×0.5`/`×2` presets and free numeric entry
+  are all **removed**.
 - Changing it recalculates ingredient amounts **client-side without a page
   reload**, and updates the URL query (`?yield=6`) via `history.replaceState`
   so the state is linkable and reloadable.
@@ -859,27 +935,28 @@ for the two recorded tap-target exceptions in §10.E.
 
 ### 10.0 Navigation
 
-- **Bottom navigation bar**, thumb-reachable, exactly three items:
-  **Recipes**, **Public**, **+ New**. This also supplies the way back from
-  a recipe to a list — a gap v1.1 had, since it removed navigation along
-  with everything else that wasn't essential.
+- **Bottom navigation bar**, thumb-reachable, exactly three equal items:
+  **My Recipes**, **Public**, **New** — the accent colour marks only
+  whichever one is current (F3, since v2.2). This also supplies the way
+  back from a recipe to a list — a gap v1.1 had, since it removed
+  navigation along with everything else that wasn't essential.
 - **Burger menu**, top right: Account, Privacy, Report a bug, Log out.
 - The **archive moves into the burger menu**, out of the main flow — it was
   reachable from the list in v1, it is a deliberate extra step now.
 
 ### 10.1 Pages
 
-- **Recipes / Public** — cards: title and **import count**
+- **My Recipes / Public** — cards: title and **import count**
   (`bring_import_count`) — no longer the servings; it isn't interesting at a
   glance (D5). **Public** cards also show the **author** as `@username`;
-  Recipes omits it, since every recipe listed there is by definition the
+  My Recipes omits it, since every recipe listed there is by definition the
   signed-in user's own (§10.E). Search box is **title-first**; ingredient
   search is a secondary toggle beside it, not the default — finding a
   recipe by name is the common case, ingredient search is occasional, and
   the control reflects that. **Default sort is alphabetical**, with an
-  **A–Z rail** down the edge to jump to a letter. Empty state on Recipes
-  links straight to "New recipe"; empty state on Public explains that no
-  recipes have been published yet. Public is listed by every logged-in
+  **A–Z rail** down the edge to jump to a letter. Empty state on My
+  Recipes links straight to "New recipe"; empty state on Public explains
+  that no recipes have been published yet. Public is listed by every logged-in
   user; a recipe's presence there requires no ownership check beyond
   `is_public = 1` (D2).
 - **Recipe** — title, meta line, yield control (the 1–10 wheel, §7.4),
@@ -1017,45 +1094,55 @@ screen.
 
 One paragraph per screen, matching the mockup:
 
-1. **Recipes** — a search field with a magnifier control inside the field
-   itself that submits the search, and a secondary "ingredients" toggle
-   beside it — a link, not a submit button — off by default; the screen
-   needs no submit button of its own and therefore no inline script.
-   Rows are sorted A–Z with letter section headers, and an A–Z rail runs
-   down the right edge (starting with `#`) that jumps to a section. Each
-   row shows the recipe name as body text and the import count with the
-   `i-bring` mark, above the bottom nav. **Deliberate deviation from the
-   mockup:** the mockup also shows an author name under each recipe on
-   this screen, but on Recipes every recipe is by definition the
+1. **My Recipes** — a search field with a magnifier control inside the
+   field itself that submits the search, and a secondary "ingredients"
+   toggle beside it — a link, not a submit button — off by default; the
+   screen needs no submit button of its own and therefore no inline
+   script. Rows are sorted A–Z with letter section headers. An A–Z rail
+   runs down the right edge (starting with `#`); it is dragged, not read
+   (F6, since v2.2) — dragging along it magnifies the letter under the
+   finger into a bubble and jumps to that section, a letter with no
+   recipes stays dim and does not jump, and scrolling the list brightens
+   the letter currently in view; every letter remains a real anchor.
+   Each row shows the recipe name as body text and the import count with
+   the `i-bring` mark, above the bottom nav. **Deliberate deviation from
+   the mockup:** the mockup also shows an author name under each recipe
+   on this screen, but on My Recipes every recipe is by definition the
    signed-in user's own, so the author line is omitted here and shown
    only on the Public shelf (§10.1).
 2. **Recipe** — a back arrow and a burger control in the header, then, in
    this reading order (E5, since v2.1): the title, a "Servings" section
-   with the 1–10 ruler (E6) and the current value marked, then
-   "Ingredients (for N servings)" where N is the selected servings, the
-   ingredient list, the primary "Send to Bring!" button, then "Method",
-   then Edit and Duplicate, then a single collapsed disclosure holding
-   publishing, the public link and Archive. Edit and Duplicate stay one
-   tap away; the disclosure holds only what is touched once per recipe
-   rather than once per cook.
-3. **Public** — laid out as Recipes, except each row also shows the
+   with the 1–10 wheel (F5, since v2.2, replacing the v2.1 ruler, E6) and
+   the current value marked, then "Ingredients (for N servings)" where N
+   is the selected servings, the ingredient list, the primary "Send to
+   Bring!" button, then "Method", then Edit and Duplicate, then a single
+   collapsed disclosure holding publishing, the public link and Archive.
+   Edit and Duplicate stay one tap away; the disclosure holds only what
+   is touched once per recipe rather than once per cook.
+3. **Public** — laid out as My Recipes, except each row also shows the
    author as `@username`, and the header carries a sort control of three
    segmented links — A–Z / Most imported / Recently added — rather than
    a `<select>` with a submit button, in place of the ingredients toggle
    alone.
 4. **Burger** — a panel over the page from the right, with a close control
    and the items Account, Privacy, Report a bug, Archive, Log out. Log out
-   and other destructive items use the `danger` token (§10.B).
+   and other destructive items use the `danger` token (§10.B). The
+   control that opens the panel stays reachable above the scrim while it
+   is open, and closing the panel works with JavaScript off (F4, since
+   v2.2).
 
-**Tap-target exceptions (since v2.1).** Two controls fall short of the
-44 px minimum restated in §10.F, both deliberately and both recorded here
-rather than taken silently: the A–Z rail's letters, and, new in v2.1, each
-position on the servings ruler (E6) — 29 px wide, though its hit area is
-the full 46 px height of the ruler.
+**Tap-target exceptions (since v2.1, updated in v2.2).** Two controls
+fall short of the 44 px minimum restated in §10.F, both deliberately and
+both recorded here rather than taken silently: the A–Z rail's letters —
+its drag-magnified bubble (F6) makes them easier to hit in practice
+without making the letters themselves any bigger — and each position on
+the servings wheel (F5) — 29 px wide, though its hit area is the full
+46 px height of the wheel's strip.
 
-**Bottom nav** — three items, always present on list and recipe screens:
-Recipes, Public, and New. New is visually raised as the primary action.
-This is also the way back from a recipe to a list.
+**Bottom nav** — three equal items, always present on list and recipe
+screens: My Recipes, Public, and New — the accent colour marks only
+whichever one is current (F3, since v2.2). This is also the way back
+from a recipe to a list.
 
 ### 10.F Rules that survive
 
@@ -1300,3 +1387,24 @@ Explicit acceptance criteria:
    model entirely for now (§5); `image_path` stays dormant. Revisit by
    adding an image field back later, not by a schema change.
 6. Anything from §12.3 "explicitly not in v1" that you actually want early?
+7. **Rename to Bring2Bring! — agreed, deliberately deferred, not part of
+   v2.2.** `!` is not legal in a GitHub repository name, a Docker Compose
+   service name, a cookie name or a hostname, so the rename needs two
+   forms: display name **Bring2Bring!**, identifier `bring2bring`. When
+   it lands it touches: the wordmark and page titles; the cookie names
+   `dishlist.sid`, `dishlist.csrf` and `dishlist.did`; the `localStorage`
+   theme key; the SQLite filename and its directory; the Compose service
+   name; the Caddy **upstream**; the `apps/dishlist` directory; and the
+   GitHub repository name. It does **not** touch the hostname
+   `dishlist.ahultsch.com` or the Cloudflare tunnel route — Alex has
+   deferred that part. The hazard, stated plainly: changing `DB_PATH`
+   without moving the file does not fail — the app starts, migrates
+   against a path that does not exist, creates an empty database, and
+   serves a working site with no recipes, and every health check passes.
+   The data move must therefore be an explicit step, taken with the
+   container stopped, with a backup taken first, never something the
+   rename does implicitly. Consequences of the cookie renames: one forced
+   logout; and the device-cookie rename makes every phone read as new, so
+   each recipe can be counted once more per device — existing counts are
+   not lost, they can tick up by one. **v2.2 ships as Dishlist**; no
+   other part of this document uses the new name.
