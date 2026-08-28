@@ -1,11 +1,11 @@
-# Dishlist — Specification v2.0
+# Bring2Bring! — Specification v2.0
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
-> source of truth for the `Dishlist` repository
-> (<https://github.com/AlexanderHultsch/Dishlist>) and should be committed as
+> source of truth for the `Bring2Bring` repository
+> (<https://github.com/AlexanderHultsch/Bring2Bring>) and should be committed as
 > `SPECIFICATION.md` in its root.
 >
-> **Context:** Dishlist is a private digital cookbook that runs as its own
+> **Context:** Bring2Bring! is a private digital cookbook that runs as its own
 > Docker container on the Raspberry Pi described in
 > `AlexanderHultsch/PiMultiServiceServer`, behind Caddy and a Cloudflare
 > Tunnel. It is listed on the homepage `AlexanderHultsch/ProjectIndex`
@@ -229,9 +229,46 @@ stated once for both.
 
 ---
 
+## Changes in v2.3
+
+v2.2 finished making the interface match its own rules — look, navigation,
+and what could be dragged with a thumb. v2.3 changes what the product is
+called. This is a rename of the product, not of what it does: no behaviour
+changes, no route changes, no schema changes. The full set of decisions:
+
+- **The product is renamed to Bring2Bring! (G1).** `!` is not legal in a
+  GitHub repository name, a Docker Compose service name, a cookie name, or a
+  hostname, so the name requires three forms: the **display** form,
+  **Bring2Bring!**, used in prose, the wordmark, and page titles; the
+  **repository** form, `Bring2Bring`, used for the GitHub repository name and
+  its URLs (the other repositories on the same account, `PiMultiServiceServer`
+  and `ProjectIndex`, are CamelCase, so the repository takes the display name
+  without the `!` rather than the all-lowercase machine form); and the
+  **machine** form, `bring2bring`, used wherever the name has to survive
+  as a bare token. The machine form carries: the Compose service, the three
+  cookies (`bring2bring.sid`, `bring2bring.csrf`, `bring2bring.did`), the
+  `localStorage` keys, the SQLite filename and its directory, and the
+  `apps/` directory on the Pi. Deliberately left behind: the hostname
+  `dishlist.ahultsch.com` and the Cloudflare tunnel route, still deferred by
+  the owner — this leaves the app served from a hostname that no longer
+  matches its name, and the share links already handed to Bring! point at
+  that hostname, which is the reason to change it slowly and separately, not
+  an oversight. Three consequences follow: renaming the session cookie forces
+  one logout; renaming the device cookie makes every phone read as new, so
+  each recipe can be counted once more per device — existing counts are not
+  lost, they can tick up by one; and the theme preference and any unsaved
+  editor draft held in `localStorage` are orphaned once. The hazard, stated
+  as plainly as it was before landing: renaming `DB_PATH` without moving the
+  file does not fail — the app starts, migrates against a path that does not
+  exist, creates an empty database, and serves a working site with no recipes,
+  and every health check passes. The move is an explicit, separate step, taken
+  with the container stopped, after a backup.
+
+---
+
 ## 1. Purpose
 
-Dishlist is Alex's own private cookbook on the web. Recipes are entered once,
+Bring2Bring! is Alex's own private cookbook on the web. Recipes are entered once,
 viewed on a phone in the kitchen, scaled to any number of servings, and — this
 is the whole point of the project — pushed into the **Bring! shopping list app
 in one tap**, with correctly scaled quantities, instead of being typed in by
@@ -306,7 +343,7 @@ This repo **must** satisfy the ecosystem standard from
 1. `Dockerfile` in the repository root — the app runs as its own container.
 2. Listens on `process.env.PORT`, default `3000`.
 3. Starts with no arguments: `node server.js`.
-4. SQLite database file at `process.env.DB_PATH`, default `./data/dishlist.db`.
+4. SQLite database file at `process.env.DB_PATH`, default `./data/bring2bring.db`.
    The host mounts `/data` as a volume.
 5. Secrets **only** from environment variables, never hardcoded, never
    committed: `SESSION_SECRET`, plus `ADMIN_USER` and `ADMIN_PASSWORD`.
@@ -320,7 +357,7 @@ This repo **must** satisfy the ecosystem standard from
 | Variable | Required | Default | Meaning |
 | --- | --- | --- | --- |
 | `PORT` | no | `3000` | HTTP listen port |
-| `DB_PATH` | no | `./data/dishlist.db` | SQLite file |
+| `DB_PATH` | no | `./data/bring2bring.db` | SQLite file |
 | `UPLOAD_DIR` | no | `./data/uploads` | Recipe images |
 | `SESSION_SECRET` | **yes** | — | Session cookie signing key |
 | `ADMIN_USER` | **yes** | — | Admin login name, used by `seed:admin` |
@@ -359,7 +396,7 @@ Pi, that is a strong argument against it.
 ### 4.1 Repository layout
 
 ```
-Dishlist/
+Bring2Bring/
 ├── Dockerfile
 ├── docker-compose.override.example.yml   # snippet for the Pi's compose file
 ├── .env.example
@@ -493,7 +530,7 @@ ALTER TABLE recipes ADD COLUMN bring_import_count INTEGER NOT NULL DEFAULT 0;
 
 bring_imports (
   recipe_id -> recipes.id ON DELETE CASCADE,
-  device_id TEXT NOT NULL,               -- from the dishlist.did cookie
+  device_id TEXT NOT NULL,               -- from the bring2bring.did cookie
   day TEXT NOT NULL,                     -- YYYY-MM-DD, UTC date (the daily boundary is not local midnight)
   PRIMARY KEY(recipe_id, device_id, day)
 )
@@ -847,7 +884,7 @@ Behaviour details:
   explaining in one sentence that Bring! needs to fetch the recipe itself.
 
 **Import counter and anti-cheat — since v2.0 (D4).** A first-party cookie
-`dishlist.did` identifies a device: 16 random bytes, base64url-encoded,
+`bring2bring.did` identifies a device: 16 random bytes, base64url-encoded,
 `httpOnly`, `sameSite=lax`, `secure` in production, long expiry, set by us,
 sent to nobody else (this is the one cookie of its kind in the app and is
 documented on the Privacy page, §10, §11).
@@ -913,7 +950,7 @@ Authenticated unless marked public.
 | GET | `/r/:token` | **public** share page (§8.3) |
 | GET | `/uploads/:file` | **public** images — only reachable via unguessable filename. `image_path` is always `NULL` in v1.1 (§5), so this route is currently unused, kept for when images come back |
 | GET | `/account`, POST `/account/password` | |
-| GET | `/privacy` | **since v2.0** — Privacy page: documents the `dishlist.did` cookie and nothing else tracked (D5, D4, §11) |
+| GET | `/privacy` | **since v2.0** — Privacy page: documents the `bring2bring.did` cookie and nothing else tracked (D5, D4, §11) |
 | GET | `/admin/invites`, POST `/admin/invites` | admin only |
 | GET | `/admin/recipes` | **since v2.0** — admin only. Title, author, public/private, created date, import count; unpublish, delete (D3) |
 | POST | `/admin/recipes/:id/unpublish`, POST `/admin/recipes/:id/delete` | **since v2.0** — admin only (D3) |
@@ -982,7 +1019,7 @@ for the recorded tap-target exception in §10.E.
   `localStorage` so a dropped connection never loses a half-typed recipe.
 - **Share page** — recipe only, stripped down further than the app view:
   name, servings and ingredients only, no method (§8.4).
-- **Privacy** — new, since v2.0. Documents the `dishlist.did` device cookie
+- **Privacy** — new, since v2.0. Documents the `bring2bring.did` device cookie
   (§8.5, §11) as the one cookie of its kind in the app, and states plainly
   that there is no third-party tracking or analytics (§11).
 - **Report a bug** — new, since v2.0. A link in the burger menu pointing at
@@ -1178,7 +1215,7 @@ opportunistic scanner, and anyone who ends up holding a share link.
   Tokens are unguessable (§8.2, 256 bits), but un-publishing does not
   retract a token someone already has — rotating it does. This is stated to
   the user at the point of publishing (§10), not only here.
-- **Device cookie (D4, since v2.0):** `dishlist.did` identifies a device for
+- **Device cookie (D4, since v2.0):** `bring2bring.did` identifies a device for
   the Bring! import counter (§8.5) — 16 random bytes, base64url, `httpOnly`,
   `sameSite=lax`, `secure` in production, long expiry, set by us, sent to
   nobody else. It is the only cookie of its kind in the app, does not
@@ -1236,21 +1273,21 @@ opportunistic scanner, and anyone who ends up holding a share link.
 Compose service (to be added to `PiMultiServiceServer/docker-compose.yml`):
 
 ```yaml
-dishlist:
-  build: ./apps/dishlist
+bring2bring:
+  build: ./apps/bring2bring
   restart: unless-stopped
-  env_file: ./apps/dishlist/.env
+  env_file: ./apps/bring2bring/.env
   volumes:
-    - ./data/dishlist:/app/data
+    - ./data/bring2bring:/app/data
   networks: [edge]
 ```
 
 Caddyfile block:
 
 ```
-@dishlist host dishlist.{$DOMAIN}
-handle @dishlist {
-    reverse_proxy dishlist:3000
+@bring2bring host dishlist.{$DOMAIN}
+handle @bring2bring {
+    reverse_proxy bring2bring:3000
 }
 ```
 
@@ -1260,7 +1297,7 @@ are seeded), a Cloudflare Published Application route
 `https://dishlist.<domain>/healthz`.
 
 The Pi's nightly backup already covers `data/`, so the SQLite file and the
-uploads are backed up as soon as they live under `data/dishlist/`. Verify this
+uploads are backed up as soon as they live under `data/bring2bring/`. Verify this
 explicitly rather than assuming it.
 
 **Cloudflare caution:** if any bot-fighting or Access rule is ever enabled for
@@ -1277,14 +1314,14 @@ while the site looks perfectly fine in a browser.
 | **3** | Share tokens, public share page with JSON-LD + microdata, Bring! button. **Verified on a real phone with the real Bring! app before the phase is called done.** |
 | **A** | *v2.0.* Look and navigation: the D5 restyle and navigation (bottom nav, burger menu, archive moved, title-first search, alphabetical sort + A–Z rail), the D6 servings wheel, the D7 `stueck` → "pcs" label. **No schema change.** |
 | **B** | *v2.0.* Public shelf and admin: `is_public`, the `/public` gallery, author on cards, duplicate-from-public, the D2 authorization change, the D3 admin screens (`/admin/recipes`, `/admin/users`), delete users. **Migration 002.** |
-| **C** | *v2.0.* Import counter: D4 in full (`/recipes/:id/bring`, `dishlist.did`, `bring_imports`), sorting and filtering by import count, the Privacy page. **Migration 003.** |
+| **C** | *v2.0.* Import counter: D4 in full (`/recipes/:id/bring`, `bring2bring.did`, `bring_imports`), sorting and filtering by import count, the Privacy page. **Migration 003.** |
 
 Each of A, B and C is independently deployable. Phases 0–3 above are the
 record of what shipped to get here; they are not revised by A/B/C.
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
-Dishlist (Bring! is the shopping list — duplicating it defeats the purpose).
+Bring2Bring! (Bring! is the shopping list — duplicating it defeats the purpose).
 
 ---
 
@@ -1363,7 +1400,7 @@ Explicit acceptance criteria:
   (D1, §8.2, §11).
 - No email, no password reset by mail, no third-party scripts, no
   third-party tracking or analytics. **Since v2.0:** one first-party,
-  functional cookie, `dishlist.did`, exists solely to cap the Bring! import
+  functional cookie, `bring2bring.did`, exists solely to cap the Bring! import
   counter at once per device per day (D4, §8.5, §11) and is documented on
   the Privacy page (§10).
 - Admins can act on recipe and user *metadata* (§6.4, D3) but never read
@@ -1393,24 +1430,9 @@ Explicit acceptance criteria:
    model entirely for now (§5); `image_path` stays dormant. Revisit by
    adding an image field back later, not by a schema change.
 6. Anything from §12.3 "explicitly not in v1" that you actually want early?
-7. **Rename to Bring2Bring! — agreed, deliberately deferred, not part of
-   v2.2.** `!` is not legal in a GitHub repository name, a Docker Compose
-   service name, a cookie name or a hostname, so the rename needs two
-   forms: display name **Bring2Bring!**, identifier `bring2bring`. When
-   it lands it touches: the wordmark and page titles; the cookie names
-   `dishlist.sid`, `dishlist.csrf` and `dishlist.did`; the `localStorage`
-   theme key; the SQLite filename and its directory; the Compose service
-   name; the Caddy **upstream**; the `apps/dishlist` directory; and the
-   GitHub repository name. It does **not** touch the hostname
-   `dishlist.ahultsch.com` or the Cloudflare tunnel route — Alex has
-   deferred that part. The hazard, stated plainly: changing `DB_PATH`
-   without moving the file does not fail — the app starts, migrates
-   against a path that does not exist, creates an empty database, and
-   serves a working site with no recipes, and every health check passes.
-   The data move must therefore be an explicit step, taken with the
-   container stopped, with a backup taken first, never something the
-   rename does implicitly. Consequences of the cookie renames: one forced
-   logout; and the device-cookie rename makes every phone read as new, so
-   each recipe can be counted once more per device — existing counts are
-   not lost, they can tick up by one. **v2.2 ships as Dishlist**; no
-   other part of this document uses the new name.
+7. **Rename to Bring2Bring! — decided, recorded at G1.** The rename itself,
+   its two forms, what carries each, and its consequences are recorded at
+   G1 ("Changes in v2.3"), not repeated here. What remains open: whether the
+   hostname `dishlist.ahultsch.com` and its Cloudflare tunnel route are ever
+   renamed to match — Alex has deferred that part, deliberately, leaving the
+   app served, for now, from a hostname that no longer matches its name.

@@ -1,6 +1,6 @@
-# Dishlist
+# Bring2Bring!
 
-Dishlist is Alex's private digital cookbook. Recipes are entered once, viewed
+Bring2Bring! is Alex's private digital cookbook. Recipes are entered once, viewed
 on a phone in the kitchen, scaled to any number of servings, and pushed into
 the [Bring!](https://www.getbring.com/) shopping-list app in one tap with
 correctly scaled quantities.
@@ -48,20 +48,20 @@ their rules.
 
 ## Deploying on the Pi
 
-Dishlist runs as a service in `PiMultiServiceServer`'s compose stack:
+Bring2Bring! runs as a service in `PiMultiServiceServer`'s compose stack:
 
 ```yaml
-dishlist:
-  build: ./apps/dishlist
+bring2bring:
+  build: ./apps/bring2bring
   restart: unless-stopped
-  env_file: ./apps/dishlist/.env
+  env_file: ./apps/bring2bring/.env
   environment:
     PORT: "3000"
-    DB_PATH: /data/dishlist.db
+    DB_PATH: /data/bring2bring.db
     UPLOAD_DIR: /data/uploads
     PUBLIC_BASE_URL: https://dishlist.${DOMAIN}
   volumes:
-    - ./data/dishlist:/data
+    - ./data/bring2bring:/data
   networks: [edge]
 ```
 
@@ -72,9 +72,9 @@ paths must agree.
 Caddyfile block:
 
 ```
-@dishlist host dishlist.{$DOMAIN}
-handle @dishlist {
-    reverse_proxy dishlist:3000 {
+@bring2bring host dishlist.{$DOMAIN}
+handle @bring2bring {
+    reverse_proxy bring2bring:3000 {
         header_up X-Forwarded-Proto https
     }
 }
@@ -86,10 +86,10 @@ credentials get seeded), a Cloudflare Published Application route
 `https://dishlist.<domain>/healthz`.
 
 `PUBLIC_BASE_URL` is set in the compose file's `environment:` block, **not**
-in `apps/dishlist/.env` — the Pi's `scripts/deploy.sh` rewrites that `.env` on
+in `apps/bring2bring/.env` — the Pi's `scripts/deploy.sh` rewrites that `.env` on
 every run and would drop it.
 
-Any reverse proxy in front of Dishlist **must** pass `X-Forwarded-Proto: https`
+Any reverse proxy in front of Bring2Bring! **must** pass `X-Forwarded-Proto: https`
 through to the app, or the session cookie (which is marked `secure` in
 production) never gets set: express-session silently withholds `Set-Cookie`
 when it doesn't see the request as secure, so login accepts credentials, 302s,
@@ -97,7 +97,7 @@ and then just bounces back to the login form — this is shown in the Caddyfile
 block above.
 
 The Pi's nightly backup already covers `data/`, so once the SQLite file and
-uploads live under `data/dishlist/` on the host they are backed up
+uploads live under `data/bring2bring/` on the host they are backed up
 automatically — verify this explicitly rather than assuming it.
 
 ### Container image

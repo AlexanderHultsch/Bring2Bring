@@ -49,7 +49,7 @@ The Dockerfile must not rely on the build context's file permissions — the
 Raspberry Pi's deploy script may clone this repo under a restrictive umask.
 Copied files are given to the `node` user explicitly via `--chown` on COPY.
 
-Any reverse proxy in front of Dishlist must forward `X-Forwarded-Proto: https`, or the `secure` session cookie never gets set and login silently fails in production.
+Any reverse proxy in front of Bring2Bring! must forward `X-Forwarded-Proto: https`, or the `secure` session cookie never gets set and login silently fails in production.
 
 ## Content Security Policy
 
