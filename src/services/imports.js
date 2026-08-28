@@ -1,9 +1,27 @@
 import { recordBringImport } from '../repositories/imports.js';
 
-// SPECIFICATION.md section 8.5 (v2.0, D4): the day is a parameter rather than
-// something this reads from the clock itself, so a test can drive a
-// different day without mocking time — the route computes it (UTC date,
-// YYYY-MM-DD).
+// SPECIFICATION.md section 8.5 (v2.0, D4, H2): the day is a parameter rather
+// than something this reads from the clock itself, so a test can drive a
+// different day without mocking time — the route computes it (YYYY-MM-DD in
+// IMPORT_TIMEZONE, via localImportDay below).
 export function recordImport(db, recipeId, deviceId, day) {
   return recordBringImport(db, recipeId, deviceId, day);
+}
+
+// SPECIFICATION.md section 3.1 / 5 (H2): the import day boundary must fall at
+// local midnight, not UTC midnight, or an import in the gap between the two
+// gets filed under the wrong day and silently swallowed by the anti-cheat's
+// INSERT OR IGNORE. Built from Intl.DateTimeFormat().formatToParts() rather
+// than a locale tag that happens to format as ISO (that's locale data, not a
+// guarantee) — the parts are assembled explicitly. The instant is a parameter
+// so this can be tested at a chosen moment without mocking the clock.
+export function localImportDay(timezone, instant = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(instant);
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
 }

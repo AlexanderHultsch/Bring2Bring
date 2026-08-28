@@ -27,7 +27,7 @@ import {
 } from '../services/recipes.js';
 import { applyShareAction, ShareActionSchema } from '../services/sharing.js';
 import { publishRecipe, unpublishRecipe, PublishActionSchema } from '../services/publishing.js';
-import { recordImport } from '../services/imports.js';
+import { recordImport, localImportDay } from '../services/imports.js';
 
 // SPECIFICATION.md section 8.5 / 11 (v2.0, D4): 16 random bytes, base64url,
 // httpOnly, sameSite=lax, secure in production, long expiry — mirrors the
@@ -38,10 +38,6 @@ const DEVICE_COOKIE_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
 
 function generateDeviceId() {
   return crypto.randomBytes(16).toString('base64url');
-}
-
-function currentUtcDay() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function notFoundError() {
@@ -319,7 +315,7 @@ export function recipesRouter(db, config) {
         maxAge: DEVICE_COOKIE_MAX_AGE_MS,
       });
     }
-    recordImport(db, id, deviceId, currentUtcDay());
+    recordImport(db, id, deviceId, localImportDay(config.importTimezone));
 
     const requestedYield = parseYieldParam(req.query, recipe.yield_amount);
     const bringDeeplinkUrl = buildBringDeeplinkUrl({

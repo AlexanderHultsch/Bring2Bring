@@ -93,6 +93,23 @@ const FIELDS = [
     default: 'de-DE',
     schema: nonEmptyString,
   },
+  {
+    envKey: 'IMPORT_TIMEZONE',
+    configKey: 'importTimezone',
+    required: false,
+    default: 'Europe/Berlin',
+    schema: nonEmptyString.refine(
+      (value) => {
+        try {
+          new Intl.DateTimeFormat('en-US', { timeZone: value });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: 'must be a valid IANA timezone' }
+    ),
+  },
 ];
 
 export function loadConfig(env = process.env) {

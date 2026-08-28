@@ -22,6 +22,7 @@ test('a fully valid minimal env returns the expected object with all defaults ap
     trustProxy: 1,
     nodeEnv: 'production',
     numberLocale: 'de-DE',
+    importTimezone: 'Europe/Berlin',
     isProduction: true,
   });
 });
@@ -80,6 +81,24 @@ test('TRUST_PROXY="0" is coerced to 0, not defaulted back to 1', () => {
   env.TRUST_PROXY = '0';
   const config = loadConfig(env);
   assert.equal(config.trustProxy, 0);
+});
+
+test('IMPORT_TIMEZONE absent defaults to Europe/Berlin', () => {
+  const config = loadConfig(validEnv());
+  assert.equal(config.importTimezone, 'Europe/Berlin');
+});
+
+test('IMPORT_TIMEZONE="America/New_York" is accepted', () => {
+  const env = validEnv();
+  env.IMPORT_TIMEZONE = 'America/New_York';
+  const config = loadConfig(env);
+  assert.equal(config.importTimezone, 'America/New_York');
+});
+
+test('IMPORT_TIMEZONE="Not/AZone" throws and names the variable', () => {
+  const env = validEnv();
+  env.IMPORT_TIMEZONE = 'Not/AZone';
+  assert.throws(() => loadConfig(env), /IMPORT_TIMEZONE/);
 });
 
 test('the error message for a missing SESSION_SECRET does not leak the value of other supplied variables', () => {

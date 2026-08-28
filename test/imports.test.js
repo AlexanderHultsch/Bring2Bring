@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createTestDb } from './helpers/db.js';
 import { insertUser } from '../src/repositories/users.js';
 import { insertRecipe } from '../src/repositories/recipes.js';
-import { recordImport } from '../src/services/imports.js';
+import { recordImport, localImportDay } from '../src/services/imports.js';
 
 function makeUser(db, username) {
   return insertUser(db, { username, passwordHash: 'not-a-real-hash' });
@@ -93,6 +93,21 @@ test('after several mixed recordImport calls, bring_import_count equals the numb
   } finally {
     cleanup();
   }
+});
+
+// SPECIFICATION.md section 3.1 / 5 (H2): the import day boundary follows the
+// configured local timezone, not UTC — these two instants fall on different
+// calendar days in Europe/Berlin than they do in UTC, in both DST states.
+test('localImportDay: 2026-08-27T23:30:00Z is 2026-08-28 in Europe/Berlin (summer) and 2026-08-27 in UTC', () => {
+  const instant = new Date('2026-08-27T23:30:00Z');
+  assert.equal(localImportDay('Europe/Berlin', instant), '2026-08-28');
+  assert.equal(localImportDay('UTC', instant), '2026-08-27');
+});
+
+test('localImportDay: 2026-01-27T23:30:00Z is 2026-01-28 in Europe/Berlin (winter) and 2026-01-27 in UTC', () => {
+  const instant = new Date('2026-01-27T23:30:00Z');
+  assert.equal(localImportDay('Europe/Berlin', instant), '2026-01-28');
+  assert.equal(localImportDay('UTC', instant), '2026-01-27');
 });
 
 test('recordImport only ever touches the given recipe, never another one', () => {
