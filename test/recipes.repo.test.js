@@ -337,7 +337,7 @@ test('replaceRecipeContent is atomic: a failing insert leaves the original conte
   }
 });
 
-test('SPECIFICATION.md 5.1/9 (v2.0, D2): listRecipesForUser ("My Dishes") returns only the acting user\'s own recipes — not recipes shared with them, not other users\' public recipes — and hides archived by default', () => {
+test('SPECIFICATION.md 5.1/9 (v2.0, D2): listRecipesForUser ("My Recipes") returns only the acting user\'s own recipes — not recipes shared with them, not other users\' public recipes — and hides archived by default', () => {
   const { db, cleanup } = createTestDb();
   try {
     const owner = makeUser(db, 'owner');

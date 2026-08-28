@@ -1058,7 +1058,7 @@ The icon set the mockups use, each a `<symbol id="i-…">` in
 `src/views/partials/icons.ejs`:
 
 `i-search`, `i-back`, `i-menu`, `i-close`, `i-chevron-right`,
-`i-chevron-up`, `i-book` (Recipes), `i-people` (Public), `i-plus` (New),
+`i-chevron-up`, `i-book` (My Recipes), `i-people` (Public), `i-plus` (New),
 `i-bring` (the import mark), `i-globe` (public link), `i-copy`, `i-rotate`,
 `i-disable`, `i-account`, `i-privacy`, `i-bug`, `i-archive`, `i-logout`,
 `i-filter`, `i-sun` (theme toggle, dark mode), `i-moon` (theme toggle, light
@@ -1085,7 +1085,7 @@ one place to change a symbol, but no matching one place to change its size.
 `--icon-size` is the default, used wherever an icon sits beside body text;
 `--icon-size-sm` is for icons beside small or caption text (the import
 count, the search field, the public-link disclosure chevron); `--icon-size-lg`
-is for the bottom navigation bar, including its raised primary button. The
+is for the bottom navigation bar. The
 default was chosen to match what the old `1.25em` already rendered at next
 to 16px body text — 20px — so introducing the token changed no existing
 screen.
@@ -1151,7 +1151,7 @@ Restated, not weakened:
 - Mobile-first.
 - Minimum 44 px tap targets, minimum 16 px body text, high contrast — see
   §10.E for the two recorded exceptions (the A–Z rail and the servings
-  ruler). A "keep screen awake" toggle on the Recipe page using the Wake
+  wheel). A "keep screen awake" toggle on the Recipe page using the Wake
   Lock API where available, degrading silently where not.
 - No inline scripts anywhere, so the CSP (§11) needs no nonces and gets
   none.

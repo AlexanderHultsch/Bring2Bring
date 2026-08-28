@@ -5,11 +5,7 @@
         <svg class="icon"><use href="#i-back"></use></svg>
       </a>
     <% } %>
-    <% if (typeof pageTitle !== 'undefined' && pageTitle) { %>
-      <span class="site-header__title"><%= pageTitle %></span>
-    <% } else { %>
-      <a class="site-header__brand" href="/">Dishlist</a>
-    <% } %>
+    <a class="site-header__brand" href="/">Dishlist</a>
   </div>
   <div class="site-header__actions">
     <button type="button" class="theme-toggle" data-theme-toggle aria-label="Switch between light and dark">

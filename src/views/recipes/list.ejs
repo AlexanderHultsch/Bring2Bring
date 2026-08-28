@@ -11,11 +11,11 @@
   }
   const showAZ = sort === 'title';
 %>
-<%- include('../partials/head', { title: (archived ? 'Archive' : 'Recipes') + ' — Dishlist' }) %>
+<%- include('../partials/head', { title: (archived ? 'Archive' : 'My Recipes') + ' — Dishlist' }) %>
       <%- include('../partials/header', { currentUser, csrfToken, backHref: archived ? '/' : undefined }) %>
       <% if (showAZ) { %><%- include('../partials/az-rail', { groups }) %><% } %>
       <main class="recipes-page has-bottom-nav<%= showAZ ? ' recipes-page--az' : '' %>">
-        <h1><%= archived ? 'Archive' : 'Recipes' %></h1>
+        <h1><%= archived ? 'Archive' : 'My Recipes' %></h1>
 
         <form method="get" action="/" class="list-controls" role="search">
           <% if (archived) { %><input type="hidden" name="archived" value="1"><% } %>

@@ -622,15 +622,15 @@ test('GET /?q=Tomato keeps the search text in the ingredients toggle link', asyn
   });
 });
 
-// SPECIFICATION.md section 10.E, decision E4: one word wins, "Recipes".
-test('the bottom nav says Recipes, not My Dishes', async () => {
+// SPECIFICATION.md section 10.E, decision F1: "My Recipes", not "Recipes".
+test('the bottom nav says My Recipes, not My Dishes', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
 
     const res = await agent.get('/');
     assert.equal(res.status, 200);
-    assert.match(res.text, />Recipes<\/span>/);
+    assert.match(res.text, /My Recipes<\/span>/);
     assert.ok(!res.text.includes('My Dishes'));
   });
 });
@@ -1422,7 +1422,7 @@ test('a three-line method renders three separate recipe-method__text blocks, eac
   });
 });
 
-test('the recipe page includes the back link to My Dishes and the bottom nav', async () => {
+test('the recipe page includes the back link to My Recipes and the bottom nav', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');

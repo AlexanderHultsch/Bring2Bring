@@ -1,13 +1,14 @@
 <nav class="bottom-nav" aria-label="Primary">
   <a class="bottom-nav__item" href="/"<% if (activeNav === 'mine') { %> aria-current="page"<% } %>>
     <svg class="icon"><use href="#i-book"></use></svg>
-    <span class="bottom-nav__label">Recipes</span>
+    <span class="bottom-nav__label">My Recipes</span>
   </a>
   <a class="bottom-nav__item" href="/public"<% if (activeNav === 'public') { %> aria-current="page"<% } %>>
     <svg class="icon"><use href="#i-people"></use></svg>
     <span class="bottom-nav__label">Public</span>
   </a>
-  <a class="bottom-nav__item bottom-nav__item--primary" href="/recipes/new" aria-label="New recipe"<% if (activeNav === 'new') { %> aria-current="page"<% } %>>
+  <a class="bottom-nav__item" href="/recipes/new"<% if (activeNav === 'new') { %> aria-current="page"<% } %>>
     <svg class="icon"><use href="#i-plus"></use></svg>
+    <span class="bottom-nav__label">New</span>
   </a>
 </nav>

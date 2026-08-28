@@ -106,6 +106,22 @@ test('the bottom nav appears on / and on a recipe page, and does NOT appear in t
   });
 });
 
+// SPECIFICATION.md decision F3 (v2.2): after New becomes an ordinary nav
+// item, "Send to Bring!" is the only accent-coloured primary button anywhere.
+test('the bottom nav has no primary item, and all three items carry a label', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+    assert.ok(!res.text.includes('bottom-nav__item--primary'));
+
+    const labels = [...res.text.matchAll(/class="bottom-nav__label"/g)];
+    assert.equal(labels.length, 3);
+  });
+});
+
 test('the bottom nav is not present on the login page or the error page', async () => {
   await withApp(async (app) => {
     const loginRes = await request(app).get('/login');
