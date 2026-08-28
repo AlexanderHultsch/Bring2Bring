@@ -61,7 +61,7 @@ test('the burger menu markup contains the Log out form with a CSRF field, and th
     assert.match(res.text, /name="_csrf" value="[^"]+"/);
     assert.match(
       res.text,
-      /href="https:\/\/github\.com\/AlexanderHultsch\/Dishlist\/issues"[^>]*rel="noopener noreferrer"/
+      /href="https:\/\/github\.com\/AlexanderHultsch\/Bring2Bring\/issues"[^>]*rel="noopener noreferrer"/
     );
   });
 });

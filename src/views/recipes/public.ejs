@@ -9,7 +9,7 @@
   }
   const showAZ = sort === 'title';
 %>
-<%- include('../partials/head', { title: 'Public — Dishlist' }) %>
+<%- include('../partials/head', { title: 'Public — Bring2Bring!' }) %>
       <%- include('../partials/header', { currentUser, csrfToken }) %>
       <% if (showAZ) { %><%- include('../partials/az-rail', { groups }) %><% } %>
       <main class="recipes-page has-bottom-nav<%= showAZ ? ' recipes-page--az' : '' %>">
@@ -39,7 +39,7 @@
             <% if (hasActiveFilter) { %>
               No public recipes match your search. <a href="/public">Clear filters</a>.
             <% } else { %>
-              Public recipes from any Dishlist user appear here once someone publishes one. Nobody has published a recipe yet.
+              Public recipes from any Bring2Bring! user appear here once someone publishes one. Nobody has published a recipe yet.
             <% } %>
           </p>
         <% } else if (showAZ) { %>

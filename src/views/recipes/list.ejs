@@ -11,7 +11,7 @@
   }
   const showAZ = sort === 'title';
 %>
-<%- include('../partials/head', { title: (archived ? 'Archive' : 'My Recipes') + ' — Dishlist' }) %>
+<%- include('../partials/head', { title: (archived ? 'Archive' : 'My Recipes') + ' — Bring2Bring!' }) %>
       <%- include('../partials/header', { currentUser, csrfToken, backHref: archived ? '/' : undefined }) %>
       <% if (showAZ) { %><%- include('../partials/az-rail', { groups }) %><% } %>
       <main class="recipes-page has-bottom-nav<%= showAZ ? ' recipes-page--az' : '' %>">

@@ -228,7 +228,7 @@ test('GET /r/:token?yield=6 on a base-4 recipe with a 250 g ingredient renders 3
   });
 });
 
-test('the share page contains no app chrome: no username, no link to /, no link to /login, no "Dishlist" nav link', async () => {
+test('the share page contains no app chrome: no username, no link to /, no link to /login, no "Bring2Bring!" nav link', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -241,7 +241,7 @@ test('the share page contains no app chrome: no username, no link to /, no link 
     assert.ok(!res.text.includes('alex'));
     assert.ok(!res.text.includes('href="/"'));
     assert.ok(!res.text.includes('href="/login"'));
-    assert.ok(!/>Dishlist</.test(res.text));
+    assert.ok(!/>Bring2Bring!</.test(res.text));
   });
 });
 

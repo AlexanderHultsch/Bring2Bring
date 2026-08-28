@@ -142,7 +142,7 @@ test('GET /public with no published recipes shows the "nothing published yet" em
 
     const res = await agent.get('/public');
     assert.equal(res.status, 200);
-    assert.match(res.text, /Public recipes from any Dishlist user appear here/);
+    assert.match(res.text, /Public recipes from any Bring2Bring! user appear here/);
   });
 });
 

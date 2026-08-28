@@ -11,7 +11,7 @@ function main() {
   const app = createApp({ db, config });
 
   const server = app.listen(config.port, () => {
-    console.log(`Dishlist listening on port ${config.port}`);
+    console.log(`Bring2Bring! listening on port ${config.port}`);
   });
 
   const shutdown = () => {

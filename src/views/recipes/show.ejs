@@ -1,4 +1,4 @@
-<%- include('../partials/head', { title: recipe.title + ' — Dishlist' }) %>
+<%- include('../partials/head', { title: recipe.title + ' — Bring2Bring!' }) %>
       <%- include('../partials/header', { currentUser, csrfToken, backHref: '/' }) %>
       <main class="recipe-page has-bottom-nav" data-recipe-id="<%= recipe.id %>" data-saved="<%= saved %>">
         <% if (recipe.is_archived) { %>

@@ -58,7 +58,7 @@ export function warnIfSessionCookieSuppressed(config) {
         'Session cookie is configured `secure: true` (NODE_ENV=production) but this request was ' +
           'not seen as secure (req.secure is false): express-session will silently withhold ' +
           'Set-Cookie, so logins will appear to do nothing. Make the reverse proxy in front of ' +
-          'Dishlist send "X-Forwarded-Proto: https" on every request.'
+          'Bring2Bring! send "X-Forwarded-Proto: https" on every request.'
       );
     }
     next();
