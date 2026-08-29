@@ -416,6 +416,20 @@ test('V1: the editor page contains a <select> with exactly the nine EDITOR_UNITS
   });
 });
 
+test('V1: the editor page renders ingredient rows with data-ingredient and a data-ingredient-name field, for the Enter-key handler to key on', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/recipes/new');
+    assert.equal(res.status, 200);
+
+    const rowMatch = res.text.match(/<div class="ingredient-row" data-ingredient>([\s\S]*?)<\/div>\s*<\/div>/);
+    assert.ok(rowMatch, 'expected an ingredient row carrying data-ingredient');
+    assert.match(rowMatch[1], /data-ingredient-name/);
+  });
+});
+
 test("GET /recipes/:id for another user's recipe returns 404", async () => {
   await withApp(async (app, db) => {
     const owner = await seedUser(db, 'owner');

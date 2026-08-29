@@ -63,6 +63,41 @@
       }
     });
 
+    function focusIngredientName(row) {
+      var nameField = row.querySelector('[data-ingredient-name]');
+      if (nameField) nameField.focus();
+    }
+
+    form.addEventListener('keydown', function (event) {
+      if (event.key !== 'Enter') return;
+
+      var target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest('[data-remove-ingredient]')) return;
+
+      var row = target.closest('[data-ingredient]');
+      if (!row) return;
+
+      event.preventDefault();
+
+      var rows = ingredientsContainer.querySelectorAll('[data-ingredient]');
+      var rowIndex = -1;
+      rows.forEach(function (candidate, index) {
+        if (candidate === row) rowIndex = index;
+      });
+
+      var nextRow;
+      if (rowIndex === rows.length - 1) {
+        nextRow = addIngredientRow();
+        renumber();
+        saveDraft();
+      } else {
+        nextRow = rows[rowIndex + 1];
+      }
+
+      focusIngredientName(nextRow);
+    });
+
     function saveDraft() {
       try {
         var formData = new FormData(form);
