@@ -1,4 +1,4 @@
-# Bring2Bring! — Specification v2.0
+# Bring2Bring! — Specification v2.6
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
 > source of truth for the `Bring2Bring` repository
@@ -368,6 +368,93 @@ full set of decisions:
 
 ---
 
+## Changes in v2.6
+
+v2.5 decided J7 but did not build it. v2.6 is the round that builds it — and
+while preparing it, two things came to light that change what actually gets
+built: one J7 decision turns out to rest on a wrong premise and is reversed,
+and one v2.0 decision turns out to have never shipped at all. The full set of
+decisions:
+
+- **`piece` and `stueck` stay separate (K1).** This reverses the last sentence
+  of J7, which said the two count units would be collapsed with a migration.
+  That decision rested on a wrong premise — they were described as identical.
+  They are not: `piece` carries an empty label and renders "2 Eier", `stueck`
+  carries "Stück" and renders "2 Stück Butter". Collapsing them would either
+  give every unit-less ingredient a unit word it never had, or strip the word
+  from every ingredient that has one. The only genuine complaint — a German
+  key in an otherwise language-neutral key set — is internal and cosmetic,
+  and renaming the key would rewrite stored ingredient rows for no
+  user-visible gain. So: no ingredient data is migrated for units, ever, in
+  this round.
+- **D7 was never built, and K3 supersedes it (K2).** §7.2 has said since v2.0
+  that `stueck` displays as "pcs"; the code has always said "Stück", because
+  `src/domain/units.js` was last changed in v1.1. Recorded rather than
+  quietly fixed, because the mechanism matters: a display-only decision with
+  no test guarding it can sit in the spec for two versions without anyone
+  noticing it never reached the code. K3 resolves the disagreement in the
+  direction D7 was reaching for — "Stück" in German, "pcs" in English — and
+  adds the test that D7 lacked.
+- **Unit language, per user, display-only (K3).** A new `unit_language`
+  column on `users` (`'de'` | `'en'`, default `'de'`), set from one control
+  on the Account screen (§10.1), delivered by **migration 004**. Every unit
+  gains a German and an English label; the key never changes, so nothing
+  about a stored recipe depends on the setting and switching it is instant
+  and reversible. It applies wherever a unit label is rendered: the recipe
+  page, the client-side recalculation (§7.4 — server and browser must keep
+  calling the same domain code), and the editor's unit dropdown (§7.2). The
+  public share page (§8) has no logged-in viewer, so it renders in the
+  **recipe author's** language — which is also what Bring! reads out of that
+  page's JSON-LD. Number formatting is untouched and stays `de-DE`; that is
+  §16 question 2 and is not answered here.
+- **Imperial units are built this round, and they are not display-only in
+  the way a label swap is (K4).** This reverses the deferral this bullet
+  previously stated: the owner has asked for the whole open list to be
+  finished now, so J7's exact conversions (g↔oz, kg↔lb, ml↔fl oz, l↔qt) are
+  in scope for v2.6. The bullet is rewritten rather than superseded because
+  v2.6 has not shipped yet — a frozen section would have been left alone
+  and contradicted in a later one instead. They are not display-only in the
+  sense K3's label swap is, because §7.3 rounds in the dimension's base
+  unit, and that rule is metric-shaped (nearest 5 g). Rounding in grams and
+  then converting yields "8.82 oz", which is not a shoppable quantity, so an
+  imperial display has to convert exactly first and round once **in the
+  imperial unit** — the rule "round exactly once" survives, but which unit is
+  the rounding base becomes a function of the reader's setting (§7.6), and
+  the Bring! export (§8.5) has to move with it or the screen and the export
+  disagree. That is an amendment to §7.3, not a label table. Cups remain
+  excluded for the reason J7 gave: a cup is a volume and a gram is a mass,
+  so the ratio depends on the ingredient, and §1 principle 5 makes a
+  density guess exactly the wrong-quantity failure the app must never
+  produce.
+
+  It is, however, display-only in the sense that matters for storage: no
+  stored unit key changes, and the editor's closed dropdown (§7.2) gains no
+  imperial option, so recipes are entered in metric and may be read in
+  either system. The setting is a second column, `measurement_system`,
+  independent of `unit_language`, because English labels with metric
+  amounts is a real combination (UK, Australia) and not a nonsense one.
+- **Deployment sections catch up with J1 (K5).** §3's `PUBLIC_BASE_URL`
+  example and §12.2's compose and Caddyfile blocks still described
+  `dishlist.<domain>` two versions after the hostname moved, and §12.2's
+  compose block had drifted from the deployed service in other ways as
+  well — the wrong volume mount, no container hardening, the mandatory
+  `X-Forwarded-Proto` header missing from the reverse-proxy block. Nothing
+  is decided here; the sections are simply brought into line with what runs
+  on the Pi. Worth recording for the same reason K2 is: this is the second
+  piece of drift found in one round, and both went unnoticed because
+  nothing executable checks the spec against reality — a deployment section
+  is prose, and prose does not fail a test run.
+- **Number formatting follows the unit language, not a fixed locale (K6).**
+  §7.3 formats decimals with `de-DE` (comma) from `config.numberLocale`,
+  unconditionally. An English reader with K3's language control set to
+  `en` would see "8,8 oz" — the German decimal comma paired with an
+  English unit label, which is neither convention. The number locale now
+  follows `unit_language`: `'de'` resolves to `de-DE`, `'en'` to `en-US`.
+  `NUMBER_LOCALE` in §3 stays as the default for anything with no reader —
+  it is what the German default resolves to. This answers §16 question 2.
+
+---
+
 ## 1. Purpose
 
 Bring2Bring! is Alex's own private cookbook on the web. Recipes are entered once,
@@ -464,7 +551,7 @@ This repo **must** satisfy the ecosystem standard from
 | `SESSION_SECRET` | **yes** | — | Session cookie signing key |
 | `ADMIN_USER` | **yes** | — | Admin login name, used by `seed:admin` |
 | `ADMIN_PASSWORD` | **yes** | — | Admin password, used by `seed:admin` |
-| `PUBLIC_BASE_URL` | **yes** | — | e.g. `https://dishlist.ahultsch.com`; used to build absolute share URLs for Bring! |
+| `PUBLIC_BASE_URL` | **yes** | — | e.g. `https://bring2bring.ahultsch.com`; used to build absolute share URLs for Bring! |
 | `TRUST_PROXY` | no | `1` | Express `trust proxy` hops (Caddy + cloudflared) |
 | `NODE_ENV` | no | `production` | |
 | `NUMBER_LOCALE` | no | `de-DE` | Locale used to format scaled ingredient quantities |
@@ -551,6 +638,8 @@ where a public token is needed.
 users (
   id, username UNIQUE, email UNIQUE NULL, password_hash,
   role TEXT CHECK(role IN ('admin','user')) DEFAULT 'user',
+  unit_language TEXT CHECK(unit_language IN ('de','en')) DEFAULT 'de',  -- K3
+  measurement_system TEXT CHECK(measurement_system IN ('metric','imperial')) DEFAULT 'metric',  -- K4
   created_at, last_login_at
 )
 
@@ -771,34 +860,38 @@ For each ingredient:
 ### 7.2 Unit normalization
 
 `src/domain/units.js` holds the table of known units, each with: canonical
-key, display label, dimension (`mass`, `volume`, `count`, `spoon`,
-`pinch`), base factor, and whether the unit may be auto-converted.
+key, a German display label, an English display label (K3, since v2.6),
+dimension (`mass`, `volume`, `count`, `spoon`, `pinch`), base factor, and
+whether the unit may be auto-converted.
 
 Since v1.1 (§2.1 A1) the unit field in the editor is a closed dropdown, not
 free text, so the table is deliberately small — exactly:
 
-| key | label | dimension |
-| --- | --- | --- |
-| `piece` | (empty string) | count |
-| `g` | g | mass |
-| `kg` | kg | mass |
-| `ml` | ml | volume |
-| `l` | l | volume |
-| `tsp` | TL | spoon |
-| `tbsp` | EL | spoon |
-| `pinch` | Prise | pinch |
-| `stueck` | pcs | count |
+| key | German label | English label | dimension |
+| --- | --- | --- | --- |
+| `piece` | (empty string) | (empty string) | count |
+| `g` | g | g | mass |
+| `kg` | kg | kg | mass |
+| `ml` | ml | ml | volume |
+| `l` | l | l | volume |
+| `tsp` | TL | tsp | spoon |
+| `tbsp` | EL | tbsp | spoon |
+| `pinch` | Prise | pinch | pinch |
+| `stueck` | Stück | pcs | count |
 
 "No unit" is stored as the `piece` unit (count dimension with empty label), so
 `2 Eier` renders without a unit word while still getting the count rounding
-rule (§7.3: nearest 0.5, never below 0.5). This is a deliberate internal
-representation, not an accident — it lets `piece` (displayed as "2 Eier")
-and the `stueck` unit (displayed as "2 pcs Butter") share the count
-rounding and conversion rules while differing only in the label shown.
-The `stueck` unit was new in v1.1; **since v2.0** (D7) its label is "pcs"
-instead of "Stück" — the other labels stay German (TL, EL, Prise) because
-ingredient names are German. The key is unchanged, so this is a display-only
-change: nothing stored migrates.
+rule (§7.3: nearest whole number, never below 1). This is a deliberate
+internal representation, not an accident — it lets `piece` (displayed as
+"2 Eier") and the `stueck` unit (displayed as "2 Stück Butter" in German,
+"2 pcs Butter" in English) share the count rounding and conversion rules
+while differing only in the label shown. The `stueck` unit was new in v1.1;
+D7 (v2.0) decided its label should read "pcs" but was never implemented, and
+K3 (v2.6) resolves that by giving every unit both labels — see §7.5. The key
+is unchanged, so this is a display-only change: nothing stored migrates.
+`piece` and `stueck` are deliberately kept as two separate units and are not
+collapsed (K1, since v2.6): the empty label and "Stück" are a real
+difference in what renders, not a duplication.
 
 Rules:
 - Convert **up** when the scaled amount gets unwieldy: `1500 g → 1.5 kg`,
@@ -815,6 +908,15 @@ Rules:
 
 Rounding happens **only for display and export**, never in storage.
 
+Which unit the single rounding happens in is a function of the reader's
+measurement system (§7.6): the dimension's metric base unit (`g`, `ml`)
+under `metric`, its imperial small unit (`oz`, `fl oz`) under `imperial`.
+The conversion from the stored, scaled quantity into that unit is exact and
+unrounded; the ladder below is then applied **once**, to that number, and
+the ladder itself is unchanged. Rounding in grams and then converting to
+oz is exactly the mistake this rule exists to prevent — it yields "8.82 oz",
+which is not a shoppable quantity.
+
 | Case | Rule |
 | --- | --- |
 | ≥ 100 (g, ml) | round to nearest 5 |
@@ -825,9 +927,11 @@ Rounding happens **only for display and export**, never in storage.
 | `pinch`, `to taste` | never numeric |
 
 Trailing zeros are stripped (`2.0 → 2`). Decimals are rendered with the
-locale-appropriate separator for the *content* language of the recipe; default
-`de-DE` formatting (comma) since the recipes are German — this is a display
-setting in `config.js`, not scattered through templates.
+locale-appropriate separator for the reader's `unit_language` (K6, since
+v2.6): `de` → `de-DE` (comma), `en` → `en-US` (period) — this is a display
+setting resolved in `config.js`, not scattered through templates.
+`NUMBER_LOCALE` in §3 remains the default for anything rendered with no
+reader (it is what the German default resolves to).
 
 ### 7.4 UI behaviour — servings control rebuilt (D6, since v2.0)
 
@@ -867,6 +971,81 @@ setting in `config.js`, not scattered through templates.
 - The editor has no UI to mark an ingredient `scales = false` (§2.1 A2), so
   in practice every ingredient scales — there is no "unchanged" marker to
   show.
+
+### 7.5 Unit language — per user, display-only (K3, since v2.6)
+
+The unit labels were German while the interface is English; this section
+makes the label language a per-user setting without touching anything the
+setting does not need to touch.
+
+- `users.unit_language`, `TEXT NOT NULL DEFAULT 'de'`, constrained to `'de'`
+  or `'en'`, added by **migration 004**.
+- One control on the Account screen (§10.1): a plain form post, in the style
+  of the password form already there — no JavaScript, consistent with §10.F
+  and the no-inline-script rule (§11).
+- The label lookup is a pure function of (unit key, language) and lives in
+  `src/domain/units.js`, so the server render and the browser recalculation
+  (§7.4) resolve labels through the same code — exactly as they already do
+  for scaling.
+- The language reaches the browser the same way the number locale already
+  does: as a `data-` attribute on the recipe container, read by
+  `public/js/recipe-view.js`.
+- `/r/:token` (§8) has no logged-in viewer, so it renders in the **recipe
+  author's** language; the JSON-LD Bring! consumes is generated from the
+  same already-scaled, already-labelled ingredients.
+- What does **not** change: stored `unit` keys, the scaling engine, the
+  rounding rules (§7.3), and stored quantities. Number formatting is the
+  one thing this setting does reach beyond labels: its decimal separator
+  follows the language (K6, §7.3).
+
+### 7.6 Measurement system — per user, display-only (K4, since v2.6)
+
+Metric amounts are the only thing a recipe ever stores. This section makes
+the *display* system — metric or imperial — a second per-user setting,
+independent of §7.5's language setting, without widening what the editor
+accepts or what a recipe stores.
+
+- `users.measurement_system`, `TEXT NOT NULL DEFAULT 'metric'`, constrained
+  to `'metric'` or `'imperial'`, added by **migration 004**. One control on
+  the Account screen (§10.1), beside the language control: a plain form
+  post, no JavaScript.
+- The imperial unit family, used for display only:
+
+  | key | label | dimension | grams / millilitres per unit |
+  | --- | --- | --- | --- |
+  | `oz` | oz | mass | 28.349523125 g |
+  | `lb` | lb | mass | 453.59237 g |
+  | `floz` | fl oz | volume | 29.5735295625 ml |
+  | `qt` | qt | volume | 946.352946 ml |
+
+  These are the exact legal definitions, not approximations: 1 lb = 16 oz
+  exactly, 1 US liquid quart = 32 US fluid ounces exactly. The labels are
+  the same in German and English — German has no separate word for an
+  ounce — so, unlike §7.2's table, this family does not need two label
+  columns.
+- These keys are **display-only**: never stored in `ingredients.unit`, and
+  never offered by the editor's unit dropdown (§7.2), which stays the
+  closed list of nine. A recipe is entered in metric and may be read in
+  either system.
+- Rounding follows §7.3: the single rounding pass happens in `g`/`ml` under
+  `metric` or `oz`/`floz` under `imperial`, whichever the reader's
+  `measurement_system` selects.
+- Converting up uses the same rule metric already uses, with the family's
+  own numbers: display in the large unit when the rounded amount reaches
+  one of them *and* is exactly representable to two decimals, otherwise
+  stay in the small unit. `32 oz → 2 lb`, `24 oz → 1.5 lb`,
+  `20 oz → 1.25 lb`, but `18 oz` stays `18 oz` — precisely as `1235 g`
+  stays `1235 g` rather than becoming `1.24 kg`.
+- Unaffected by the measurement system: `spoon` (`tsp`/`tbsp` are already
+  the customary English names, and no conversion happens), `count`, and
+  `pinch`. Only `mass` and `volume` have an imperial family.
+- `/r/:token` (§8) has no logged-in viewer, so it renders in the **recipe
+  author's** measurement system, for the same reason §7.5 gives for
+  language. The Bring! export (§8.5) is generated from the same
+  already-scaled, already-labelled ingredients, so the screen and the
+  export cannot disagree.
+- What does **not** change: stored quantities, stored unit keys, the
+  scaling factor arithmetic (§7.1), and the rounding ladder in §7.3.
 
 ---
 
@@ -1384,25 +1563,42 @@ Compose service (to be added to `PiMultiServiceServer/docker-compose.yml`):
 bring2bring:
   build: ./apps/bring2bring
   restart: unless-stopped
-  env_file: ./apps/bring2bring/.env
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: [no-new-privileges:true]
+  environment:
+    PORT: "3000"
+    DB_PATH: /data/bring2bring.db
+    UPLOAD_DIR: /data/uploads
+    PUBLIC_BASE_URL: https://bring2bring.${DOMAIN}
+    NPM_CONFIG_CACHE: /tmp/.npm     # writable npm cache under read_only: true
+  env_file:                         # optional long-form: missing .env must not
+    - path: ./apps/bring2bring/.env # break the whole compose file (Pi-hole/DNS
+      required: false               # depend on it starting too)
   volumes:
-    - ./data/bring2bring:/app/data
+    - ./data/bring2bring:/data
   networks: [edge]
+  # no ports: — reachable only through caddy
 ```
 
 Caddyfile block:
 
 ```
-@bring2bring host dishlist.{$DOMAIN}
+@bring2bring host bring2bring.{$DOMAIN}
 handle @bring2bring {
-    reverse_proxy bring2bring:3000
+    # cloudflared speaks plain HTTP to caddy:80, so without this header
+    # express-session silently refuses to set the secure session cookie
+    # and login fails in production with no error.
+    reverse_proxy bring2bring:3000 {
+        header_up X-Forwarded-Proto https
+    }
 }
 ```
 
 Then: a `sites.conf` entry with `admin yes` (so the shared admin credentials
 are seeded), a Cloudflare Published Application route
-`dishlist.<domain> → http://caddy:80`, and an Uptime Kuma monitor on
-`https://dishlist.<domain>/healthz`.
+`bring2bring.<domain> → http://caddy:80`, and an Uptime Kuma monitor on
+`https://bring2bring.<domain>/healthz`.
 
 The Pi's nightly backup already covers `data/`, so the SQLite file and the
 uploads are backed up as soon as they live under `data/bring2bring/`. Verify this
@@ -1423,9 +1619,10 @@ while the site looks perfectly fine in a browser.
 | **A** | *v2.0.* Look and navigation: the D5 restyle and navigation (bottom nav, burger menu, archive moved, title-first search, alphabetical sort + A–Z rail), the D6 servings wheel, the D7 `stueck` → "pcs" label. **No schema change.** |
 | **B** | *v2.0.* Public shelf and admin: `is_public`, the `/public` gallery, author on cards, duplicate-from-public, the D2 authorization change, the D3 admin screens (`/admin/recipes`, `/admin/users`), delete users. **Migration 002.** |
 | **C** | *v2.0.* Import counter: D4 in full (`/recipes/:id/bring`, `bring2bring.did`, `bring_imports`), sorting and filtering by import count, the Privacy page. **Migration 003.** |
+| **D** | *v2.6.* Unit language (K3): German/English labels for every unit, `users.unit_language`, the Account control, and the share page rendering in the author's language. Measurement system (K4): the imperial display family, `users.measurement_system`, its own Account control, and the amended §7.3 rounding rule. Number locale follows unit language (K6). **Migration 004.** |
 
-Each of A, B and C is independently deployable. Phases 0–3 above are the
-record of what shipped to get here; they are not revised by A/B/C.
+Each of A, B, C and D is independently deployable. Phases 0–3 above are the
+record of what shipped to get here; they are not revised by A/B/C/D.
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
@@ -1523,11 +1720,16 @@ Explicit acceptance criteria:
    states the decided model directly: structured `amount | unit | name`
    only, no per-ingredient `scales`/`exclude_from_shopping` UI, numeric
    servings with no unit choice, and no ingredient groups.
-2. Recipe content language: German content in an English UI — confirm that
+2. ~~Recipe content language: German content in an English UI — confirm that
    date/number formatting should follow `de-DE` (§7.3). Bring's catalog
    matching also works best when ingredient names are in one consistent
-   language.
-3. Subdomain: `dishlist.ahultsch.com`, or something more cookbook-like?
+   language.~~ — **Answered in v2.6.** Number formatting follows the
+   reader's `unit_language` rather than a single global locale (K6, §7.3),
+   so a German reader keeps the comma and an English reader gets the
+   period. Ingredient names are untouched and stay in whatever language
+   they were entered in.
+3. ~~Subdomain: `dishlist.ahultsch.com`, or something more cookbook-like?~~
+   — **Answered in v2.5.** The hostname is now `bring2bring.<DOMAIN>` (J1).
 4. ~~Should shared users be able to *edit*, or only read? (`can_edit` exists
    in the schema either way.)~~ — **Answered in v2.0.** Superseded, not
    answered as asked: per-user sharing is gone. Read = owner or public,
