@@ -304,6 +304,68 @@ calculation is wrong for the person using it. The full set of decisions:
   boundary still exists, it has only moved to local midnight, which is where
   a person would expect it.
 
+## Changes in v2.5
+
+v2.4 closed two gaps from the open list. v2.5 is a different kind of round:
+driven entirely by using the app on a real phone, against the real domain.
+Most of what it fixes is defects that only appear on a device — a keyboard,
+a browser engine, a hostname — not in a dev environment; one entry is a
+deliberate change to what a quantity means, decided but not yet built. The
+full set of decisions:
+
+- **The domain move is done, not deferred (J1).** The public hostname is
+  now `bring2bring.<DOMAIN>`. Record what went wrong, because the mechanism
+  is worth remembering: `PUBLIC_BASE_URL` still pointed at the old hostname
+  after the Cloudflare tunnel was renamed rather than extended, so every
+  share link handed to Bring! pointed somewhere that no longer resolved.
+  Bring! fetches `/r/<token>` **from its own servers** (§3.1), so the
+  failure surfaced only as an unspecific error inside Bring!, with the app
+  itself looking healthy. The old hostname was briefly served as an alias
+  and has since been removed: the database was reset during the rename, so
+  every share token that existed is gone and `/r/<old-token>` would answer
+  `404` regardless of DNS. Keeping the alias protected nothing.
+- **Enter in an ingredient row adds a row (J2).** Pressing return while
+  typing an ingredient submitted the whole recipe, because that is standard
+  implicit form submission. It cannot be disabled globally: the search
+  fields on both list screens deliberately rely on it, which is how their
+  submit buttons were removed without adding JavaScript (§10.E). So the
+  interception is scoped to ingredient rows. Enter in the last row adds one
+  and focuses it; in any other row it moves down, so editing mid-list does
+  not append blank rows.
+- **The servings wheel no longer depends on padding overflow (J3).** The
+  track centred its outer values with `padding-inline` and relied on that
+  padding counting toward the scroll container's scrollable width. Chromium
+  counts it; the owner's iPhone Safari does not, so the wheel could not be
+  scrolled past 6. Real spacer elements replace it — a flex item
+  contributes to scrollable width in every engine. Recorded plainly: the
+  earlier fix was measured and correct **in one engine**, and that is why
+  it shipped broken.
+- **The lens ring is gone (J4).** It duplicated information; the selected
+  number is already accent-coloured. The number is now larger instead,
+  inside a fixed-size circle so the row does not reflow, and the tick marks
+  carry more weight as the only remaining positional indicator. §7.4 and
+  §10.E are updated to describe this control, not the one it replaced.
+- **The A–Z rail clears the header (J5).** It was pinned at a hardcoded
+  48 px and overlapped the burger and theme toggle. Its offset is now
+  derived from the same tokens the header is built from.
+- **The privacy page links to the common policy (J6).** It documents this
+  app's own three cookies; it now also points at
+  `https://ahultsch.com/privacy.html`, so the app-specific detail and the
+  site-wide policy are both reachable from one place.
+- **Switchable ingredient units — decided, not yet built (J7).** The unit
+  labels are German while the interface is English. The finding that makes
+  this cheap: every unit (§7.2) is stored by a **language-neutral key**
+  (`tsp`, `tbsp`, `clove`, `pack`), and only the label is German, so a
+  language switch is display-only — no schema change for recipes, and an
+  existing recipe becomes readable in both languages the moment the switch
+  exists. The chosen scope is **language plus conversions that are exact**
+  (g↔oz, kg↔lb, ml↔fl oz, l↔qt). Cups are deliberately excluded: a cup is a
+  volume and a gram is a mass, so the ratio depends on the ingredient, and
+  §1 principle 5 makes a density guess exactly the wrong-quantity failure
+  the app must never produce. Also decided: the two identical count units
+  `piece` and `stueck` (§7.2) will be collapsed, which needs a migration.
+  Not built as of v2.5.
+
 ---
 
 ## 1. Purpose
@@ -771,9 +833,10 @@ setting in `config.js`, not scattered through templates.
 
 - The recipe page has a yield control: a centre-locked wheel of
   **integers 1 to 10**, default 4 (F5, since v2.2, replacing the v2.1
-  ruler, E6) — a fixed lens sits at the middle of the strip, the numbers
-  scroll under it, and whatever sits in the lens is the selection.
-  Momentum carries a flick past several numbers and settles on the
+  ruler, E6) — a strip that scrolls under a fixed centre position, with the
+  selected number enlarged and accent-coloured (J4, since v2.5) and the
+  tick marks marking position. Momentum carries a flick past several
+  numbers and settles on the
   nearest one; this can overshoot the intended value, which §1 principle
   5 ("a wrong quantity is worse than no export") makes worth stating — it
   is acceptable because the ingredient amounts and the heading update
@@ -1198,7 +1261,8 @@ One paragraph per screen, matching the mockup:
 2. **Recipe** — a back arrow and a burger control in the header, then, in
    this reading order (E5, since v2.1): the title, a "Servings" section
    with the 1–10 wheel (F5, since v2.2, replacing the v2.1 ruler, E6) and
-   the current value marked, then "Ingredients (for N servings)" where N
+   the selected number enlarged and accent-coloured (J4, since v2.5), then
+   "Ingredients (for N servings)" where N
    is the selected servings, the ingredient list, the primary "Send to
    Bring!" button, then "Method", then Edit and Duplicate, then a single
    collapsed disclosure holding publishing, the public link, Archive, and
@@ -1476,7 +1540,9 @@ Explicit acceptance criteria:
 6. Anything from §12.3 "explicitly not in v1" that you actually want early?
 7. **Rename to Bring2Bring! — decided, recorded at G1.** The rename itself,
    its two forms, what carries each, and its consequences are recorded at
-   G1 ("Changes in v2.3"), not repeated here. What remains open: whether the
-   hostname `dishlist.ahultsch.com` and its Cloudflare tunnel route are ever
-   renamed to match — Alex has deferred that part, deliberately, leaving the
-   app served, for now, from a hostname that no longer matches its name.
+   G1 ("Changes in v2.3"), not repeated here. ~~What remains open: whether
+   the hostname `dishlist.ahultsch.com` and its Cloudflare tunnel route are
+   ever renamed to match — Alex has deferred that part, deliberately,
+   leaving the app served, for now, from a hostname that no longer matches
+   its name.~~ — **Answered in v2.5.** The hostname is now
+   `bring2bring.<DOMAIN>` (J1, "Changes in v2.5").

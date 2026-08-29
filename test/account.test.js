@@ -88,6 +88,24 @@ test('GET /privacy mentions the bring2bring.did device cookie by name', async ()
   });
 });
 
+// SPECIFICATION.md "Changes in v2.5" (J6): the app-specific privacy page
+// also links to the site-wide policy, opened the same way as the codebase's
+// other external link (menu.ejs "Report a bug").
+test('GET /privacy links to the site-wide privacy policy with the same rel as the "Report a bug" link', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+
+    const res = await agent.get('/privacy');
+    assert.equal(res.status, 200);
+    assert.ok(
+      res.text.includes(
+        'href="https://ahultsch.com/privacy.html" target="_blank" rel="noopener noreferrer"'
+      )
+    );
+  });
+});
+
 test('POST /account/password with the correct current password changes it: the old password no longer authenticates and the new one does', async () => {
   await withApp(async (app, db) => {
     await seedKnownUser(db);
