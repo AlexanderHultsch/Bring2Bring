@@ -28,7 +28,7 @@ function largeUnitKeyForDimension(dimension) {
 // Section 7.3: round once, in the dimension's base unit. Never called for 'pinch'.
 function roundInBase(value, dimension) {
   if (dimension === 'count') {
-    return Math.max(Math.round(value * 2) / 2, 0.5);
+    return Math.max(Math.round(value), 1);
   }
   if (value >= 100) return Math.round(value / 5) * 5;
   if (value >= 10) return Math.round(value);

@@ -759,7 +759,7 @@ Rounding happens **only for display and export**, never in storage.
 | 10–99 | round to nearest 1 |
 | 1–9.99 | 1 decimal place |
 | < 1 | 2 decimal places, and prefer a converted-down unit if one exists |
-| `count` dimension (eggs, onions) | round to nearest 0.5, never below 0.5 |
+| `count` dimension (eggs, onions) | round to nearest whole number, never below 1 — a fractional count is not shoppable, and rounding to the nearest 0.5 made small scaled amounts appear not to change across servings |
 | `pinch`, `to taste` | never numeric |
 
 Trailing zeros are stripped (`2.0 → 2`). Decimals are rendered with the

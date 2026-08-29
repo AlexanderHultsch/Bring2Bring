@@ -165,16 +165,40 @@ test('count dimension: 2 eggs x1.5 -> 3', () => {
   assert.equal(result.amount, 3);
 });
 
-test('count dimension: 1 egg x0.5 -> 0.5', () => {
+test('count dimension: 1 egg x0.5 -> 1', () => {
   const result = scaleIngredient(ingredient({ amount: 1, unit: 'piece', name: 'Ei' }), 0.5);
-  assert.equal(result.amount, 0.5);
+  assert.equal(result.amount, 1);
 });
 
-test('count dimension: an egg x0.1 -> 0.5, never below 0.5 and never 0', () => {
+test('count dimension: an egg x0.1 -> 1, never below 1 and never 0', () => {
   const result = scaleIngredient(ingredient({ amount: 1, unit: 'piece', name: 'Ei' }), 0.1);
-  assert.equal(result.amount, 0.5);
-  assert.ok(result.amount >= 0.5);
+  assert.equal(result.amount, 1);
+  assert.ok(result.amount >= 1);
   assert.notEqual(result.amount, 0);
+});
+
+test('REGRESSION (owner report): 1 egg at base yield 4 scales to a whole number across servings 1-8, never below 1', () => {
+  const base = 4;
+  const expected = { 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2 };
+  for (const servings of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    const factor = computeFactor(servings, base);
+    const result = scaleIngredient(ingredient({ amount: 1, unit: 'piece', name: 'Ei' }), factor);
+    assert.equal(Number.isInteger(result.amount), true, `${servings} servings gave ${result.amount}, not a whole number`);
+    assert.ok(result.amount >= 1, `${servings} servings gave ${result.amount}, below the floor of 1`);
+    assert.equal(result.amount, expected[servings], `${servings} servings expected ${expected[servings]}, got ${result.amount}`);
+  }
+});
+
+test('count dimension: scaled far down, the raw value floors at 1 rather than 0 or a fraction', () => {
+  const result = scaleIngredient(ingredient({ amount: 1, unit: 'piece', name: 'Ei' }), 0.01);
+  assert.equal(result.amount, 1);
+  assert.equal(Number.isInteger(result.amount), true);
+});
+
+test('count change is scoped to count: a gram amount still rounds by the mass thresholds, unaffected', () => {
+  const result = scaleIngredient(ingredient({ amount: 1250, unit: 'g', name: 'Mehl' }), 1);
+  assert.equal(result.amount, 1.25);
+  assert.equal(result.unit, 'kg');
 });
 
 test('flags: isOptional and excludeFromShopping pass through as booleans, true when 1 and false when 0', () => {
@@ -390,9 +414,9 @@ test('V1: stueck is a count-dimension unit that never converts and shows its own
   assert.equal(result.text, '3 Stück Butter');
 });
 
-test('V1: stueck rounds like the other count unit, never below 0.5', () => {
+test('V1: stueck rounds like the other count unit, never below 1', () => {
   const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.1);
-  assert.equal(result.amount, 0.5);
+  assert.equal(result.amount, 1);
 });
 
 test('PURITY: units.js, scaling.js and recipe-jsonld.js import nothing outside src/domain', () => {
