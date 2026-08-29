@@ -7,6 +7,14 @@ import { createApp } from '../src/app.js';
 import { hashPassword } from '../src/services/auth.js';
 import { insertUser, findUserByUsername } from '../src/repositories/users.js';
 
+function extractSelected(html, selectName) {
+  const selectMatch = html.match(new RegExp(`<select[^>]*name="${selectName}"[^>]*>([\\s\\S]*?)</select>`));
+  assert.ok(selectMatch, `expected a <select name="${selectName}"> in the response HTML`);
+  const optionMatch = selectMatch[1].match(/<option value="([^"]+)"\s+selected/);
+  assert.ok(optionMatch, `expected a selected option in <select name="${selectName}">`);
+  return optionMatch[1];
+}
+
 const KNOWN_USERNAME = 'alex';
 const KNOWN_PASSWORD = 'correct-horse-battery';
 const NEW_PASSWORD = 'even-more-correct-horse';
@@ -242,5 +250,101 @@ test('no response from /account ever contains the submitted password string', as
     const confirmRes = await agent.get(okRes.headers.location);
     assert.ok(!confirmRes.text.includes(KNOWN_PASSWORD));
     assert.ok(!confirmRes.text.includes(NEW_PASSWORD));
+  });
+});
+
+test('GET /account renders both unit selects with de and metric selected for a freshly seeded user', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+
+    const res = await agent.get('/account');
+    assert.equal(res.status, 200);
+    assert.equal(extractSelected(res.text, 'unitLanguage'), 'de');
+    assert.equal(extractSelected(res.text, 'measurementSystem'), 'metric');
+  });
+});
+
+test('POST /account/units with valid values redirects to /account?unitsSaved=1, stores them and a following GET shows them selected', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+    const csrfToken = await csrfFor(agent, '/account');
+
+    const res = await agent.post('/account/units').type('form').send({
+      _csrf: csrfToken,
+      unitLanguage: 'en',
+      measurementSystem: 'imperial',
+    });
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.location, '/account?unitsSaved=1');
+
+    const stored = findUserByUsername(db, KNOWN_USERNAME);
+    assert.equal(stored.unit_language, 'en');
+    assert.equal(stored.measurement_system, 'imperial');
+
+    const confirmPage = await agent.get(res.headers.location);
+    assert.equal(extractSelected(confirmPage.text, 'unitLanguage'), 'en');
+    assert.equal(extractSelected(confirmPage.text, 'measurementSystem'), 'imperial');
+  });
+});
+
+test('POST /account/units with an invalid value returns 422 and leaves the stored row unchanged', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+    const csrfToken = await csrfFor(agent, '/account');
+
+    const res = await agent.post('/account/units').type('form').send({
+      _csrf: csrfToken,
+      unitLanguage: 'fr',
+      measurementSystem: 'metric',
+    });
+    assert.equal(res.status, 422);
+
+    const stored = findUserByUsername(db, KNOWN_USERNAME);
+    assert.equal(stored.unit_language, 'de');
+    assert.equal(stored.measurement_system, 'metric');
+  });
+});
+
+test('GET /account?unitsSaved=1 renders the success message', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+
+    const res = await agent.get('/account?unitsSaved=1');
+    assert.equal(res.status, 200);
+    assert.match(res.text, /Units saved\./);
+  });
+});
+
+// Every render('account', ...) call site must pass the full set of locals
+// (memberSince, passwordChanged, passwordError, unitsSaved, unitsError) or
+// EJS throws on an undefined local — exercise all three paths.
+test('all three render(\'account\', ...) call sites render successfully', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+
+    const getRes = await agent.get('/account');
+    assert.equal(getRes.status, 200);
+
+    const passwordCsrf = await csrfFor(agent, '/account');
+    const failedPassword = await agent.post('/account/password').type('form').send({
+      _csrf: passwordCsrf,
+      currentPassword: 'totally-wrong-password',
+      newPassword: NEW_PASSWORD,
+      confirmPassword: NEW_PASSWORD,
+    });
+    assert.equal(failedPassword.status, 422);
+
+    const unitsCsrf = await csrfFor(agent, '/account');
+    const failedUnits = await agent.post('/account/units').type('form').send({
+      _csrf: unitsCsrf,
+      unitLanguage: 'fr',
+      measurementSystem: 'metric',
+    });
+    assert.equal(failedUnits.status, 422);
   });
 });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { hashPassword, verifyPassword } from './auth.js';
-import { updateUserPasswordHash } from '../repositories/users.js';
+import { updateUserPasswordHash, updateUserUnitPreferences } from '../repositories/users.js';
 
 function asString(value) {
   return typeof value === 'string' ? value : '';
@@ -40,5 +40,27 @@ export async function changePassword(db, user, body) {
 
   const passwordHash = await hashPassword(newPassword);
   updateUserPasswordHash(db, user.id, passwordHash);
+  return { success: true };
+}
+
+const UnitPreferencesSchema = z.object({
+  unitLanguage: z.enum(['de', 'en'], { message: 'Choose a unit language.' }),
+  measurementSystem: z.enum(['metric', 'imperial'], { message: 'Choose a measurement system.' }),
+});
+
+// SPECIFICATION.md sections 7.5 / 7.6: display-only per-user settings, never
+// touching stored quantities or units. The zod schema is the real gate — the
+// users.unit_language / measurement_system CHECK constraints are a backstop
+// that normal use should never actually trip.
+export function updateUnitPreferences(db, user, body) {
+  const parsed = UnitPreferencesSchema.safeParse({
+    unitLanguage: body?.unitLanguage,
+    measurementSystem: body?.measurementSystem,
+  });
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0].message };
+  }
+
+  updateUserUnitPreferences(db, user.id, parsed.data);
   return { success: true };
 }

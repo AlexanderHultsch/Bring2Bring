@@ -39,6 +39,13 @@ export function updateUserRole(db, id, role) {
   return changes;
 }
 
+export function updateUserUnitPreferences(db, id, { unitLanguage, measurementSystem }) {
+  const { changes } = db
+    .prepare('UPDATE users SET unit_language = ?, measurement_system = ? WHERE id = ?')
+    .run(unitLanguage, measurementSystem, id);
+  return changes;
+}
+
 export function updateUserLastLoginAt(db, id, isoTimestamp) {
   const { changes } = db
     .prepare('UPDATE users SET last_login_at = ? WHERE id = ?')

@@ -1,6 +1,6 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { changePassword } from '../services/account.js';
+import { changePassword, updateUnitPreferences } from '../services/account.js';
 
 function regenerateSession(req) {
   return new Promise((resolve, reject) => {
@@ -22,6 +22,8 @@ export function accountRouter(db, config) {
       memberSince: formatMemberSince(req.currentUser.created_at, config.numberLocale),
       passwordChanged: req.query.passwordChanged === '1',
       passwordError: null,
+      unitsSaved: req.query.unitsSaved === '1',
+      unitsError: null,
     });
   });
 
@@ -33,6 +35,8 @@ export function accountRouter(db, config) {
           memberSince: formatMemberSince(req.currentUser.created_at, config.numberLocale),
           passwordChanged: false,
           passwordError: result.error,
+          unitsSaved: false,
+          unitsError: null,
         });
         return;
       }
@@ -48,6 +52,22 @@ export function accountRouter(db, config) {
     } catch (err) {
       next(err);
     }
+  });
+
+  router.post('/account/units', requireAuth(), (req, res) => {
+    const result = updateUnitPreferences(db, req.currentUser, req.body);
+    if (!result.success) {
+      res.status(422).render('account', {
+        memberSince: formatMemberSince(req.currentUser.created_at, config.numberLocale),
+        passwordChanged: false,
+        passwordError: null,
+        unitsSaved: false,
+        unitsError: result.error,
+      });
+      return;
+    }
+
+    res.redirect('/account?unitsSaved=1');
   });
 
   router.get('/privacy', requireAuth(), (req, res) => {

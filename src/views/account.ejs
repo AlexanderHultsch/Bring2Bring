@@ -11,6 +11,30 @@
           <dd><%= memberSince %></dd>
         </dl>
 
+        <% if (unitsSaved) { %>
+          <p class="form-success">Units saved.</p>
+        <% } %>
+        <% if (unitsError) { %>
+          <p class="form-error"><%= unitsError %></p>
+        <% } %>
+
+        <h2>Ingredient units</h2>
+        <form method="post" action="/account/units" class="auth-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label for="unitLanguage">Label language</label>
+          <select id="unitLanguage" name="unitLanguage">
+            <option value="de" <%= currentUser.unit_language === 'de' ? 'selected' : '' %>>Deutsch (TL, EL, Prise, Stück)</option>
+            <option value="en" <%= currentUser.unit_language === 'en' ? 'selected' : '' %>>English (tsp, tbsp, pinch, pcs)</option>
+          </select>
+          <label for="measurementSystem">Measurement system</label>
+          <select id="measurementSystem" name="measurementSystem">
+            <option value="metric" <%= currentUser.measurement_system === 'metric' ? 'selected' : '' %>>Metric (g, kg, ml, l)</option>
+            <option value="imperial" <%= currentUser.measurement_system === 'imperial' ? 'selected' : '' %>>Imperial (oz, lb, fl oz, qt)</option>
+          </select>
+          <button type="submit" class="button">Save units</button>
+        </form>
+        <p class="field-hint">Changes how quantities are displayed. Recipes are always entered and stored in metric.</p>
+
         <% if (passwordChanged) { %>
           <p class="form-success">Password changed.</p>
         <% } %>

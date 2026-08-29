@@ -48,12 +48,17 @@ test('pragma foreign_keys is 1 and journal_mode is wal after openDatabase', () =
   });
 });
 
-test('runMigrations on a fresh db returns 001, 002 and 003 in order and creates every table', () => {
+test('runMigrations on a fresh db returns 001, 002, 003 and 004 in order and creates every table', () => {
   withTempDir((dir) => {
     const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
     const applied = runMigrations(db);
-    assert.deepEqual(applied, ['001_init.sql', '002_public_shelf.sql', '003_bring_imports.sql']);
+    assert.deepEqual(applied, [
+      '001_init.sql',
+      '002_public_shelf.sql',
+      '003_bring_imports.sql',
+      '004_unit_preferences.sql',
+    ]);
 
     const tables = db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
@@ -65,7 +70,7 @@ test('runMigrations on a fresh db returns 001, 002 and 003 in order and creates 
   });
 });
 
-test('runMigrations called a second time returns [] and leaves schema_migrations with three rows', () => {
+test('runMigrations called a second time returns [] and leaves schema_migrations with four rows', () => {
   withTempDir((dir) => {
     const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
@@ -74,7 +79,7 @@ test('runMigrations called a second time returns [] and leaves schema_migrations
     assert.deepEqual(secondRun, []);
 
     const count = db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count;
-    assert.equal(count, 3);
+    assert.equal(count, 4);
     db.close();
   });
 });
@@ -130,6 +135,32 @@ test('migration 003 adds recipes.bring_import_count and the bring_imports table 
       db.prepare(
         'INSERT INTO bring_imports (recipe_id, device_id, day) VALUES (?, ?, ?)'
       ).run(recipeId, 'device-a', '2026-08-27');
+    });
+    db.close();
+  });
+});
+
+test('migration 004 adds users.unit_language and users.measurement_system, defaulted and constrained', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'bring2bring.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+
+    const userId = db
+      .prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
+      .run('owner', 'hash').lastInsertRowid;
+
+    const row = db
+      .prepare('SELECT unit_language, measurement_system FROM users WHERE id = ?')
+      .get(userId);
+    assert.equal(row.unit_language, 'de');
+    assert.equal(row.measurement_system, 'metric');
+
+    assert.throws(() => {
+      db.prepare('UPDATE users SET unit_language = ? WHERE id = ?').run('fr', userId);
+    });
+    assert.throws(() => {
+      db.prepare('UPDATE users SET measurement_system = ? WHERE id = ?').run('cubits', userId);
     });
     db.close();
   });
