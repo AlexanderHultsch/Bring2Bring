@@ -415,7 +415,7 @@ label {
 
 .az-rail {
   position: fixed;
-  top: var(--space-6);
+  top: calc(var(--space-4) + var(--min-tap-target) + var(--space-3) + 1px);
   right: var(--space-1);
   bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px));
   z-index: 15;
@@ -607,22 +607,12 @@ label {
 }
 
 .servings-wheel__track {
-  width: max-content;
   display: flex;
-  padding-inline: calc(50% - var(--min-tap-target) / 2);
   padding-block: var(--space-1) var(--space-2);
 }
 
-.servings-wheel__lens {
-  position: absolute;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: var(--min-tap-target);
-  height: var(--min-tap-target);
-  border: 2px solid var(--color-accent);
-  border-radius: 50%;
-  pointer-events: none;
+.servings-wheel__pad {
+  flex: 0 0 calc(50vw - var(--min-tap-target) / 2);
 }
 
 .servings-wheel__item {
@@ -659,6 +649,7 @@ label {
 .servings-wheel__item--selected .servings-wheel__value {
   background: var(--color-accent);
   color: var(--color-accent-contrast);
+  font-size: var(--font-size-md);
 }
 
 .servings-wheel__item--selected::after {

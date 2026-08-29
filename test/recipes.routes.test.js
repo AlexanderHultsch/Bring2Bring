@@ -1879,10 +1879,12 @@ test('each servings-wheel item wraps its number in a servings-wheel__value span'
   });
 });
 
-// SPECIFICATION.md decision F5 (v2.2): the servings wheel is centre-locked —
-// a fixed lens over a scrolling strip. The scroll interaction itself is not
-// testable by this server-rendered suite; this only pins the markup shape.
-test('the servings wheel renders one lens, one scroll container, and role="list" on the data-yield-wheel track', async () => {
+// SPECIFICATION.md decision F5 (v2.2): the servings wheel is centre-locked.
+// The lens ring has since been removed (owner recorded separately) — the
+// selected number's own size and colour, plus the tick marks, are now the
+// only positional indicators. The scroll interaction itself is not testable
+// by this server-rendered suite; this only pins the markup shape.
+test('the servings wheel renders one scroll container and role="list" on the data-yield-wheel track', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -1891,13 +1893,43 @@ test('the servings wheel renders one lens, one scroll container, and role="list"
     const res = await agent.get(`/recipes/${recipeId}`);
     assert.equal(res.status, 200);
 
-    assert.equal((res.text.match(/class="servings-wheel__lens"/g) || []).length, 1);
     assert.equal((res.text.match(/data-yield-scroll/g) || []).length, 1);
     assert.equal((res.text.match(/data-yield-wheel/g) || []).length, 1);
     assert.match(
       res.text,
       /<div class="servings-wheel__track" data-yield-wheel role="list" aria-label="Servings">/
     );
+  });
+});
+
+// iPhone Safari does not count padding-inline toward a scroll container's
+// scrollable width, so the track's centring padding was replaced with real
+// spacer elements — a flex item always contributes to scrollable width.
+test('the servings wheel renders exactly two servings-wheel__pad spacers, both aria-hidden', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    const pads = [...res.text.matchAll(/<span class="servings-wheel__pad" aria-hidden="true"><\/span>/g)];
+    assert.equal(pads.length, 2);
+    assert.equal((res.text.match(/class="servings-wheel__pad"/g) || []).length, 2);
+  });
+});
+
+test('the servings wheel renders no servings-wheel__lens', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    assert.equal((res.text.match(/servings-wheel__lens/g) || []).length, 0);
   });
 });
 

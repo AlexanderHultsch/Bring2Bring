@@ -16,9 +16,9 @@
             // reload.
           %>
           <div class="servings-wheel">
-            <span class="servings-wheel__lens" aria-hidden="true"></span>
             <div class="servings-wheel__scroll" data-yield-scroll>
               <div class="servings-wheel__track" data-yield-wheel role="list" aria-label="Servings">
+                <span class="servings-wheel__pad" aria-hidden="true"></span>
                 <% for (let n = 1; n <= 10; n++) { %>
                   <a
                     class="servings-wheel__item<%= n === requestedYield ? ' servings-wheel__item--selected' : '' %>"
@@ -28,6 +28,7 @@
                     <% if (n === requestedYield) { %>aria-current="true"<% } %>
                   ><span class="servings-wheel__value"><%= n %></span></a>
                 <% } %>
+                <span class="servings-wheel__pad" aria-hidden="true"></span>
               </div>
             </div>
           </div>
