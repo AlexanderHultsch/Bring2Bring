@@ -9,6 +9,8 @@ const container = document.querySelector('[data-base-yield]');
 if (container) {
   const baseYield = Number(container.dataset.baseYield);
   const locale = container.dataset.locale || 'de-DE';
+  const unitLanguage = container.dataset.unitLanguage || 'de';
+  const measurementSystem = container.dataset.measurementSystem || 'metric';
 
   if (Number.isFinite(baseYield) && baseYield > 0) {
     const yieldWheel = document.querySelector('[data-yield-wheel]');
@@ -57,8 +59,11 @@ if (container) {
       container.querySelectorAll('[data-ingredient-list]').forEach((list) => {
         const itemEls = Array.from(list.querySelectorAll('[data-ingredient]'));
         const baseIngredients = itemEls.map(readBaseIngredient);
-        const scaledIngredients = scaleGroups([{ ingredients: baseIngredients }], factor, { locale })[0]
-          .ingredients;
+        const scaledIngredients = scaleGroups([{ ingredients: baseIngredients }], factor, {
+          locale,
+          language: unitLanguage,
+          system: measurementSystem,
+        })[0].ingredients;
         itemEls.forEach((el, index) => applyToElement(el, scaledIngredients[index]));
       });
 

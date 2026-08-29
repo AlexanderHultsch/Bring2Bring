@@ -2,6 +2,13 @@ export function findUserById(db, id) {
   return db.prepare('SELECT * FROM users WHERE id = ?').get(id);
 }
 
+// Deliberately narrow, not findUserById: the only caller is the public share
+// route (src/routes/share.js), open to the internet, which has no business
+// with a row that carries password_hash.
+export function findUnitPreferencesByUserId(db, id) {
+  return db.prepare('SELECT unit_language, measurement_system FROM users WHERE id = ?').get(id);
+}
+
 export function findUserByUsername(db, username) {
   return db.prepare('SELECT * FROM users WHERE username = ?').get(username);
 }

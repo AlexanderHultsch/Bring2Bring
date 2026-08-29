@@ -34,7 +34,7 @@
           </div>
         </section>
 
-        <section class="recipe-ingredients" data-base-yield="<%= recipe.yield_amount %>" data-locale="<%= locale %>">
+        <section class="recipe-ingredients" data-base-yield="<%= recipe.yield_amount %>" data-locale="<%= locale %>" data-unit-language="<%= unitLanguage %>" data-measurement-system="<%= measurementSystem %>">
           <h2>Ingredients (for <span data-servings-count><%= requestedYield %></span> servings)</h2>
           <ul class="ingredient-list" data-ingredient-list>
             <% groups[0].ingredients.forEach((ingredient, ingredientIndex) => {

@@ -9,7 +9,7 @@ import {
   listPublicRecipes,
 } from '../repositories/recipes.js';
 import { computeFactor, scaleGroups } from '../domain/scaling.js';
-import { EDITOR_UNITS } from '../domain/units.js';
+import { EDITOR_UNITS, numberLocaleFor } from '../domain/units.js';
 import { buildBringDeeplinkUrl } from '../domain/recipe-jsonld.js';
 import {
   createRecipe,
@@ -55,6 +55,15 @@ function badRequestError() {
 function parseRecipeId(raw) {
   if (!/^\d+$/.test(raw)) return null;
   return Number(raw);
+}
+
+// SPECIFICATION.md §7.5/§7.6/K6: turns the viewing user's stored preferences
+// into the three values scaleGroups/the views need — one place instead of
+// repeating the derivation at every render site below.
+function displayPreferences(user, config) {
+  const language = user.unit_language;
+  const system = user.measurement_system;
+  return { language, system, locale: numberLocaleFor(language, config.numberLocale) };
 }
 
 export function recipesRouter(db, config) {
@@ -103,6 +112,7 @@ export function recipesRouter(db, config) {
       values: emptyFormValues(),
       errors: [],
       EDITOR_UNITS,
+      unitLanguage: req.currentUser.unit_language,
     });
   });
 
@@ -115,6 +125,7 @@ export function recipesRouter(db, config) {
         values: result.values,
         errors: result.errors,
         EDITOR_UNITS,
+        unitLanguage: req.currentUser.unit_language,
       });
       return;
     }
@@ -137,7 +148,8 @@ export function recipesRouter(db, config) {
     const saved = req.query.saved === 'new' ? 'new' : req.query.saved === '1' ? '1' : '';
     const requestedYield = parseYieldParam(req.query, aggregate.recipe.yield_amount);
     const factor = computeFactor(requestedYield, aggregate.recipe.yield_amount);
-    const scaledGroups = scaleGroups(aggregate.groups, factor, { locale: config.numberLocale });
+    const { language, system, locale } = displayPreferences(req.currentUser, config);
+    const scaledGroups = scaleGroups(aggregate.groups, factor, { locale, language, system });
 
     res.render('recipes/show', {
       recipe: aggregate.recipe,
@@ -146,7 +158,9 @@ export function recipesRouter(db, config) {
       steps: aggregate.steps,
       saved,
       requestedYield,
-      locale: config.numberLocale,
+      locale,
+      unitLanguage: language,
+      measurementSystem: system,
       publicBaseUrl: config.publicBaseUrl,
       isOwner: aggregate.recipe.owner_id === req.currentUser.id,
     });
@@ -172,6 +186,7 @@ export function recipesRouter(db, config) {
       values: formValuesFromAggregate(aggregate),
       errors: [],
       EDITOR_UNITS,
+      unitLanguage: req.currentUser.unit_language,
     });
   });
 
@@ -196,6 +211,7 @@ export function recipesRouter(db, config) {
         values: result.values,
         errors: result.errors,
         EDITOR_UNITS,
+        unitLanguage: req.currentUser.unit_language,
       });
       return;
     }

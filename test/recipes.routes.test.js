@@ -7,7 +7,7 @@ import { createTestDb } from './helpers/db.js';
 import { loadConfig } from '../src/config.js';
 import { createApp } from '../src/app.js';
 import { hashPassword } from '../src/services/auth.js';
-import { insertUser } from '../src/repositories/users.js';
+import { insertUser, updateUserUnitPreferences } from '../src/repositories/users.js';
 import { insertRecipe } from '../src/repositories/recipes.js';
 
 const PASSWORD = 'correct-horse-battery';
@@ -40,6 +40,14 @@ function csrfFieldFrom(html) {
 async function seedUser(db, username) {
   const passwordHash = await hashPassword(PASSWORD);
   return insertUser(db, { username, passwordHash });
+}
+
+// K3/K4 (§7.5/§7.6): sets preferences through the repository function, not
+// raw SQL, matching how the Account screen itself writes them.
+async function seedUserWithPreferences(db, username, { unitLanguage, measurementSystem }) {
+  const user = await seedUser(db, username);
+  updateUserUnitPreferences(db, user.id, { unitLanguage, measurementSystem });
+  return user;
 }
 
 async function loginAgent(app, username) {
@@ -1015,6 +1023,106 @@ test('the ingredients container carries data-locale="de-DE"', async () => {
     const res = await agent.get(`/recipes/${recipeId}`);
     assert.equal(res.status, 200);
     assert.match(res.text, /data-locale="de-DE"/);
+  });
+});
+
+test('K3/K4/K6: an en/imperial user sees imperial amounts, English unit labels and an en-US locale', async () => {
+  await withApp(async (app, db) => {
+    await seedUserWithPreferences(db, 'alex', { unitLanguage: 'en', measurementSystem: 'imperial' });
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent, {
+      ingredients: [
+        { name: 'Flour', amount: '250', unit: 'g' },
+        { name: 'Vanilla', amount: '1', unit: 'tbsp' },
+      ],
+    });
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /8\.8 oz/);
+    assert.match(res.text, /1 tbsp/);
+    assert.ok(!res.text.includes('1 EL'));
+    assert.match(res.text, /data-locale="en-US"/);
+    assert.match(res.text, /data-unit-language="en"/);
+    assert.match(res.text, /data-measurement-system="imperial"/);
+  });
+});
+
+test('the ingredients container carries data-unit-language="de" and data-measurement-system="metric" for a default user', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /data-unit-language="de"/);
+    assert.match(res.text, /data-measurement-system="metric"/);
+  });
+});
+
+test('K3: the editor unit dropdown shows German option labels for a de user and English labels for an en user, with the same nine option values either way', async () => {
+  await withApp(async (app, db) => {
+    await seedUserWithPreferences(db, 'de-user', { unitLanguage: 'de', measurementSystem: 'metric' });
+    await seedUserWithPreferences(db, 'en-user', { unitLanguage: 'en', measurementSystem: 'imperial' });
+    const deAgent = await loginAgent(app, 'de-user');
+    const enAgent = await loginAgent(app, 'en-user');
+
+    const deRes = await deAgent.get('/recipes/new');
+    const enRes = await enAgent.get('/recipes/new');
+    assert.equal(deRes.status, 200);
+    assert.equal(enRes.status, 200);
+
+    const deSelectMatch = deRes.text.match(/<select[^>]*class="ingredient-row__unit"[^>]*>([\s\S]*?)<\/select>/);
+    const enSelectMatch = enRes.text.match(/<select[^>]*class="ingredient-row__unit"[^>]*>([\s\S]*?)<\/select>/);
+    assert.ok(deSelectMatch);
+    assert.ok(enSelectMatch);
+
+    const deOptionValues = [...deSelectMatch[1].matchAll(/<option value="([^"]*)"/g)].map((m) => m[1]);
+    const enOptionValues = [...enSelectMatch[1].matchAll(/<option value="([^"]*)"/g)].map((m) => m[1]);
+    assert.deepEqual(deOptionValues, ['piece', 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'pinch', 'stueck']);
+    assert.deepEqual(enOptionValues, deOptionValues);
+
+    const deOptionText = [...deSelectMatch[1].matchAll(/<option value="tbsp"[^>]*>([^<]*)<\/option>/g)][0][1];
+    const enOptionText = [...enSelectMatch[1].matchAll(/<option value="tbsp"[^>]*>([^<]*)<\/option>/g)][0][1];
+    assert.equal(deOptionText, 'EL');
+    assert.equal(enOptionText, 'tbsp');
+  });
+});
+
+test('GUARD: GET /recipes/new, GET /recipes/:id/edit, GET /recipes/:id, and the 422 re-renders of POST /recipes and POST /recipes/:id all render without a 500 (the five unitLanguage/language render sites)', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const newRes = await agent.get('/recipes/new');
+    assert.equal(newRes.status, 200);
+    assert.match(newRes.text, /<form/);
+
+    const editRes = await agent.get(`/recipes/${recipeId}/edit`);
+    assert.equal(editRes.status, 200);
+    assert.match(editRes.text, /<form/);
+
+    const showRes = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(showRes.status, 200);
+    assert.match(showRes.text, /recipe-ingredients/);
+
+    const createCsrf = await csrfFor(agent, '/recipes/new');
+    const failedCreate = await agent
+      .post('/recipes')
+      .type('form')
+      .send(encodeForm({ _csrf: createCsrf, ...scalingRecipeBody({ title: '' }) }));
+    assert.equal(failedCreate.status, 422);
+    assert.match(failedCreate.text, /<form/);
+
+    const editCsrf = await csrfFor(agent, `/recipes/${recipeId}/edit`);
+    const failedUpdate = await agent
+      .post(`/recipes/${recipeId}`)
+      .type('form')
+      .send(encodeForm({ _csrf: editCsrf, ...scalingRecipeBody({ title: '' }) }));
+    assert.equal(failedUpdate.status, 422);
+    assert.match(failedUpdate.text, /<form/);
   });
 });
 

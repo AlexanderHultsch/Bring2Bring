@@ -38,7 +38,7 @@
                 <input type="text" inputmode="decimal" name="ingredients[<%= ingredientIndex %>][amount]" value="<%= ingredient.amount %>" placeholder="Amount" class="ingredient-row__amount">
                 <select name="ingredients[<%= ingredientIndex %>][unit]" class="ingredient-row__unit">
                   <% EDITOR_UNITS.forEach((unit) => { %>
-                    <option value="<%= unit.key %>" <%= ingredient.unit === unit.key ? 'selected' : '' %>><%= unit.labels.de %></option>
+                    <option value="<%= unit.key %>" <%= ingredient.unit === unit.key ? 'selected' : '' %>><%= unit.labels[unitLanguage] %></option>
                   <% }) %>
                 </select>
                 <input type="text" name="ingredients[<%= ingredientIndex %>][name]" value="<%= ingredient.name %>" placeholder="Ingredient" class="ingredient-row__name" data-ingredient-name>
@@ -63,7 +63,7 @@
               <input type="text" inputmode="decimal" name="" value="" placeholder="Amount" class="ingredient-row__amount">
               <select name="" class="ingredient-row__unit">
                 <% EDITOR_UNITS.forEach((unit) => { %>
-                  <option value="<%= unit.key %>"><%= unit.labels.de %></option>
+                  <option value="<%= unit.key %>"><%= unit.labels[unitLanguage] %></option>
                 <% }) %>
               </select>
               <input type="text" name="" value="" placeholder="Ingredient" class="ingredient-row__name" data-ingredient-name>

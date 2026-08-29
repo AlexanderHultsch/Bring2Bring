@@ -97,6 +97,15 @@ export function displayFamily(dimension, system = 'metric') {
   return families[dimension];
 }
 
+// SPECIFICATION.md §7.3/§7.5, K6: the decimal separator follows the reader's
+// unit language, not a fixed default — 'en' always gets 'en-US' (period);
+// every other language resolves to `fallback` rather than a literal 'de-DE'
+// because NUMBER_LOCALE (§3) stays configurable, and the German default is
+// whatever that config resolves to, so the caller supplies it.
+export function numberLocaleFor(language, fallback = 'de-DE') {
+  return language === 'en' ? 'en-US' : fallback;
+}
+
 export function formatAmount(value, locale = 'de-DE') {
   if (value === null || value === undefined || !Number.isFinite(value)) return '';
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 2, useGrouping: false }).format(

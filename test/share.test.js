@@ -5,7 +5,7 @@ import { createTestDb } from './helpers/db.js';
 import { loadConfig } from '../src/config.js';
 import { createApp } from '../src/app.js';
 import { hashPassword } from '../src/services/auth.js';
-import { insertUser } from '../src/repositories/users.js';
+import { insertUser, updateUserUnitPreferences } from '../src/repositories/users.js';
 import { redactPath } from '../src/middleware/request-logger.js';
 import { replaceRecipeContent } from '../src/repositories/recipes.js';
 
@@ -39,6 +39,14 @@ function csrfFieldFrom(html) {
 async function seedUser(db, username) {
   const passwordHash = await hashPassword(PASSWORD);
   return insertUser(db, { username, passwordHash });
+}
+
+// K3/K4 (§7.5/§7.6): sets preferences through the repository function, not
+// raw SQL, matching how the Account screen itself writes them.
+async function seedUserWithPreferences(db, username, { unitLanguage, measurementSystem }) {
+  const user = await seedUser(db, username);
+  updateUserUnitPreferences(db, user.id, { unitLanguage, measurementSystem });
+  return user;
 }
 
 async function loginAgent(app, username) {
@@ -340,6 +348,34 @@ test('ACCEPTANCE 2 (completing it): the ingredient strings in the JSON-LD match 
     const jsonLd = extractJsonLd(res.text);
     const visible = visibleIngredientTexts(res.text);
 
+    assert.deepEqual(jsonLd.recipeIngredient, visible);
+  });
+});
+
+test('§7.5/§7.6: GET /r/:token with no session renders in the recipe AUTHOR\'s en/imperial preferences, not the de/metric default', async () => {
+  await withApp(async (app, db) => {
+    await seedUserWithPreferences(db, 'alex', { unitLanguage: 'en', measurementSystem: 'imperial' });
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createRecipe(agent, {
+      ingredients: [
+        { name: 'Flour', amount: '250', unit: 'g' },
+        { name: 'Vanilla', amount: '1', unit: 'tbsp' },
+      ],
+    });
+    await shareAction(agent, recipeId, 'enable');
+    const { share_token } = shareRow(db, recipeId);
+
+    const res = await request(app).get(`/r/${share_token}`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers['set-cookie'], undefined);
+    assert.match(res.text, /8\.8 oz/);
+    assert.match(res.text, /1 tbsp/);
+    assert.ok(!res.text.includes('1 EL'));
+
+    // The JSON-LD Bring! fetches must carry the same numbers as the visible
+    // text — asserted by comparing the two, not by restating a number twice.
+    const jsonLd = extractJsonLd(res.text);
+    const visible = visibleIngredientTexts(res.text);
     assert.deepEqual(jsonLd.recipeIngredient, visible);
   });
 });
