@@ -4,7 +4,8 @@
 
 // UNITS is an object keyed by canonical unit key. Each entry:
 //   key         canonical key (lowercase)
-//   label       German display label ('' for 'piece' — "2 Eier", not "2 Stück Eier")
+//   labels      { de, en } display labels ('' for 'piece' — "2 Eier", not
+//               "2 Stück Eier") — K3, section 7.5
 //   dimension   'mass' | 'volume' | 'spoon' | 'count' | 'pinch'
 //   base        factor to express one of this unit in its dimension's base unit
 //               (mass base is 'g', volume base is 'ml'; other dimensions have no
@@ -14,48 +15,86 @@
 //   numeric     whether this unit ever carries a displayed number (false only
 //               for 'pinch', section 7.3 last row)
 export const UNITS = {
-  g: { key: 'g', label: 'g', dimension: 'mass', base: 1, convertible: true, numeric: true },
-  kg: { key: 'kg', label: 'kg', dimension: 'mass', base: 1000, convertible: true, numeric: true },
-  ml: { key: 'ml', label: 'ml', dimension: 'volume', base: 1, convertible: true, numeric: true },
-  l: { key: 'l', label: 'l', dimension: 'volume', base: 1000, convertible: true, numeric: true },
-  tsp: { key: 'tsp', label: 'TL', dimension: 'spoon', base: 1, convertible: false, numeric: true },
-  tbsp: { key: 'tbsp', label: 'EL', dimension: 'spoon', base: 1, convertible: false, numeric: true },
-  piece: { key: 'piece', label: '', dimension: 'count', base: 1, convertible: false, numeric: true },
-  clove: { key: 'clove', label: 'Zehe', dimension: 'count', base: 1, convertible: false, numeric: true },
-  slice: { key: 'slice', label: 'Scheibe', dimension: 'count', base: 1, convertible: false, numeric: true },
-  can: { key: 'can', label: 'Dose', dimension: 'count', base: 1, convertible: false, numeric: true },
-  bunch: { key: 'bunch', label: 'Bund', dimension: 'count', base: 1, convertible: false, numeric: true },
-  pack: { key: 'pack', label: 'Packung', dimension: 'count', base: 1, convertible: false, numeric: true },
-  pinch: { key: 'pinch', label: 'Prise', dimension: 'pinch', base: 1, convertible: false, numeric: false },
-  stueck: { key: 'stueck', label: 'Stück', dimension: 'count', base: 1, convertible: false, numeric: true },
+  g: { key: 'g', labels: { de: 'g', en: 'g' }, dimension: 'mass', base: 1, convertible: true, numeric: true },
+  kg: { key: 'kg', labels: { de: 'kg', en: 'kg' }, dimension: 'mass', base: 1000, convertible: true, numeric: true },
+  ml: { key: 'ml', labels: { de: 'ml', en: 'ml' }, dimension: 'volume', base: 1, convertible: true, numeric: true },
+  l: { key: 'l', labels: { de: 'l', en: 'l' }, dimension: 'volume', base: 1000, convertible: true, numeric: true },
+  tsp: { key: 'tsp', labels: { de: 'TL', en: 'tsp' }, dimension: 'spoon', base: 1, convertible: false, numeric: true },
+  tbsp: { key: 'tbsp', labels: { de: 'EL', en: 'tbsp' }, dimension: 'spoon', base: 1, convertible: false, numeric: true },
+  piece: { key: 'piece', labels: { de: '', en: '' }, dimension: 'count', base: 1, convertible: false, numeric: true },
+  clove: { key: 'clove', labels: { de: 'Zehe', en: 'clove' }, dimension: 'count', base: 1, convertible: false, numeric: true },
+  slice: { key: 'slice', labels: { de: 'Scheibe', en: 'slice' }, dimension: 'count', base: 1, convertible: false, numeric: true },
+  can: { key: 'can', labels: { de: 'Dose', en: 'can' }, dimension: 'count', base: 1, convertible: false, numeric: true },
+  bunch: { key: 'bunch', labels: { de: 'Bund', en: 'bunch' }, dimension: 'count', base: 1, convertible: false, numeric: true },
+  pack: { key: 'pack', labels: { de: 'Packung', en: 'pack' }, dimension: 'count', base: 1, convertible: false, numeric: true },
+  pinch: { key: 'pinch', labels: { de: 'Prise', en: 'pinch' }, dimension: 'pinch', base: 1, convertible: false, numeric: false },
+  stueck: { key: 'stueck', labels: { de: 'Stück', en: 'pcs' }, dimension: 'count', base: 1, convertible: false, numeric: true },
+
+  // Imperial display family (SPECIFICATION.md §7.6, K4, since v2.6):
+  // display-only units, never stored in ingredients.unit and never offered
+  // by EDITOR_UNITS — a recipe is always entered in metric. `base` is the
+  // exact legal definition, grams per unit for mass / millilitres per unit
+  // for volume, not an approximation.
+  oz: { key: 'oz', labels: { de: 'oz', en: 'oz' }, dimension: 'mass', base: 28.349523125, convertible: true, numeric: true },
+  lb: { key: 'lb', labels: { de: 'lb', en: 'lb' }, dimension: 'mass', base: 453.59237, convertible: true, numeric: true },
+  floz: { key: 'floz', labels: { de: 'fl oz', en: 'fl oz' }, dimension: 'volume', base: 29.5735295625, convertible: true, numeric: true },
+  qt: { key: 'qt', labels: { de: 'qt', en: 'qt' }, dimension: 'volume', base: 946.352946, convertible: true, numeric: true },
 };
 
 // Closed dropdown for the editor (SPECIFICATION.md section 7.2, v1.1): exactly
-// these nine units, in this order. 'label' here is the dropdown's own label
-// for the option — for 'piece' that is "no unit", distinct from the unit's
-// own display label (UNITS.piece.label === ''), which is what renders next to
-// the ingredient amount ("2 Eier", not "2 no unit Eier").
+// these nine units, in this order. 'labels' here are the dropdown's own
+// labels for the option — for 'piece' that is "no unit" / "ohne Einheit",
+// distinct from the unit's own display label (UNITS.piece.labels ===
+// { de: '', en: '' }), which is what renders next to the ingredient amount
+// ("2 Eier", not "2 no unit Eier").
 export const EDITOR_UNITS = [
-  { key: 'piece', label: 'no unit' },
-  { key: 'g', label: 'g' },
-  { key: 'kg', label: 'kg' },
-  { key: 'ml', label: 'ml' },
-  { key: 'l', label: 'l' },
-  { key: 'tsp', label: 'TL' },
-  { key: 'tbsp', label: 'EL' },
-  { key: 'pinch', label: 'Prise' },
-  { key: 'stueck', label: 'Stück' },
+  { key: 'piece', labels: { de: 'ohne Einheit', en: 'no unit' } },
+  { key: 'g', labels: { de: 'g', en: 'g' } },
+  { key: 'kg', labels: { de: 'kg', en: 'kg' } },
+  { key: 'ml', labels: { de: 'ml', en: 'ml' } },
+  { key: 'l', labels: { de: 'l', en: 'l' } },
+  { key: 'tsp', labels: { de: 'TL', en: 'tsp' } },
+  { key: 'tbsp', labels: { de: 'EL', en: 'tbsp' } },
+  { key: 'pinch', labels: { de: 'Prise', en: 'pinch' } },
+  { key: 'stueck', labels: { de: 'Stück', en: 'pcs' } },
 ];
+
+// Display families for §7.6: metric's own family is included so callers do
+// not need a separate branch for the default system. `ratio` is written as
+// a literal integer rather than derived from large.base / small.base. Both
+// divisions happen to be exact in IEEE-754 today — that was measured, not
+// assumed — but scaling.js tests the result for exact representability, so
+// the literal keeps that check safe from any future edit to a base factor.
+const DISPLAY_FAMILIES = {
+  metric: {
+    mass: { small: UNITS.g, large: UNITS.kg, ratio: 1000 },
+    volume: { small: UNITS.ml, large: UNITS.l, ratio: 1000 },
+  },
+  imperial: {
+    mass: { small: UNITS.oz, large: UNITS.lb, ratio: 16 },
+    volume: { small: UNITS.floz, large: UNITS.qt, ratio: 32 },
+  },
+};
 
 export function findUnit(key) {
   if (key === null || key === undefined) return undefined;
   return UNITS[String(key).toLowerCase()];
 }
 
-export function unitLabel(key) {
+export function unitLabel(key, language = 'de') {
   if (key === null || key === undefined) return '';
   const unit = findUnit(key);
-  return unit ? unit.label : key;
+  if (!unit) return key;
+  const lang = language === 'en' ? 'en' : 'de';
+  return unit.labels[lang];
+}
+
+// SPECIFICATION.md §7.6: the display unit family for a dimension under a
+// given measurement system. Returns undefined for dimensions with no
+// imperial/metric family (spoon, count, pinch, and anything unknown).
+export function displayFamily(dimension, system = 'metric') {
+  const families = DISPLAY_FAMILIES[system] ?? DISPLAY_FAMILIES.metric;
+  return families[dimension];
 }
 
 export function formatAmount(value, locale = 'de-DE') {

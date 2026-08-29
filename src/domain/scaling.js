@@ -2,7 +2,7 @@
 // (loaded as <script type="module">) — see SPECIFICATION.md section 4.1 and 7.
 // No imports except from ./units.js are permitted here.
 
-import { UNITS, findUnit, unitLabel, formatAmount } from './units.js';
+import { findUnit, unitLabel, formatAmount, displayFamily } from './units.js';
 
 export function computeFactor(requestedYield, baseYield) {
   if (typeof requestedYield !== 'number' || typeof baseYield !== 'number') return 1;
@@ -11,22 +11,10 @@ export function computeFactor(requestedYield, baseYield) {
   return requestedYield / baseYield;
 }
 
-function baseUnitKeyForDimension(dimension) {
-  for (const entry of Object.values(UNITS)) {
-    if (entry.dimension === dimension && entry.base === 1) return entry.key;
-  }
-  return undefined;
-}
-
-function largeUnitKeyForDimension(dimension) {
-  for (const entry of Object.values(UNITS)) {
-    if (entry.dimension === dimension && entry.convertible && entry.base !== 1) return entry.key;
-  }
-  return undefined;
-}
-
-// Section 7.3: round once, in the dimension's base unit. Never called for 'pinch'.
-function roundInBase(value, dimension) {
+// Section 7.3/7.6: round once, in the unit the reader will actually see —
+// g/ml under metric, oz/fl oz under imperial (whichever displayFamily
+// resolved to `small`). Never called for 'pinch'.
+function roundOnce(value, dimension) {
   if (dimension === 'count') {
     return Math.max(Math.round(value), 1);
   }
@@ -47,6 +35,8 @@ function buildText({ amountAndUnit, name, note }) {
 
 export function scaleIngredient(ingredient, factor, options = {}) {
   const locale = options.locale ?? 'de-DE';
+  const language = options.language ?? 'de';
+  const system = options.system ?? 'metric';
   const name = ingredient?.name ?? '';
   const note = ingredient?.note ?? null;
   const rawUnit = ingredient?.unit ?? null;
@@ -62,7 +52,7 @@ export function scaleIngredient(ingredient, factor, options = {}) {
 
   if (!hasAmount || isPinch) {
     const finalUnitKey = unitEntry ? unitEntry.key : rawUnit;
-    const finalUnitLabel = unitLabel(rawUnit);
+    const finalUnitLabel = unitLabel(rawUnit, language);
     const text = buildText({ amountAndUnit: finalUnitLabel, name, note });
     return {
       amount: null,
@@ -82,39 +72,48 @@ export function scaleIngredient(ingredient, factor, options = {}) {
   }
 
   const toBase = (value) => (unitEntry ? value * unitEntry.base : value);
-  const fromBase = (value, entry) => (entry ? value / entry.base : value);
 
-  const scaledAmount = ingredient.amount * effectiveFactor;
-  const baseAmount = toBase(scaledAmount);
-  const roundedBaseAmount = roundInBase(baseAmount, dimension);
+  const family = unitEntry && unitEntry.convertible ? displayFamily(dimension, system) : undefined;
 
+  const roundInDisplayUnit = (amount) => {
+    const scaledAmount = amount * effectiveFactor;
+    const baseAmount = toBase(scaledAmount);
+    const roundingAmount = family ? baseAmount / family.small.base : baseAmount;
+    const rounded = roundOnce(roundingAmount, dimension);
+    return { roundingAmount, rounded };
+  };
+
+  const primary = roundInDisplayUnit(ingredient.amount);
+
+  // The large-vs-small decision is made once, from the primary amount, and
+  // reused for amount_max below — a range never splits across two units.
   let displayEntry = unitEntry;
-  if (unitEntry && unitEntry.convertible) {
-    const largeEntry = UNITS[largeUnitKeyForDimension(dimension)];
-    const converted = roundedBaseAmount / largeEntry.base;
+  let useLarge = false;
+  if (family) {
+    const converted = primary.rounded / family.ratio;
     const exactlyRepresentable = Math.round(converted * 100) / 100 === converted;
-    displayEntry =
-      roundedBaseAmount >= 1000 && exactlyRepresentable
-        ? largeEntry
-        : UNITS[baseUnitKeyForDimension(dimension)];
+    useLarge = primary.rounded >= family.ratio && exactlyRepresentable;
+    displayEntry = useLarge ? family.large : family.small;
   }
 
-  const finalAmount = fromBase(roundedBaseAmount, displayEntry);
-  const exactAmount = fromBase(baseAmount, displayEntry);
+  const finalizeAmount = ({ roundingAmount, rounded }) =>
+    useLarge
+      ? { finalAmount: rounded / family.ratio, exactAmount: roundingAmount / family.ratio }
+      : { finalAmount: rounded, exactAmount: roundingAmount };
+
+  const { finalAmount, exactAmount } = finalizeAmount(primary);
 
   const hasMax = ingredient.amount_max !== null && ingredient.amount_max !== undefined;
   let finalMax = null;
   let exactMax = null;
   if (hasMax) {
-    const scaledMax = ingredient.amount_max * effectiveFactor;
-    const baseMax = toBase(scaledMax);
-    const roundedBaseMax = roundInBase(baseMax, dimension);
-    finalMax = fromBase(roundedBaseMax, displayEntry);
-    exactMax = fromBase(baseMax, displayEntry);
+    const maxResult = finalizeAmount(roundInDisplayUnit(ingredient.amount_max));
+    finalMax = maxResult.finalAmount;
+    exactMax = maxResult.exactAmount;
   }
 
   const finalUnitKey = displayEntry ? displayEntry.key : rawUnit;
-  const finalUnitLabel = displayEntry ? displayEntry.label : unitLabel(rawUnit);
+  const finalUnitLabel = displayEntry ? unitLabel(displayEntry.key, language) : unitLabel(rawUnit, language);
   const wasRounded = finalAmount !== exactAmount || (hasMax && finalMax !== exactMax);
 
   const amountPart =

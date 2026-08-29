@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { computeFactor, scaleIngredient, scaleGroups } from '../src/domain/scaling.js';
-import { EDITOR_UNITS } from '../src/domain/units.js';
+import { EDITOR_UNITS, UNITS, unitLabel } from '../src/domain/units.js';
 
 const domainDir = fileURLToPath(new URL('../src/domain/', import.meta.url));
 
@@ -401,9 +401,20 @@ test('V1: EDITOR_UNITS is exactly the nine keys/labels from section 7.2, in orde
     ['piece', 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'pinch', 'stueck']
   );
   assert.deepEqual(
-    EDITOR_UNITS.map((unit) => unit.label),
-    ['no unit', 'g', 'kg', 'ml', 'l', 'TL', 'EL', 'Prise', 'Stück']
+    EDITOR_UNITS.map((unit) => unit.labels.de),
+    ['ohne Einheit', 'g', 'kg', 'ml', 'l', 'TL', 'EL', 'Prise', 'Stück']
   );
+  assert.deepEqual(
+    EDITOR_UNITS.map((unit) => unit.labels.en),
+    ['no unit', 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'pinch', 'pcs']
+  );
+});
+
+test('§7.6: none of the imperial display units appear in EDITOR_UNITS — the family is display-only and never storable', () => {
+  const keys = EDITOR_UNITS.map((unit) => unit.key);
+  for (const imperialKey of ['oz', 'lb', 'floz', 'qt']) {
+    assert.ok(!keys.includes(imperialKey), `EDITOR_UNITS must not include ${imperialKey}`);
+  }
 });
 
 test('V1: stueck is a count-dimension unit that never converts and shows its own label', () => {
@@ -417,6 +428,171 @@ test('V1: stueck is a count-dimension unit that never converts and shows its own
 test('V1: stueck rounds like the other count unit, never below 1', () => {
   const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.1);
   assert.equal(result.amount, 1);
+});
+
+// §7.5 (K3): unitLabel(key, language) — every UNITS key has a German and an
+// English label.
+test('§7.5: unitLabel returns the correct German and English label for every UNITS key', () => {
+  const expected = {
+    g: { de: 'g', en: 'g' },
+    kg: { de: 'kg', en: 'kg' },
+    ml: { de: 'ml', en: 'ml' },
+    l: { de: 'l', en: 'l' },
+    tsp: { de: 'TL', en: 'tsp' },
+    tbsp: { de: 'EL', en: 'tbsp' },
+    piece: { de: '', en: '' },
+    clove: { de: 'Zehe', en: 'clove' },
+    slice: { de: 'Scheibe', en: 'slice' },
+    can: { de: 'Dose', en: 'can' },
+    bunch: { de: 'Bund', en: 'bunch' },
+    pack: { de: 'Packung', en: 'pack' },
+    pinch: { de: 'Prise', en: 'pinch' },
+    stueck: { de: 'Stück', en: 'pcs' },
+  };
+  assert.deepEqual(Object.keys(expected).sort(), Object.keys(UNITS).filter((k) => expected[k]).sort());
+  for (const [key, { de, en }] of Object.entries(expected)) {
+    assert.equal(unitLabel(key, 'de'), de, `${key} de`);
+    assert.equal(unitLabel(key, 'en'), en, `${key} en`);
+  }
+});
+
+test('§7.5: unitLabel("Schuss", "en") still passes an unknown unit through untouched', () => {
+  assert.equal(unitLabel('Schuss', 'en'), 'Schuss');
+});
+
+test('§7.5: unitLabel(null) and unitLabel(undefined) still return the empty string', () => {
+  assert.equal(unitLabel(null), '');
+  assert.equal(unitLabel(undefined), '');
+});
+
+test('§7.5: an unrecognised language falls back to German', () => {
+  assert.equal(unitLabel('tbsp', 'fr'), 'EL');
+  assert.equal(unitLabel('tbsp', 'xx'), 'EL');
+});
+
+// K2 (spec §7.2): D7 decided stueck should render "pcs" in English but the
+// decision was never implemented until K3 gave every unit two labels.
+test('K2/§7.2: stueck renders "2 Stück Butter" under de and "2 pcs Butter" under en', () => {
+  const de = scaleIngredient(ingredient({ amount: 2, unit: 'stueck', name: 'Butter' }), 1, {
+    language: 'de',
+  });
+  assert.equal(de.text, '2 Stück Butter');
+  const en = scaleIngredient(ingredient({ amount: 2, unit: 'stueck', name: 'Butter' }), 1, {
+    language: 'en',
+  });
+  assert.equal(en.text, '2 pcs Butter');
+});
+
+test('§7.2: piece renders "2 Eier" with no unit word, under both languages', () => {
+  const de = scaleIngredient(ingredient({ amount: 2, unit: 'piece', name: 'Eier' }), 1, {
+    language: 'de',
+  });
+  assert.equal(de.text, '2 Eier');
+  const en = scaleIngredient(ingredient({ amount: 2, unit: 'piece', name: 'Eier' }), 1, {
+    language: 'en',
+  });
+  assert.equal(en.text, '2 Eier');
+});
+
+// §7.6 (K4): imperial display family, all at factor 1, en-US locale.
+test('§7.6: 250 g -> 8.8 oz under imperial', () => {
+  const result = scaleIngredient(ingredient({ amount: 250, unit: 'g' }), 1, {
+    system: 'imperial',
+    locale: 'en-US',
+  });
+  assert.equal(result.amountText, '8.8 oz');
+  assert.equal(result.unit, 'oz');
+});
+
+test('§7.6: 500 g -> 18 oz under imperial (18/16 = 1.125 is not exact to two decimals, so it stays in oz)', () => {
+  const result = scaleIngredient(ingredient({ amount: 500, unit: 'g' }), 1, {
+    system: 'imperial',
+    locale: 'en-US',
+  });
+  assert.equal(result.amountText, '18 oz');
+  assert.equal(result.unit, 'oz');
+});
+
+test('§7.6: 900 g -> 2 lb under imperial (32/16 = 2 is exact, so it converts up)', () => {
+  const result = scaleIngredient(ingredient({ amount: 900, unit: 'g' }), 1, {
+    system: 'imperial',
+    locale: 'en-US',
+  });
+  assert.equal(result.amountText, '2 lb');
+  assert.equal(result.unit, 'lb');
+});
+
+test('§7.6: 1500 g -> 53 oz under imperial', () => {
+  const result = scaleIngredient(ingredient({ amount: 1500, unit: 'g' }), 1, {
+    system: 'imperial',
+    locale: 'en-US',
+  });
+  assert.equal(result.amountText, '53 oz');
+  assert.equal(result.unit, 'oz');
+});
+
+test('§7.6: 20 g -> 0.71 oz under imperial', () => {
+  const result = scaleIngredient(ingredient({ amount: 20, unit: 'g' }), 1, {
+    system: 'imperial',
+    locale: 'en-US',
+  });
+  assert.equal(result.amountText, '0.71 oz');
+  assert.equal(result.unit, 'oz');
+});
+
+test('§7.6: 950 ml -> 1 qt under imperial', () => {
+  const result = scaleIngredient(ingredient({ amount: 950, unit: 'ml' }), 1, {
+    system: 'imperial',
+    locale: 'en-US',
+  });
+  assert.equal(result.amountText, '1 qt');
+  assert.equal(result.unit, 'qt');
+});
+
+test('§7.6: 2000 ml -> 68 fl oz under imperial', () => {
+  const result = scaleIngredient(ingredient({ amount: 2000, unit: 'ml' }), 1, {
+    system: 'imperial',
+    locale: 'en-US',
+  });
+  assert.equal(result.amountText, '68 fl oz');
+  assert.equal(result.unit, 'floz');
+});
+
+// §7.3 discriminating case: rounding must happen once, in oz, not once in
+// grams and again by the two-decimal formatter. Rounding 250 g in grams
+// first leaves it at 250, converts to 8.81849... oz, and the display
+// formatter's own two-decimal cap then rounds that to 8.82 oz — a second,
+// silent rounding. The correct single-pass answer is 8.8 oz.
+test('[double-rounding guard, imperial] 250 g is 8.8 oz, never 8.82 oz', () => {
+  const result = scaleIngredient(ingredient({ amount: 250, unit: 'g' }), 1, {
+    system: 'imperial',
+    locale: 'en-US',
+  });
+  assert.equal(result.amountText, '8.8 oz');
+  assert.notEqual(result.amountText, '8.82 oz');
+});
+
+test('§7.6: spoon, count and pinch dimensions are unaffected by system: imperial', () => {
+  const tbspMetric = scaleIngredient(ingredient({ amount: 1, unit: 'tbsp' }), 1, { system: 'metric' });
+  const tbspImperial = scaleIngredient(ingredient({ amount: 1, unit: 'tbsp' }), 1, { system: 'imperial' });
+  assert.deepEqual(tbspImperial, tbspMetric);
+
+  const pieceMetric = scaleIngredient(ingredient({ amount: 2, unit: 'piece' }), 1, { system: 'metric' });
+  const pieceImperial = scaleIngredient(ingredient({ amount: 2, unit: 'piece' }), 1, { system: 'imperial' });
+  assert.deepEqual(pieceImperial, pieceMetric);
+
+  const pinchMetric = scaleIngredient(ingredient({ amount: 1, unit: 'pinch' }), 1, { system: 'metric' });
+  const pinchImperial = scaleIngredient(ingredient({ amount: 1, unit: 'pinch' }), 1, { system: 'imperial' });
+  assert.deepEqual(pinchImperial, pinchMetric);
+});
+
+test('§7.6: metric output is unchanged when system is omitted, "metric", or an unrecognised string', () => {
+  const omitted = scaleIngredient(ingredient({ amount: 1500, unit: 'g' }), 1, {});
+  const metric = scaleIngredient(ingredient({ amount: 1500, unit: 'g' }), 1, { system: 'metric' });
+  const unknown = scaleIngredient(ingredient({ amount: 1500, unit: 'g' }), 1, { system: 'bogus' });
+  assert.equal(omitted.amountText, '1,5 kg');
+  assert.deepEqual(metric, omitted);
+  assert.deepEqual(unknown, omitted);
 });
 
 test('PURITY: units.js, scaling.js and recipe-jsonld.js import nothing outside src/domain', () => {

@@ -19,9 +19,16 @@ quantity formatting anywhere else.
 
 ## Rounding
 
-Round exactly once, in the base unit, before any unit conversion. Convert
-first and you get results like 1250 g scaled and displayed as 1.3 kg instead
-of 1.25 kg — round the base quantity, then convert for display.
+Round exactly once, in the unit the reader will actually see, before any
+conversion up. Which unit that is depends on the reader's measurement system
+(spec §7.6): `g`/`ml` under metric, `oz`/`fl oz` under imperial. The conversion
+into that unit is exact and unrounded; the §7.3 ladder is then applied once, to
+that number.
+
+Get it backwards and you get two different wrong answers. Round after
+converting up and 1250 g displays as 1.3 kg instead of 1.25 kg. Round in grams
+and then convert and 250 g displays as 8.82 oz instead of 8.8 oz — a number
+nobody would write on a shopping list.
 
 ## Data access
 
