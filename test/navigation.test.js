@@ -230,6 +230,25 @@ test('a logged-in page\'s burger menu markup contains the theme toggle as a menu
   });
 });
 
+// M5 (v2.8): the theme toggle's menu label reads "Appearance", not "Theme" —
+// the change request was seen only after L2 shipped the toggle into the menu.
+test('M5: the theme toggle menu row reads "Appearance", not "Theme"', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+
+    const rowMatch = res.text.match(
+      /<button type="button" class="menu__item" data-theme-toggle>([\s\S]*?)<\/button>/
+    );
+    assert.ok(rowMatch, 'expected the theme toggle menu row');
+    assert.match(rowMatch[1], /Appearance/);
+    assert.doesNotMatch(rowMatch[1], /Theme/);
+  });
+});
+
 // SPECIFICATION.md L2 (v2.7), stated consequence: the menu only renders for
 // a logged-in user, so the login page has no manual theme control any more.
 test('the login page (logged out) renders the header without any theme toggle — L2 accepted consequence', async () => {

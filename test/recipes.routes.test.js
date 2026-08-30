@@ -424,6 +424,101 @@ test('V1: the editor page contains a <select> with exactly the nine EDITOR_UNITS
   });
 });
 
+// M8 (v2.8): a brand-new ingredient row used to default to the no-unit
+// option purely because it is first in EDITOR_UNITS. It now defaults to g.
+test('M8: a new recipe form\'s first ingredient row has g selected, not the no-unit option', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/recipes/new');
+    assert.equal(res.status, 200);
+
+    const selectMatch = res.text.match(/<select name="ingredients\[0\]\[unit\]"[^>]*>([\s\S]*?)<\/select>/);
+    assert.ok(selectMatch, 'expected the first ingredient row\'s unit select');
+    assert.match(selectMatch[1], /<option value="g" selected>/);
+    assert.doesNotMatch(selectMatch[1], /<option value="piece" selected>/);
+  });
+});
+
+test('M8: the cloned ingredient-row template also has g selected', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/recipes/new');
+    assert.equal(res.status, 200);
+
+    const templateMatch = res.text.match(
+      /<template data-ingredient-row-template>([\s\S]*?)<\/template>/
+    );
+    assert.ok(templateMatch, 'expected the ingredient-row template');
+    const selectMatch = templateMatch[1].match(/<select name="" class="ingredient-row__unit">([\s\S]*?)<\/select>/);
+    assert.ok(selectMatch, 'expected the template\'s unit select');
+    assert.match(selectMatch[1], /<option value="g" selected>/);
+    assert.doesNotMatch(selectMatch[1], /<option value="piece" selected>/);
+  });
+});
+
+test('M8: an existing recipe\'s ingredient row still shows its own stored unit, not the g default', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent, {
+      ingredients: [{ name: 'Butter', amount: '2', unit: 'tbsp' }],
+    });
+
+    const res = await agent.get(`/recipes/${recipeId}/edit`);
+    assert.equal(res.status, 200);
+
+    const selectMatch = res.text.match(/<select name="ingredients\[0\]\[unit\]"[^>]*>([\s\S]*?)<\/select>/);
+    assert.ok(selectMatch, 'expected the first ingredient row\'s unit select');
+    assert.match(selectMatch[1], /<option value="tbsp" selected>/);
+    assert.doesNotMatch(selectMatch[1], /<option value="g" selected>/);
+  });
+});
+
+// M9 (v2.8): the editor's servings control becomes a plain <select> of 1-10.
+test('M9: a new recipe\'s servings control is a <select> with exactly ten options 1-10, defaulting to 4, and no field-hint follows it', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/recipes/new');
+    assert.equal(res.status, 200);
+    assert.doesNotMatch(res.text, /id="servings"[^>]*type="text"/);
+
+    const selectMatch = res.text.match(/<select id="servings" name="servings">([\s\S]*?)<\/select>/);
+    assert.ok(selectMatch, 'expected a <select id="servings">');
+    const options = [...selectMatch[1].matchAll(/<option value="(\d+)"\s*(selected)?>(\d+)<\/option>/g)];
+    assert.deepEqual(
+      options.map((m) => m[1]),
+      ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+    );
+    const selected = options.filter((m) => m[2] === 'selected');
+    assert.equal(selected.length, 1);
+    assert.equal(selected[0][1], '4');
+
+    const afterSelect = res.text.slice(selectMatch.index + selectMatch[0].length, res.text.indexOf('<h2>Ingredients</h2>'));
+    assert.doesNotMatch(afterSelect, /field-hint/);
+  });
+});
+
+test('M9: editing a recipe shows its stored servings value selected in the <select>', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent, { servings: '7' });
+
+    const res = await agent.get(`/recipes/${recipeId}/edit`);
+    assert.equal(res.status, 200);
+
+    const selectMatch = res.text.match(/<select id="servings" name="servings">([\s\S]*?)<\/select>/);
+    assert.ok(selectMatch, 'expected a <select id="servings">');
+    assert.match(selectMatch[1], /<option value="7" selected>7<\/option>/);
+  });
+});
+
 test('V1: the editor page renders ingredient rows with data-ingredient and a data-ingredient-name field, for the Enter-key handler to key on', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');

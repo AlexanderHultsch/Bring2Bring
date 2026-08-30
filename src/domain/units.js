@@ -43,12 +43,12 @@ export const UNITS = {
 
 // Closed dropdown for the editor (SPECIFICATION.md section 7.2, v1.1): exactly
 // these nine units, in this order. 'labels' here are the dropdown's own
-// labels for the option — for 'piece' that is "no unit" / "ohne Einheit",
+// labels for the option — for 'piece' that is "N.A." (M7, since v2.8),
 // distinct from the unit's own display label (UNITS.piece.labels ===
 // { de: '', en: '' }), which is what renders next to the ingredient amount
-// ("2 Eier", not "2 no unit Eier").
+// ("2 Eier", not "2 N.A. Eier").
 export const EDITOR_UNITS = [
-  { key: 'piece', labels: { de: 'ohne Einheit', en: 'no unit' } },
+  { key: 'piece', labels: { de: 'N.A.', en: 'N.A.' } },
   { key: 'g', labels: { de: 'g', en: 'g' } },
   { key: 'kg', labels: { de: 'kg', en: 'kg' } },
   { key: 'ml', labels: { de: 'ml', en: 'ml' } },

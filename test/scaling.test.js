@@ -395,18 +395,18 @@ test('text: still starts with amountText for a numeric ingredient, proving it is
   assert.ok(result.text.startsWith(result.amountText));
 });
 
-test('V1: EDITOR_UNITS is exactly the nine keys/labels from section 7.2, in order', () => {
+test('M7: EDITOR_UNITS is exactly the nine keys/labels from section 7.2, in order, with piece labelled N.A.', () => {
   assert.deepEqual(
     EDITOR_UNITS.map((unit) => unit.key),
     ['piece', 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'pinch', 'stueck']
   );
   assert.deepEqual(
     EDITOR_UNITS.map((unit) => unit.labels.de),
-    ['ohne Einheit', 'g', 'kg', 'ml', 'l', 'TL', 'EL', 'Prise', 'Stück']
+    ['N.A.', 'g', 'kg', 'ml', 'l', 'TL', 'EL', 'Prise', 'Stück']
   );
   assert.deepEqual(
     EDITOR_UNITS.map((unit) => unit.labels.en),
-    ['no unit', 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'pinch', 'pcs']
+    ['N.A.', 'g', 'kg', 'ml', 'l', 'tsp', 'tbsp', 'pinch', 'pcs']
   );
 });
 

@@ -28,8 +28,11 @@
           <input type="text" id="title" name="title" value="<%= values.title %>" required maxlength="200">
 
           <label class="section-caption" for="servings">Servings</label>
-          <input type="text" inputmode="numeric" id="servings" name="servings" value="<%= values.servings %>" required>
-          <p class="field-hint">A whole number from 1 to 10.</p>
+          <select id="servings" name="servings">
+            <% for (let n = 1; n <= 10; n++) { %>
+              <option value="<%= n %>" <%= Number(values.servings) === n ? 'selected' : '' %>><%= n %></option>
+            <% } %>
+          </select>
 
           <h2>Ingredients</h2>
           <div class="ingredient-rows" data-ingredients>
@@ -63,7 +66,7 @@
               <input type="text" inputmode="decimal" name="" value="" placeholder="Amount" class="ingredient-row__amount">
               <select name="" class="ingredient-row__unit">
                 <% EDITOR_UNITS.forEach((unit) => { %>
-                  <option value="<%= unit.key %>"><%= unit.labels[unitLanguage] %></option>
+                  <option value="<%= unit.key %>" <%= unit.key === 'g' ? 'selected' : '' %>><%= unit.labels[unitLanguage] %></option>
                 <% }) %>
               </select>
               <input type="text" name="" value="" placeholder="Ingredient" class="ingredient-row__name" data-ingredient-name>

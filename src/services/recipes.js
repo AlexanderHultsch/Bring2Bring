@@ -266,7 +266,7 @@ export function emptyFormValues() {
   return {
     title: '',
     servings: '4',
-    ingredients: [emptyIngredientRow()],
+    ingredients: [{ ...emptyIngredientRow(), unit: 'g' }],
     method: '',
   };
 }

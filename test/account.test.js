@@ -319,6 +319,32 @@ test('GET /account?unitsSaved=1 renders the success message', async () => {
   });
 });
 
+// M4 (v2.8): the units hint used to sit after the closing </form>, where its
+// negative top margin overlapped the "Save units" button. It now sits inside
+// the form, between the last <select> and the button.
+test('M4: the units field-hint is inside the auth-form, between the measurementSystem select and the Save units button', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+
+    const res = await agent.get('/account');
+    assert.equal(res.status, 200);
+
+    const formMatch = res.text.match(
+      /<form method="post" action="\/account\/units" class="auth-form">([\s\S]*?)<\/form>/
+    );
+    assert.ok(formMatch, 'expected the units auth-form');
+    const formBody = formMatch[1];
+
+    const selectIndex = formBody.lastIndexOf('name="measurementSystem"');
+    const hintIndex = formBody.indexOf('class="field-hint"');
+    const buttonIndex = formBody.indexOf('Save units');
+
+    assert.ok(hintIndex > selectIndex, 'expected the field-hint after the measurementSystem select');
+    assert.ok(hintIndex < buttonIndex, 'expected the field-hint before the Save units button');
+  });
+});
+
 // Every render('account', ...) call site must pass the full set of locals
 // (memberSince, passwordChanged, passwordError, unitsSaved, unitsError) or
 // EJS throws on an undefined local — exercise all three paths.

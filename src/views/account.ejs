@@ -31,9 +31,9 @@
             <option value="metric" <%= currentUser.measurement_system === 'metric' ? 'selected' : '' %>>Metric (g, kg, ml, l)</option>
             <option value="imperial" <%= currentUser.measurement_system === 'imperial' ? 'selected' : '' %>>Imperial (oz, lb, fl oz, qt)</option>
           </select>
+          <p class="field-hint">Changes how quantities are displayed. Recipes are always entered and stored in metric.</p>
           <button type="submit" class="button">Save units</button>
         </form>
-        <p class="field-hint">Changes how quantities are displayed. Recipes are always entered and stored in metric.</p>
 
         <% if (passwordChanged) { %>
           <p class="form-success">Password changed.</p>
