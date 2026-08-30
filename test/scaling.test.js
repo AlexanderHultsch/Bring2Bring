@@ -200,21 +200,28 @@ test('O1: count dimension (stueck): scaled far down, the raw value floors at 0.5
   assert.notEqual(result.amount, 1);
 });
 
-// N2 (v2.9): 'piece' — the editor's "N.A." option — stops scaling and stops
-// being rounded. These are the tests that replace the ones above for 'piece'
-// itself.
-test('N2: piece does not scale — 2 eggs renders as 2 at factor 1, 2, 0.5 and 2.5', () => {
+// P1 (v2.11): 'piece' — the editor's "N.A." option — carries no quantity at
+// all, superseding N2 (v2.9)'s 'fixed' mechanism (a number that refused to
+// scale or round). These are the tests that replace the ones N2 added for
+// 'piece' itself.
+// OLD (N2): asserted result.amount === 2 unchanged at every factor.
+// NEW (P1): asserted result.amount is always null and the text is the bare name.
+test('P1: piece carries no quantity — renders as the bare name at factor 1, 2, 0.5 and 2.5', () => {
   for (const factor of [1, 2, 0.5, 2.5]) {
     const result = scaleIngredient(ingredient({ amount: 2, unit: 'piece', name: 'Eier' }), factor);
-    assert.equal(result.amount, 2, `factor ${factor} gave ${result.amount}, expected the stored 2 unchanged`);
+    assert.equal(result.amount, null, `factor ${factor} gave ${result.amount}, expected no amount at all`);
+    assert.equal(result.amountText, null);
+    assert.equal(result.text, 'Eier');
   }
 });
 
-test('N2: piece is not rounded — a stored 4.5 renders as "4,5", not "5"', () => {
+// OLD (N2): asserted result.amount === 4.5 and amountText === '4,5' (frozen, not rounded).
+// NEW (P1): a stored amount is not displayed at all — amount and amountText are null.
+test('P1: piece is not displayed at all — a stored 4.5 renders no number, just the name', () => {
   const result = scaleIngredient(ingredient({ amount: 4.5, unit: 'piece', name: 'Zwiebel' }), 2);
-  assert.equal(result.amount, 4.5);
-  assert.equal(result.amountText, '4,5');
-  assert.notEqual(result.amountText, '5');
+  assert.equal(result.amount, null);
+  assert.equal(result.amountText, null);
+  assert.equal(result.text, 'Zwiebel');
 });
 
 test('N2: g, ml and tbsp are unaffected by the piece exception', () => {
@@ -255,11 +262,24 @@ test('O1: count values round to the nearest half, not to a whole number', () => 
   assert.equal(c.amount, 2);
 });
 
-test('O1 did not undo N2: piece still neither scales nor rounds', () => {
+// OLD (N2/O1): asserted result.amount === 4.5 unchanged at every factor.
+// NEW (P1): piece carries no quantity at all, at any factor.
+test('O1 did not undo P1: piece still carries no quantity, at every factor', () => {
   for (const factor of [1, 2.25, 0.5, 0.01]) {
     const result = scaleIngredient(ingredient({ amount: 4.5, unit: 'piece', name: 'Zwiebel' }), factor);
-    assert.equal(result.amount, 4.5, `factor ${factor} gave ${result.amount}, expected the stored 4.5 unchanged`);
+    assert.equal(result.amount, null, `factor ${factor} gave ${result.amount}, expected no amount at all`);
   }
+});
+
+// P1 (v2.11) re-keyed the no-number guard on the unit's own 'numeric' flag
+// rather than naming 'piece' — this confirms that re-key did not leak into
+// 'stueck', which stays numeric: true and keeps scaling and the O1
+// half-step/floor-0.5 rounding.
+test("P1 did not leak into the count dimension: stueck still scales and still rounds to halves, floor 0.5", () => {
+  const scaled = scaleIngredient(ingredient({ amount: 2, unit: 'stueck', name: 'Zwiebeln' }), 2.25);
+  assert.equal(scaled.amount, 4.5);
+  const floored = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.01);
+  assert.equal(floored.amount, 0.5);
 });
 
 test('O1: g, ml and tbsp are unaffected by the count half-step rule', () => {
@@ -354,15 +374,17 @@ test('ranges: 2-3 onions (stueck) x2 -> 4-6', () => {
   assert.equal(result.text, '4-6 Stück Zwiebeln');
 });
 
-// N2: piece's "no scaling" applies to a range's amount_max too, not just amount.
-test('N2: piece does not scale a range either — 2-3 apples x2 stays 2-3', () => {
+// OLD (N2): asserted amount 2, amountMax 3 unchanged, text '2-3 Äpfel'.
+// NEW (P1): piece carries no quantity at all, so a range is dropped too —
+// amount and amountMax are both null, text is the bare name.
+test('P1: piece carries no quantity for a range either — 2-3 apples x2 renders just "Äpfel"', () => {
   const result = scaleIngredient(
     ingredient({ amount: 2, amount_max: 3, unit: 'piece', name: 'Äpfel' }),
     2
   );
-  assert.equal(result.amount, 2);
-  assert.equal(result.amountMax, 3);
-  assert.equal(result.text, '2-3 Äpfel');
+  assert.equal(result.amount, null);
+  assert.equal(result.amountMax, null);
+  assert.equal(result.text, 'Äpfel');
 });
 
 test('ranges: a range that would split units ends in one unit', () => {
@@ -388,9 +410,11 @@ test('D6: wasRounded is true when only the upper bound of a range differs after 
   assert.equal(result.wasRounded, true);
 });
 
-test('text: no double spaces, no leading space, piece contributes no label', () => {
+// OLD (N2): asserted text === '2 Eier' (piece contributes no unit label, but still a number).
+// NEW (P1): piece contributes no label AND no number — text is the bare name.
+test('text: no double spaces, no leading space, piece contributes no label and no number', () => {
   const result = scaleIngredient(ingredient({ amount: 2, unit: 'piece', name: 'Eier' }), 1);
-  assert.equal(result.text, '2 Eier');
+  assert.equal(result.text, 'Eier');
   assert.doesNotMatch(result.text, /  /);
   assert.doesNotMatch(result.text, /^ /);
 });
@@ -403,13 +427,15 @@ test('text: the note is appended after a comma', () => {
   assert.equal(result.text, '200 g Zucker, fein');
 });
 
+// OLD: piece with a range rendered '2-3 Zwiebeln' (unit label used once, but numbers shown).
+// NEW (P1): piece carries no quantity, so a range renders as the bare name.
 test('text: a range uses the unit once', () => {
   const result = scaleIngredient(
     ingredient({ amount: 2, amount_max: 3, unit: 'piece', name: 'Zwiebeln' }),
     1
   );
   assert.equal((result.text.match(/piece|Zwiebeln/g) || []).length, 1);
-  assert.equal(result.text, '2-3 Zwiebeln');
+  assert.equal(result.text, 'Zwiebeln');
 });
 
 test('scaleGroups maps scaleIngredient over the nested groups shape without mutating input', () => {
@@ -440,12 +466,16 @@ test('amountText: 375 g is "375 g"', () => {
   assert.equal(result.amountText, '375 g');
 });
 
-test('amountText: a 2-3 range is "2-3" with no unit label duplication', () => {
+// OLD: used unit 'piece' (empty label) so amountText was bare "2-3".
+// NEW (P1): piece no longer carries a range amountText at all (see the P1
+// tests above), so this now runs against 'stueck' — a labelled count unit —
+// to keep guarding that the unit label is not duplicated across the range.
+test('amountText: a 2-3 range is "2-3 Stück" with no unit label duplication', () => {
   const result = scaleIngredient(
-    ingredient({ amount: 2, amount_max: 3, unit: 'piece', name: 'Äpfel' }),
+    ingredient({ amount: 2, amount_max: 3, unit: 'stueck', name: 'Äpfel' }),
     1
   );
-  assert.equal(result.amountText, '2-3');
+  assert.equal(result.amountText, '2-3 Stück');
 });
 
 test('amountText: locale "en-US" is "1.5 kg", proving the locale is honoured and not hard-coded', () => {
@@ -459,6 +489,13 @@ test('amountText: null when the amount is null, and for a pinch', () => {
 
   const pinch = scaleIngredient(ingredient({ amount: 1, unit: 'pinch', name: 'Salz' }), 5);
   assert.equal(pinch.amountText, null);
+});
+
+// P1 (v2.11): piece's amountText is null too, the same as pinch's — a
+// stored amount does not change that.
+test('P1: amountText is null for piece, matching how pinch already behaves', () => {
+  const result = scaleIngredient(ingredient({ amount: 2, unit: 'piece', name: 'Eier' }), 5);
+  assert.equal(result.amountText, null);
 });
 
 test('exactText: null when wasRounded is false, and non-null when it is true', () => {
@@ -564,15 +601,17 @@ test('K2/§7.2: stueck renders "2 Stück Butter" under de and "2 pcs Butter" und
   assert.equal(en.text, '2 pcs Butter');
 });
 
-test('§7.2: piece renders "2 Eier" with no unit word, under both languages', () => {
+// OLD: asserted text '2 Eier' under both languages (no unit word, but a number).
+// NEW (P1): piece renders as the bare name — no unit word AND no number.
+test('§7.2/P1: piece renders "Eier" with no unit word and no number, under both languages', () => {
   const de = scaleIngredient(ingredient({ amount: 2, unit: 'piece', name: 'Eier' }), 1, {
     language: 'de',
   });
-  assert.equal(de.text, '2 Eier');
+  assert.equal(de.text, 'Eier');
   const en = scaleIngredient(ingredient({ amount: 2, unit: 'piece', name: 'Eier' }), 1, {
     language: 'en',
   });
-  assert.equal(en.text, '2 Eier');
+  assert.equal(en.text, 'Eier');
 });
 
 // §7.6 (K4): imperial display family, all at factor 1, en-US locale.

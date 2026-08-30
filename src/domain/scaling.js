@@ -13,8 +13,8 @@ export function computeFactor(requestedYield, baseYield) {
 
 // Section 7.3/7.6: round once, in the unit the reader will actually see —
 // g/ml under metric, oz/fl oz under imperial (whichever displayFamily
-// resolved to `small`). Never called for 'pinch', nor for a 'fixed' unit
-// (N2, since v2.9 — 'piece' passes its stored amount straight through).
+// resolved to `small`). Never called for a non-numeric unit ('pinch',
+// 'piece' since P1, v2.11) — those return early in scaleIngredient, above.
 function roundOnce(value, dimension) {
   if (dimension === 'count') {
     return Math.max(Math.round(value * 2) / 2, 0.5);
@@ -46,13 +46,15 @@ export function scaleIngredient(ingredient, factor, options = {}) {
   const scaled = Boolean(ingredient?.scales);
   const isOptional = Boolean(ingredient?.is_optional);
   const excludeFromShopping = Boolean(ingredient?.exclude_from_shopping);
-  const isFixed = Boolean(unitEntry?.fixed);
-  const effectiveFactor = isFixed ? 1 : scaled ? factor : 1;
-
   const hasAmount = ingredient?.amount !== null && ingredient?.amount !== undefined;
-  const isPinch = dimension === 'pinch';
+  // P1 (v2.11): re-keyed on the unit's own numeric flag rather than naming
+  // the pinch dimension — this unit never carries a number, whichever one
+  // it is. Supersedes N2 (v2.9)'s 'fixed' mechanism, which special-cased
+  // 'piece' to carry a number that refused to scale or round; a unit with
+  // no number has nothing to scale or round, so that special case is gone.
+  const isNonNumeric = unitEntry?.numeric === false;
 
-  if (!hasAmount || isPinch) {
+  if (!hasAmount || isNonNumeric) {
     const finalUnitKey = unitEntry ? unitEntry.key : rawUnit;
     const finalUnitLabel = unitLabel(rawUnit, language);
     const text = buildText({ amountAndUnit: finalUnitLabel, name, note });
@@ -78,10 +80,10 @@ export function scaleIngredient(ingredient, factor, options = {}) {
   const family = unitEntry && unitEntry.convertible ? displayFamily(dimension, system) : undefined;
 
   const roundInDisplayUnit = (amount) => {
-    const scaledAmount = amount * effectiveFactor;
+    const scaledAmount = amount * (scaled ? factor : 1);
     const baseAmount = toBase(scaledAmount);
     const roundingAmount = family ? baseAmount / family.small.base : baseAmount;
-    const rounded = isFixed ? roundingAmount : roundOnce(roundingAmount, dimension);
+    const rounded = roundOnce(roundingAmount, dimension);
     return { roundingAmount, rounded };
   };
 

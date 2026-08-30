@@ -229,11 +229,13 @@ test("the deeplink's url parameter is absolute and starts with the configured PU
   assert.equal(shareUrl, `${BASE_URL}/r/the-token?yield=6`);
 });
 
-// N2 (v2.9): the Bring! export agrees with the screen — a piece ingredient's
-// number must be identical in both, at every scaled yield. Asserted by
-// comparing the export against the same scaleGroups output the recipe page
-// renders from, not by writing the expected number twice.
-test('N2: recipeIngredient carries the same unscaled piece number the recipe page shows, at a scaled yield', () => {
+// OLD (N2, v2.9): asserted the export carried the same *unscaled* piece
+// number the recipe page shows ("4,5 Zwiebel"), never the scaled one.
+// NEW (P1, v2.11): 'piece' carries no quantity at all — the export agrees
+// with the screen by both showing no number, at every scaled yield.
+// Asserted by comparing the export against the same scaleGroups output the
+// recipe page renders from, not by writing the expected string twice.
+test('P1: recipeIngredient carries no quantity for a piece ingredient, at a scaled yield, matching the recipe page', () => {
   const groups = [
     {
       name: 'Base',
@@ -252,5 +254,27 @@ test('N2: recipeIngredient carries the same unscaled piece number the recipe pag
   });
 
   assert.equal(jsonLd.recipeIngredient[0], screenGroups[0].ingredients[0].text);
-  assert.match(jsonLd.recipeIngredient[0], /^4,5 /);
+  assert.equal(jsonLd.recipeIngredient[0], 'Zwiebel');
+});
+
+// P1 (v2.11): the assertion that matters most — this is what reaches the
+// shopping list. An N.A. (piece) ingredient's exported recipeIngredient
+// string is the bare name, no number and no unit word.
+test('P1: the Bring! export carries no quantity for an N.A. (piece) ingredient — just the bare name', () => {
+  const groups = [
+    {
+      name: 'Base',
+      ingredients: [ingredient({ amount: 2, unit: 'piece', name: 'Eier' })],
+    },
+  ];
+  const jsonLdGroups = scaledGroupsForJsonLd(groups, 4, 4);
+
+  const jsonLd = buildRecipeJsonLd({
+    recipe: recipe(),
+    groups: jsonLdGroups,
+    requestedYield: 4,
+    locale: 'de-DE',
+  });
+
+  assert.equal(jsonLd.recipeIngredient[0], 'Eier');
 });

@@ -347,6 +347,33 @@ test('V2: a blank amount stores NULL and the recipe page shows the name with no 
   });
 });
 
+// P1/P2 (v2.11): the server rule, not just the editor's disabled field — a
+// crafted POST carrying an amount against unit 'piece' must still store
+// NULL, so the amount can never be smuggled past the disabled attribute.
+test('P1/P2: a crafted POST with an amount against unit piece still stores NULL', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const csrfToken = await csrfFor(agent, '/recipes/new');
+
+    const body = basicRecipeBody({
+      ingredients: [{ name: 'Salz', amount: '3', unit: 'piece' }],
+    });
+    const createRes = await agent.post('/recipes').type('form').send(encodeForm({ _csrf: csrfToken, ...body }));
+    assert.equal(createRes.status, 302);
+    const recipeId = recipeIdFromLocation(createRes.headers.location);
+
+    const row = db
+      .prepare(
+        `SELECT amount FROM ingredients i
+         JOIN ingredient_groups g ON g.id = i.group_id
+         WHERE g.recipe_id = ?`
+      )
+      .get(recipeId);
+    assert.equal(row.amount, null);
+  });
+});
+
 test('V2: a non-numeric amount re-renders the editor with status 422 and the submitted title still present in the HTML', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
@@ -475,6 +502,34 @@ test('M8: an existing recipe\'s ingredient row still shows its own stored unit, 
     assert.ok(selectMatch, 'expected the first ingredient row\'s unit select');
     assert.match(selectMatch[1], /<option value="tbsp" selected>/);
     assert.doesNotMatch(selectMatch[1], /<option value="g" selected>/);
+  });
+});
+
+// P2 (v2.11): the amount field is disabled (and cleared) for a row whose
+// unit is 'piece' (N.A.) on server render — with JavaScript off this must
+// already be right, not only after the first change event.
+test('P2: the editor renders the amount input disabled for a piece row and enabled for a g row', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent, {
+      ingredients: [
+        { name: 'Salz', amount: '3', unit: 'piece' },
+        { name: 'Mehl', amount: '250', unit: 'g' },
+      ],
+    });
+
+    const res = await agent.get(`/recipes/${recipeId}/edit`);
+    assert.equal(res.status, 200);
+
+    const pieceInput = res.text.match(/<input[^>]*name="ingredients\[0\]\[amount\]"[^>]*>/);
+    assert.ok(pieceInput, 'expected the first ingredient row\'s amount input');
+    assert.match(pieceInput[0], /\bdisabled\b/);
+    assert.match(pieceInput[0], /value=""/);
+
+    const gInput = res.text.match(/<input[^>]*name="ingredients\[1\]\[amount\]"[^>]*>/);
+    assert.ok(gInput, 'expected the second ingredient row\'s amount input');
+    assert.doesNotMatch(gInput[0], /\bdisabled\b/);
   });
 });
 

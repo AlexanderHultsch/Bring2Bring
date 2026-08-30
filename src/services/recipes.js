@@ -181,6 +181,10 @@ const RecipeFieldsSchema = z.object({
 // name is non-blank after trimming; blank-name rows are dropped silently. A
 // non-blank row's amount (blank -> NULL) and unit (must be one of
 // EDITOR_UNITS) are validated — reject rather than coerce (section 11).
+// P1/P2 (v2.11): 'piece' (N.A.) carries no quantity at all — a submitted
+// amount against it is discarded and stored as NULL, whatever was
+// submitted, so a crafted POST cannot put one back (the editor's disabled
+// field is the convenience, this is the rule).
 function parseIngredientsForm(rawIngredients, issues) {
   const parsed = [];
 
@@ -188,14 +192,19 @@ function parseIngredientsForm(rawIngredients, issues) {
     const name = trimmedOrNull(raw?.name);
     if (name === null) return;
 
-    const amountResult = optionalNonNegativeAmount.safeParse(asString(raw?.amount));
-    if (!amountResult.success) {
-      issues.push(`ingredient ${index + 1} amount: ${amountResult.error.issues[0].message}`);
-    }
-
     const unit = trimmedOrNull(raw?.unit);
     if (unit === null || !EDITOR_UNIT_KEYS.has(unit)) {
       issues.push(`ingredient ${index + 1} unit: must be a valid unit`);
+    }
+
+    if (unit === 'piece') {
+      parsed.push({ name, amount: null, unit });
+      return;
+    }
+
+    const amountResult = optionalNonNegativeAmount.safeParse(asString(raw?.amount));
+    if (!amountResult.success) {
+      issues.push(`ingredient ${index + 1} amount: ${amountResult.error.issues[0].message}`);
     }
 
     parsed.push({

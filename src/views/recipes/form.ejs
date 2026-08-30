@@ -37,8 +37,9 @@
           <h2>Ingredients</h2>
           <div class="ingredient-rows" data-ingredients>
             <% values.ingredients.forEach((ingredient, ingredientIndex) => { %>
+              <% const isPieceUnit = ingredient.unit === 'piece'; %>
               <div class="ingredient-row" data-ingredient>
-                <input type="text" inputmode="decimal" name="ingredients[<%= ingredientIndex %>][amount]" value="<%= ingredient.amount %>" placeholder="Amount" class="ingredient-row__amount">
+                <input type="text" inputmode="decimal" name="ingredients[<%= ingredientIndex %>][amount]" value="<%= isPieceUnit ? '' : ingredient.amount %>" placeholder="Amount" class="ingredient-row__amount" <%= isPieceUnit ? 'disabled' : '' %>>
                 <select name="ingredients[<%= ingredientIndex %>][unit]" class="ingredient-row__unit">
                   <% EDITOR_UNITS.forEach((unit) => { %>
                     <option value="<%= unit.key %>" <%= ingredient.unit === unit.key ? 'selected' : '' %>><%= unit.labels[unitLanguage] %></option>

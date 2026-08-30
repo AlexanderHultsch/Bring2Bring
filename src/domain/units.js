@@ -12,11 +12,8 @@
 //               separate base unit, so base is always 1 there)
 //   convertible whether scaling.js may auto-convert this unit to the dimension's
 //               other unit (only mass <-> and volume <-> ever do)
-//   numeric     whether this unit ever carries a displayed number (false only
-//               for 'pinch', section 7.3 last row)
-//   fixed       whether this unit's amount is fixed rather than scaled with
-//               servings and rounded (true only for 'piece', N2 since v2.9);
-//               absent (falsy) means the unit scales and rounds normally
+//   numeric     whether this unit ever carries a displayed number (false for
+//               'pinch' and 'piece', section 7.3 last row; P1, since v2.11)
 export const UNITS = {
   g: { key: 'g', labels: { de: 'g', en: 'g' }, dimension: 'mass', base: 1, convertible: true, numeric: true },
   kg: { key: 'kg', labels: { de: 'kg', en: 'kg' }, dimension: 'mass', base: 1000, convertible: true, numeric: true },
@@ -24,7 +21,7 @@ export const UNITS = {
   l: { key: 'l', labels: { de: 'l', en: 'l' }, dimension: 'volume', base: 1000, convertible: true, numeric: true },
   tsp: { key: 'tsp', labels: { de: 'TL', en: 'tsp' }, dimension: 'spoon', base: 1, convertible: false, numeric: true },
   tbsp: { key: 'tbsp', labels: { de: 'EL', en: 'tbsp' }, dimension: 'spoon', base: 1, convertible: false, numeric: true },
-  piece: { key: 'piece', labels: { de: '', en: '' }, dimension: 'count', base: 1, convertible: false, numeric: true, fixed: true },
+  piece: { key: 'piece', labels: { de: '', en: '' }, dimension: 'count', base: 1, convertible: false, numeric: false },
   clove: { key: 'clove', labels: { de: 'Zehe', en: 'clove' }, dimension: 'count', base: 1, convertible: false, numeric: true },
   slice: { key: 'slice', labels: { de: 'Scheibe', en: 'slice' }, dimension: 'count', base: 1, convertible: false, numeric: true },
   can: { key: 'can', labels: { de: 'Dose', en: 'can' }, dimension: 'count', base: 1, convertible: false, numeric: true },

@@ -1525,7 +1525,7 @@ one route exposed to it). There is no `recipeInstructions`, and no
   "recipeYield": "6 servings",                 // the REQUESTED yield
   "recipeIngredient": [
     "250 g Mehl",                              // one flat string per ingredient
-    "2 Eier"
+    "Eier"
   ]
 }
 ```

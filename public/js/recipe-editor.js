@@ -33,6 +33,28 @@
       return template.content.firstElementChild.cloneNode(true);
     }
 
+    // SPECIFICATION.md P1/P2 (v2.11): N.A. (unit 'piece') carries no
+    // quantity at all, so its amount field is disabled and cleared;
+    // selecting any other unit re-enables it. Clearing on load/restore is
+    // deliberate — a legacy or drafted N.A. row may hold a stored amount,
+    // and showing it greyed out would mean it silently vanishes on the
+    // next save.
+    function syncAmountField(row) {
+      var unitField = row.querySelector('.ingredient-row__unit');
+      var amountField = row.querySelector('.ingredient-row__amount');
+      if (!unitField || !amountField) return;
+      if (unitField.value === 'piece') {
+        amountField.value = '';
+        amountField.disabled = true;
+      } else {
+        amountField.disabled = false;
+      }
+    }
+
+    function syncAllAmountFields() {
+      ingredientsContainer.querySelectorAll('[data-ingredient]').forEach(syncAmountField);
+    }
+
     function addIngredientRow() {
       var row = cloneTemplate(ingredientTemplate);
       ingredientsContainer.appendChild(row);
@@ -171,6 +193,15 @@
 
     restoreDraft();
     renumber();
+    syncAllAmountFields();
+
+    form.addEventListener('change', function (event) {
+      var target = event.target;
+      if (!(target instanceof Element)) return;
+      if (!target.matches('.ingredient-row__unit')) return;
+      var row = target.closest('[data-ingredient]');
+      if (row) syncAmountField(row);
+    });
 
     form.addEventListener('input', saveDraft);
     form.addEventListener('change', saveDraft);
