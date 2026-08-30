@@ -62,10 +62,10 @@ export function recipesRouter(db, config) {
 
   router.get('/', requireAuth(), (req, res) => {
     const options = parseListOptions(req.query);
-    const found = listRecipesForUser(db, req.currentUser.id, options);
-    const recipes = options.includeArchived
-      ? found.filter((recipe) => recipe.is_archived === 1)
-      : found;
+    const recipes = listRecipesForUser(db, req.currentUser.id, {
+      ...options,
+      archivedOnly: options.includeArchived,
+    });
     // SPECIFICATION.md section 10.1/10.E: the A-Z rail and its sticky section
     // headers only make sense when the list is actually sorted A-Z — a
     // 'recent'/'updated' sort renders a flat list instead.

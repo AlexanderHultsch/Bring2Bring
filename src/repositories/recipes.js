@@ -58,8 +58,18 @@ function escapeLikeTerm(value) {
 // ingredient name is opt-in via matchIngredients (the "ingredients" toggle),
 // not the default.
 export function listRecipesForUser(db, actingUserId, options = {}) {
-  const { includeArchived = false, search = '', sort = 'recent', matchIngredients = false } = options;
-  const archivedClause = includeArchived ? '' : 'AND is_archived = 0';
+  const {
+    includeArchived = false,
+    archivedOnly = false,
+    search = '',
+    sort = 'recent',
+    matchIngredients = false,
+  } = options;
+  const archivedClause = archivedOnly
+    ? 'AND is_archived = 1'
+    : includeArchived
+      ? ''
+      : 'AND is_archived = 0';
   const params = [actingUserId];
 
   let searchClause = '';

@@ -48,7 +48,7 @@ test('pragma foreign_keys is 1 and journal_mode is wal after openDatabase', () =
   });
 });
 
-test('runMigrations on a fresh db returns 001 through 005 in order and creates every table', () => {
+test('runMigrations on a fresh db returns 001 through 006 in order and creates every table', () => {
   withTempDir((dir) => {
     const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
@@ -59,6 +59,7 @@ test('runMigrations on a fresh db returns 001 through 005 in order and creates e
       '003_bring_imports.sql',
       '004_unit_preferences.sql',
       '005_security_question.sql',
+      '006_recipes_owner_archived_index.sql',
     ]);
 
     const tables = db
@@ -71,7 +72,7 @@ test('runMigrations on a fresh db returns 001 through 005 in order and creates e
   });
 });
 
-test('runMigrations called a second time returns [] and leaves schema_migrations with five rows', () => {
+test('runMigrations called a second time returns [] and leaves schema_migrations with six rows', () => {
   withTempDir((dir) => {
     const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
@@ -80,7 +81,7 @@ test('runMigrations called a second time returns [] and leaves schema_migrations
     assert.deepEqual(secondRun, []);
 
     const count = db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count;
-    assert.equal(count, 5);
+    assert.equal(count, 6);
     db.close();
   });
 });
@@ -190,6 +191,32 @@ test('migration 005 adds users.security_question and users.security_answer_hash,
         userId
       );
     });
+    db.close();
+  });
+});
+
+test('migration 006 replaces idx_recipes_is_archived with a composite idx_recipes_owner_archived used by the "My Dishes" query', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'bring2bring.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+
+    const indexes = db
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'recipes'")
+      .all()
+      .map((row) => row.name);
+    assert.ok(indexes.includes('idx_recipes_owner_archived'));
+    assert.ok(!indexes.includes('idx_recipes_is_archived'));
+
+    const plan = db
+      .prepare(
+        `EXPLAIN QUERY PLAN SELECT * FROM recipes WHERE owner_id = ? AND is_archived = 0
+         ORDER BY created_at DESC, id DESC`
+      )
+      .all(1)
+      .map((row) => row.detail)
+      .join(' ');
+    assert.ok(plan.includes('idx_recipes_owner_archived'));
     db.close();
   });
 });

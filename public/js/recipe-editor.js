@@ -203,7 +203,29 @@
       if (row) syncAmountField(row);
     });
 
-    form.addEventListener('input', saveDraft);
+    // How long to wait, after the last keystroke, before writing the draft.
+    // Typing fires an 'input' event per keystroke; we only write once, when
+    // it stops, so a long method text on a phone doesn't hit localStorage
+    // on every letter.
+    var DRAFT_SAVE_DEBOUNCE_MS = 400;
+    var draftSaveTimer = null;
+
+    function scheduleSaveDraft() {
+      if (draftSaveTimer) clearTimeout(draftSaveTimer);
+      draftSaveTimer = setTimeout(function () {
+        draftSaveTimer = null;
+        saveDraft();
+      }, DRAFT_SAVE_DEBOUNCE_MS);
+    }
+
+    window.addEventListener('pagehide', function () {
+      if (draftSaveTimer) {
+        clearTimeout(draftSaveTimer);
+        saveDraft();
+      }
+    });
+
+    form.addEventListener('input', scheduleSaveDraft);
     form.addEventListener('change', saveDraft);
   });
 })();
