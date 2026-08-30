@@ -1,4 +1,4 @@
-# Bring2Bring! — Specification v2.11
+# Bring2Bring! — Specification v2.12
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
 > source of truth for the `Bring2Bring` repository
@@ -821,13 +821,105 @@ schema change; `amount_max` stays dormant rather than being dropped.
 
 ---
 
+## Changes in v2.12
+
+Three corrections to the recipe screen and one change to what the app *is*.
+None of the four touches the scaling engine or §5.1 authorization, and the
+one schema change this round — the first since migration 004 — is two
+nullable columns on `users`. The full set of decisions:
+
+- **The ingredient list loses its bullets (Q1).** `.ingredient-list__item`
+  drew a bullet before every ingredient row. Since P1 (v2.11) an N.A.
+  ingredient has no amount, so its row rendered a bullet, then an empty
+  amount cell, then the name — a marker sitting next to a wide blank. The
+  bullet goes. The two-column alignment L7 (v2.7) established **stays** —
+  it is what makes the list scannable, and it is why every row reserves
+  the amount column even when it is empty. What was wrong was the orphaned
+  marker, not the alignment: an amount-less row now reads as an indented
+  name. Letting amount-less rows start at the left edge instead was
+  considered and rejected — it would ragged the whole list. The row's left
+  padding existed only to make room for the bullet; it is reclaimed and
+  given to the ingredient name.
+- **Edit and Duplicate move into "Manage this recipe" (Q2).** They move off
+  the recipe page and into the collapsed **Manage this recipe** disclosure
+  (§10.E). This is the **third** position this pair has taken, and it is
+  recorded as such rather than as a fresh decision: E5 (v2.1) put them on
+  the page one tap away, deliberately; L9 (v2.7) was asked to move them
+  into the burger menu, put the question back to the owner, and upheld E5
+  — keeping them on the page but stripping their button styling; Q2 now
+  moves them into the disclosure. **One thing does not move.** `Manage
+  this recipe` renders only for the owner (`isOwner`). A non-owner viewing
+  a public recipe currently sees a Duplicate button, and duplicating a
+  public recipe is the entire purpose of the Public shelf (D1, v2.0), so a
+  non-owner keeps a Duplicate action on the page itself. The rule: **owner
+  → Edit and Duplicate inside Manage this recipe; non-owner → Duplicate on
+  the page.** This was put to the owner and chosen deliberately over
+  hiding Duplicate for a non-owner, or building a second one-item
+  disclosure just for them.
+- **The unpublish hint goes (Q3).** The publish control's hint — "Taking
+  it off the shelf does not touch the public link — anyone who already has
+  it can still open it; use Rotate below to retract it" — is removed.
+  **The cost is real and is recorded, not hidden:** that sentence explained
+  a genuinely non-obvious consequence — removing a recipe from the Public
+  shelf does not revoke a share link somebody already holds; only rotating
+  the token does (§2, §11). The behaviour is unchanged, and it is still
+  documented at the decision-table and security-summary level (§2, §11,
+  §15). What is lost is the warning at the moment of acting. Rotate is
+  still there, one disclosure away.
+- **Registration is open and self-service (Q4).** §1 called Bring2Bring! a
+  *private* digital cookbook; with this decision anyone who finds the
+  hostname can create an account. **§5.1 is unchanged** — read is
+  owner-or-public, write is owner only — so a stranger's account cannot
+  see, edit or export the owner's private recipes. The change is who may
+  *hold* an account, not what an account may do. Accounts are **active
+  immediately**, with no approval step, matching the concept used in the
+  owner's other app, `AlexanderHultsch/TipsyTrails` — not its code, which
+  is a TypeScript monorepo with a REST API and a separate client, where
+  this app is server-rendered EJS with no build step — because the owner
+  does not want two different login concepts across their apps.
+  Registration takes a username, a password, and a security question with
+  its answer; no email, no invite. **The security question is the
+  password reset:** there is no mail server on the Pi, so a self-service
+  reset has to be answerable without one — the user gives a username, is
+  shown that account's question, and supplies the answer plus a new
+  password. The answer is hashed with the same function as the password
+  and compared the same way. TipsyTrails' age confirmation is specific to
+  a drinks app and is not carried over. **§6.2 is replaced, not amended**
+  — it specified invite-gated registration (`GET/POST /register` requiring
+  a code, an admin screen at `/admin/invites`), and **none of that was
+  ever built**: the `invites` table exists in the schema and no code in
+  `src/` reads it. This is the second thing found specced-but-absent,
+  after D7 (K2, v2.6) — prose does not fail a test run. §6.3 held a third:
+  an admin-generated one-time password-reset link, also never built.
+  Three separate pieces of this specification described behaviour that no
+  code implemented, and each was found by someone reading the prose
+  against the code rather than by anything executable. `invites` stays in
+  the schema, dormant, alongside `image_path`, `recipe_shares.can_edit`
+  and `amount_max` (§5). **Existing accounts have no security question** —
+  the Account screen (§10.1) gains a control to set one, without which the
+  one pre-existing account, the admin created by `npm run seed:admin`,
+  could never use the reset it just gained. **The trade-off is stated,
+  not discovered later:** showing the security question for a given
+  username confirms that username exists. That is inherent to
+  security-question reset without email, it is what TipsyTrails does, and
+  the mitigation is rate limiting on the reset routes, not pretending
+  otherwise. Registration, reset and login are **public** routes,
+  reachable without a session, and rate limited like the existing login
+  route (§6.1, §6.2, §9).
+
+---
+
 ## 1. Purpose
 
-Bring2Bring! is Alex's own private cookbook on the web. Recipes are entered once,
+Bring2Bring! is Alex's own digital cookbook on the web. Recipes are entered once,
 viewed on a phone in the kitchen, scaled to any number of servings, and — this
 is the whole point of the project — pushed into the **Bring! shopping list app
 in one tap**, with correctly scaled quantities, instead of being typed in by
-hand.
+hand. **Since v2.12 (Q4), registration is open** — anyone who finds the
+hostname can create an account — but a recipe stays **private** unless its
+owner chooses to publish it: §5.1's read rule (owner-or-public, write
+owner-only) is unchanged, so what moved is who may hold an account, not what
+an account can see or touch.
 
 It is explicitly **not** a recipe blog, not a meal planner, and not a social
 platform. There are no cooking tips, no comments, no ratings — just recipes.
@@ -844,7 +936,8 @@ platform. There are no cooking tips, no comments, no ratings — just recipes.
    other route requires a session. This still holds in v2: the public
    *shelf* (D1, §10) is a gallery for logged-in users, not a public route —
    an anonymous visitor reaches nothing new. The internet-facing surface
-   remains exactly `/r/<token>`, `/healthz`, `/login` and `/register`.
+   remains exactly `/r/<token>`, `/healthz`, `/login`, `/register` and —
+   since v2.12 (Q4) — `/reset-password` (§6.2, §9).
 4. **Debuggable by Claude Code.** Plain, boring, readable code; clear layer
    boundaries; useful logs; no clever metaprogramming.
 5. **The Bring! export must never produce a wrong shopping list.** A wrong
@@ -858,7 +951,7 @@ platform. There are no cooking tips, no comments, no ratings — just recipes.
 | --- | --- |
 | UI language | **English**, single language, no i18n layer. Recipe *content* is whatever the user types (typically German). |
 | Multi-user | **Full user registration and recipe sharing from day one.** |
-| Registration | **Invite-code only** (see §6.2). |
+| Registration | **Open, self-service, no invite.** Username, password, security question. **Since v2.12 (Q4)**, replacing invite-code-only (see §6.2). |
 | Recipe visibility | **Private by default. Since v2.0**, an owner may publish a recipe to the **Public shelf** (D1, §5.1), visible and searchable to any logged-in user; per-user sharing (`recipe_shares`) is dormant, superseded by the shelf. |
 | Public share link | **Permanent random token per recipe, off by default, toggleable and revocable per recipe. Since v2.0**, publishing to the Public shelf also enables the token, because Bring! can only import from a URL it can fetch (§10, §11) — un-publishing does not retract a token already held; rotating does. |
 | Additional outputs | Copy ingredients as text, JSON export, print view. |
@@ -1006,6 +1099,7 @@ users (
   role TEXT CHECK(role IN ('admin','user')) DEFAULT 'user',
   unit_language TEXT CHECK(unit_language IN ('de','en')) DEFAULT 'de',  -- K3
   measurement_system TEXT CHECK(measurement_system IN ('metric','imperial')) DEFAULT 'metric',  -- K4
+  security_question TEXT NULL, security_answer_hash TEXT NULL,  -- Q4
   created_at, last_login_at
 )
 
@@ -1162,24 +1256,60 @@ implicit read access to another user's recipe contents through `/recipes/:id`.
 - Rate limit: 10 attempts per 15 minutes per IP **and** per username; generic
   error message that does not reveal whether the username exists.
 - `POST /logout` destroys the session. CSRF-protected like every other POST.
+- **Since v2.12 (Q4):** the login page links to Register and to the
+  password reset — both public routes, reachable without a session, and
+  rate limited the same as `/login` (§6.2).
 
 ### 6.2 Registration
 
-- `GET/POST /register` requires a valid, unused, unexpired invite code.
-- Invite codes are created by an admin at `/admin/invites`: 32-character
-  random, single use, optional expiry, revocable.
-- Without a code the registration form still renders but cannot be submitted —
-  it never confirms whether a given code exists until submission.
-- The admin account is created by `npm run seed:admin`, not by registration.
+**Open, self-service, since v2.12 (Q4) — replaces the invite-gated model.**
+Through v2.11 this section specified `GET/POST /register` requiring a
+valid, unused, unexpired invite code issued by an admin at
+`/admin/invites`. **Neither was ever built**: the `invites` table exists
+in the schema (§5) and no code in `src/` reads it. This is the second
+thing found specced-but-absent, after D7 (K2, v2.6) — prose does not fail
+a test run. `invites` stays in the schema, dormant, alongside
+`image_path`, `recipe_shares.can_edit` and `amount_max` (§5).
+
+- `GET/POST /register` needs no invite and no email: a username, a
+  password, and a security question with its answer. The account is
+  usable immediately — no approval step — matching the account concept
+  (not the code) of the owner's other app, `AlexanderHultsch/TipsyTrails`,
+  because the owner does not want two different login concepts across
+  their apps. TipsyTrails' age confirmation is specific to a drinks app
+  and is not carried over.
+- **The security question is the password reset.** There is no mail
+  server on the Pi (§6.3), so a self-service reset has to work without
+  one. `GET/POST /reset-password`: the user supplies a username, is shown
+  that account's security question, and supplies the answer plus a new
+  password. The answer is hashed with the same function as the password
+  (§6.3) and compared the same way — it is never stored or compared in
+  the clear. Delivered by `users.security_question` /
+  `users.security_answer_hash`, both nullable, **migration 005**.
+- **Showing the question confirms the username exists.** That is
+  inherent to a security-question reset with no email involved, and it is
+  what TipsyTrails does. The mitigation is rate limiting on `/register`
+  and `/reset-password`, the same as `/login` (§6.1) — not pretending the
+  question can be shown without revealing that.
+- **Existing accounts have no security question.** The only pre-existing
+  account is the admin created by `npm run seed:admin` (§6.4), which
+  predates this column and so has none set — without a way to add one it
+  could never use the reset it just gained. The Account screen (§10.1)
+  gains a control to set a security question for the signed-in user.
 
 ### 6.3 Password handling
 
 - Argon2id with sensible memory cost for a Raspberry Pi (start at 19 MiB,
   `timeCost 2`, `parallelism 1`; tune if login latency exceeds ~500 ms).
-- Self-service password change at `/account`. Admin can trigger a password
-  reset by generating a one-time reset link — **no email sending**; the link is
-  displayed to the admin, who passes it on. A mail server is out of scope
-  (see the Pi repo's reasoning on why email is not hosted there).
+- Self-service password change at `/account`. Self-service reset via the
+  security question, `GET/POST /reset-password` (§6.2) — **no email
+  sending**. A mail server is out of scope (see the Pi repo's reasoning on
+  why email is not hosted there). Through v2.11 this section instead
+  specified an admin-generated, single-use reset link, displayed to the
+  admin to pass on; **that was never built** — there is no reset-link
+  route, no token, and no admin screen for it anywhere in `src/`. This is
+  the third thing found specced-but-absent, after D7 (K2, v2.6) and §6.2's
+  invite flow (Q4, v2.12).
 
 ### 6.4 Admin acts without reading — since v2.0 (D3)
 
@@ -1633,7 +1763,8 @@ Authenticated unless marked public.
 | GET | `/public` | **since v2.0** — Public shelf: every `is_public = 1` recipe, name + author, searchable by every logged-in user (D1) |
 | GET | `/archive` | **since v2.0** — archived recipes (own only), moved out of the main flow into the burger menu (D5) |
 | GET | `/login`, POST `/login` | *public* |
-| GET | `/register`, POST `/register` | *public*, invite code required |
+| GET | `/register`, POST `/register` | *public* — **since v2.12**, open and self-service; no invite code (Q4) |
+| GET | `/reset-password`, POST `/reset-password` | *public* — **since v2.12**: give a username, see its security question, answer it with a new password (Q4) |
 | POST | `/logout` | |
 | GET | `/recipes/new`, POST `/recipes` | Create |
 | GET | `/recipes/:id` | View (`?yield=N`, `?print=1`) |
@@ -1651,7 +1782,6 @@ Authenticated unless marked public.
 | GET | `/account`, POST `/account/password` | |
 | GET | `/privacy` | **since v2.0** — Privacy page: documents the `bring2bring.did` cookie and nothing else tracked (D5, D4, §11) |
 | GET | `/about-bring` | **since v2.8** — About Bring! page: states Bring2Bring! is not affiliated with, paid by, or advertising for Bring! Labs AG (M10) |
-| GET | `/admin/invites`, POST `/admin/invites` | admin only |
 | GET | `/admin/recipes` | **since v2.0** — admin only. Title, author, public/private, created date, import count; unpublish, delete (D3) |
 | POST | `/admin/recipes/:id/unpublish`, POST `/admin/recipes/:id/delete` | **since v2.0** — admin only (D3) |
 | GET | `/admin/users`, POST `/admin/users/:id/delete` | **since v2.0** — admin only; cannot delete the last remaining admin, nor self while the last admin (D3) |
@@ -1724,12 +1854,19 @@ for the recorded tap-target exception in §10.E.
   number the user typed — the app still adds no numbering of its own).
   **"Send to Bring!" is the
   primary action** and is styled as the one obvious thing to do on the page;
-  copy, print and edit are secondary. Edit is shown only to the owner (D2).
-  The **public-link section is collapsed by default** to a single line
-  showing only whether the link is on. Expanding it reveals the URL, Copy,
-  Rotate and Disable — the URL itself is not on screen until asked for. The
-  publish control states, in one sentence, that publishing also enables this
-  link because Bring! can only fetch a URL it can reach (D1, §8.2).
+  copy and print are secondary. **Since v2.12 (Q2), Edit and Duplicate are
+  no longer on the page for the owner** — they live inside the collapsed
+  **Manage this recipe** disclosure below the method, along with
+  publishing, the public link, Archive/Restore and Delete (§10.E); `Manage
+  this recipe` renders only for `isOwner`. A non-owner viewing a public
+  recipe still gets a **Duplicate** button on the page itself, because
+  duplicating a public recipe is the entire purpose of the Public shelf
+  (D1). The **Manage this recipe disclosure is collapsed by default** to a
+  single line showing only whether the link is on. Expanding it reveals
+  Edit, Duplicate, the URL, Copy, Rotate and Disable — the URL itself is
+  not on screen until asked for. The publish control states, in one
+  sentence, that publishing also enables this link because Bring! can only
+  fetch a URL it can reach (D1, §8.2).
 - **Editor** — one page, no wizard. Servings is a plain `<select>` of 1–10
   defaulting to 4 (M9, since v2.8) — a closed list needs no helper text
   explaining the valid range, so none is shown; the drum stays on the
@@ -1750,6 +1887,12 @@ for the recorded tap-target exception in §10.E.
   visit (§10.E).
 - **Share page** — recipe only, stripped down further than the app view:
   name, servings and ingredients only, no method (§8.4).
+- **Account** — self-service settings: password change (§6.3), the
+  unit-language and measurement-system controls (K3, K4, §7.5, §7.6).
+  **Since v2.12 (Q4):** a control to set (or replace) the signed-in user's
+  security question and answer, the mechanism `/reset-password` reads
+  (§6.2). Existing accounts, including the admin created by `npm run
+  seed:admin`, have none until this is used once.
 - **Privacy** — new, since v2.0. Documents the `bring2bring.did` device cookie
   (§8.5, §11) as the one cookie of its kind in the app, and states plainly
   that there is no third-party tracking or analytics (§11).
@@ -1765,6 +1908,13 @@ for the recorded tap-target exception in §10.E.
   server (§6.3) to notify anyone either.
 - **Admin** — `/admin/recipes` and `/admin/users` (§6.4, D3): plain lists,
   metadata only, no recipe content.
+- **Register / Reset password** — new, since v2.12 (Q4). Register: a
+  username, a password, and a security question with its answer — no
+  email, no invite; the account is usable immediately. Reset: a username
+  field first; submitting it shows that account's security question
+  inline on the same page, with fields for the answer and a new password.
+  Both are public pages, reachable without a session, rate limited the
+  same as Login (§6.1, §6.2).
 
 ### 10.A The theming contract
 
@@ -1921,16 +2071,26 @@ One paragraph per screen, matching the mockup:
    ingredient list (a two-column grid, amount then name, every row aligned
    even with no amount — L7, since v2.7; the amount track was widened in
    v2.9, N1, to fit the longest string the formatter can emit rather than a
-   sample recipe's amounts, its exact width left to the stylesheet), the
-   primary "Send to Bring!" button, now full height
+   sample recipe's amounts, its exact width left to the stylesheet; **since
+   v2.12 (Q1), the row draws no bullet before the name** — an amount-less
+   N.A. row (P1, v2.11) left the marker sitting next to an empty amount
+   cell, so it is dropped and the row's left padding, freed of it, goes to
+   the name instead; the two-column alignment L7 established is
+   unchanged), the primary "Send to Bring!" button, now full height
    with no underline so it reads as the one dominant control on the
-   screen (L8, since v2.7), then "Method", then Edit and Duplicate as
-   quiet inline actions with no button box (L9, since v2.7), then a
-   single collapsed disclosure holding publishing, the public link,
-   Archive, and — for an archived recipe only, before "Delete
-   permanently" — Restore (since v2.4, H1). Edit and Duplicate stay one
-   tap away; the disclosure holds only what is touched once per recipe
-   rather than once per cook.
+   screen (L8, since v2.7), then "Method", then — **since v2.12 (Q2)** —
+   for the owner, a single collapsed **Manage this recipe** disclosure
+   holding Edit, Duplicate, publishing, the public link, Archive, and —
+   for an archived recipe only, before "Delete permanently" — Restore
+   (since v2.4, H1); for a non-owner, a **Duplicate** button on the page
+   in that same spot, because `Manage this recipe` renders only for
+   `isOwner` and duplicating a public recipe is what the Public shelf is
+   for (D1). Edit and Duplicate have now held three positions on this
+   screen — one tap away and button-styled (E5, v2.1), one tap away and
+   quiet (L9, v2.7), and, for the owner, inside Manage this recipe (Q2,
+   v2.12) — recorded here so the placement is not re-litigated from a
+   blank page next time. The disclosure holds only what is touched once
+   per recipe rather than once per cook.
 3. **Public** — laid out as My Recipes, except each row also shows the
    author as `@username`, and the header carries a sort control of three
    segmented links — A–Z / Most imported / Recently added — rather than
@@ -2125,10 +2285,11 @@ while the site looks perfectly fine in a browser.
 | **G** | *v2.9.* N1–N3: the ingredient amount column widened to fit the formatter's real worst case, `piece` stops scaling with servings (N.A. is not a measure), and the recipe editor gets a Cancel that discards its autosaved draft. **No schema change.** |
 | **H** | *v2.10.* O1: `count` rounds to the nearest 0.5 again, floor 0.5, reversing v2.5's whole-number rule now that N2 (v2.9) has separately handled `piece`. **No schema change.** |
 | **I** | *v2.11.* P1–P3: N.A. (`piece`) carries no quantity at all, superseding N2's `fixed` mechanism; the editor's amount field is disabled and cleared for N.A., server-enforced as well as client-enforced; ingredient ranges are confirmed unnecessary and `amount_max` stays dormant. **No schema change.** |
+| **J** | *v2.12.* Q1–Q4: the ingredient list's bullet marker removed, its padding reclaimed by the name; Edit and Duplicate move off the recipe page into the owner-only "Manage this recipe" disclosure, with Duplicate staying on the page for a non-owner; the publish control's unpublish hint removed; registration opens up to self-service with a security-question reset, replacing the invite-gated model that was never built. **Migration 005.** |
 
-Each of A, B, C, D, E, F, G, H and I is independently deployable. Phases 0–3
-above are the record of what shipped to get here; they are not revised by
-A/B/C/D/E/F/G/H/I.
+Each of A, B, C, D, E, F, G, H, I and J is independently deployable. Phases
+0–3 above are the record of what shipped to get here; they are not revised
+by A/B/C/D/E/F/G/H/I/J.
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
@@ -2202,8 +2363,9 @@ Explicit acceptance criteria:
 ## 15. Security summary
 
 - One deliberately public route (`/r/:token`) plus `/healthz`, `/login`,
-  `/register` and `/uploads/:file`; everything else — including the Public
-  shelf (`/public`) added in v2.0 — requires a session (§1 principle 3, D1).
+  `/register`, `/reset-password` (**since v2.12**, Q4, §6.2, §9) and
+  `/uploads/:file`; everything else — including the Public shelf
+  (`/public`) added in v2.0 — requires a session (§1 principle 3, D1).
 - Capability URLs with 256 bits of entropy, revocable and rotatable per
   recipe, off by default, listed in the UI so nothing is forgotten.
   **Since v2.0:** publishing a recipe to the shelf also turns the token on;
