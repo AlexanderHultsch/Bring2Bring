@@ -6,6 +6,7 @@ import { loadConfig } from '../src/config.js';
 import { createApp } from '../src/app.js';
 import { hashPassword } from '../src/services/auth.js';
 import { insertUser, findUserByUsername } from '../src/repositories/users.js';
+import { createRecipe } from '../src/services/recipes.js';
 
 function extractSelected(html, selectName) {
   const selectMatch = html.match(new RegExp(`<select[^>]*name="${selectName}"[^>]*>([\\s\\S]*?)</select>`));
@@ -111,6 +112,85 @@ test('GET /privacy links to the site-wide privacy policy with the same rel as th
         'href="https://ahultsch.com/privacy.html" target="_blank" rel="noopener noreferrer"'
       )
     );
+  });
+});
+
+// SPECIFICATION.md "Changes in v2.8" (M10): the About Bring! disclosure page.
+test('GET /about-bring returns 200 logged in, 302 to /login otherwise', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+
+    const anon = await request(app).get('/about-bring');
+    assert.equal(anon.status, 302);
+    assert.equal(anon.headers.location, '/login');
+
+    const agent = await loginAgent(app);
+    const res = await agent.get('/about-bring');
+    assert.equal(res.status, 200);
+  });
+});
+
+test('GET /about-bring states no affiliation, no payment, no advertisement, and the trademark disclaimer', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+
+    const res = await agent.get('/about-bring');
+    assert.equal(res.status, 200);
+    assert.match(res.text, /not affiliated/);
+    assert.match(res.text, /Bring! Labs AG/);
+    assert.match(res.text, /not an advertisement/);
+    assert.match(res.text, /"Bring!" is a trademark of its respective owner\./);
+  });
+});
+
+// SPECIFICATION.md "Changes in v2.8" (M10): the disclosure is reachable from
+// exactly one place — a single burger-menu entry between Privacy and Report
+// a bug, and appears nowhere else in the interface.
+test('the burger menu has exactly one About Bring! entry, between Privacy and Report a bug', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+
+    const matches = res.text.match(/About Bring!/g) || [];
+    assert.equal(matches.length, 1);
+
+    const privacyIndex = res.text.indexOf('href="/privacy"');
+    const aboutBringIndex = res.text.indexOf('href="/about-bring"');
+    const bugIndex = res.text.indexOf('Report a bug');
+    assert.ok(privacyIndex !== -1 && aboutBringIndex !== -1 && bugIndex !== -1);
+    assert.ok(privacyIndex < aboutBringIndex, 'expected About Bring! after Privacy');
+    assert.ok(aboutBringIndex < bugIndex, 'expected About Bring! before Report a bug');
+  });
+});
+
+// The disclosure appears in exactly one place (SPECIFICATION.md M10): no
+// footer note, no link near "Send to Bring!", no banner, and no mention on
+// the Account or Privacy pages.
+test('the disclosure text appears nowhere but the About Bring! page itself', async () => {
+  await withApp(async (app, db) => {
+    const owner = await seedKnownUser(db);
+    const result = createRecipe(db, owner.id, {
+      title: 'Soup',
+      servings: '4',
+      ingredients: [{ name: 'Salt', unit: 'piece' }],
+    });
+    const agent = await loginAgent(app);
+
+    const recipePage = await agent.get(`/recipes/${result.recipeId}`);
+    assert.equal(recipePage.status, 200);
+    assert.doesNotMatch(recipePage.text, /not affiliated/);
+
+    const listPage = await agent.get('/');
+    assert.equal(listPage.status, 200);
+    assert.doesNotMatch(listPage.text, /not affiliated/);
+
+    const accountPage = await agent.get('/account');
+    assert.equal(accountPage.status, 200);
+    assert.doesNotMatch(accountPage.text, /not affiliated/);
   });
 });
 

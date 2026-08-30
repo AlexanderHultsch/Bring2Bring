@@ -1,0 +1,10 @@
+<%- include('partials/head', { title: 'About Bring! — Bring2Bring!' }) %>
+      <%- include('partials/header', { currentUser, csrfToken, backHref: '/' }) %>
+      <main class="about-bring-page has-bottom-nav">
+        <h1>About Bring!</h1>
+        <p>Bring2Bring! is not affiliated with Bring! Labs AG in any way. I am not paid by them, this is not an advertisement, and no data is shared with them beyond the recipe you explicitly choose to send.</p>
+        <p>I simply use Bring! for my own shopping list and got tired of typing recipes into it by hand, so I built this for myself — and published it in case it is useful to someone else.</p>
+        <p>"Bring!" is a trademark of its respective owner.</p>
+      </main>
+      <%- include('partials/bottom-nav', { activeNav: null }) %>
+<%- include('partials/foot') %>

@@ -102,6 +102,7 @@ const ROUTES = [
   // fired, not the UnitPreferencesSchema validation in src/services/account.js.
   { method: 'post', path: '/account/units', recipeScoped: false, body: { unitLanguage: 'de', measurementSystem: 'metric' } },
   { method: 'get', path: '/privacy', recipeScoped: false },
+  { method: 'get', path: '/about-bring', recipeScoped: false },
   { method: 'post', path: '/logout', recipeScoped: false, body: {} },
   // Admin routes (SPECIFICATION.md section 6.4 / 9, v2.0, D3): requireAuth()
   // then requireAdmin(), so a logged-in non-admin — exactly the "stranger" of

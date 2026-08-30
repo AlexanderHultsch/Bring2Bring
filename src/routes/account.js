@@ -74,5 +74,9 @@ export function accountRouter(db, config) {
     res.render('privacy');
   });
 
+  router.get('/about-bring', requireAuth(), (req, res) => {
+    res.render('about-bring');
+  });
+
   return router;
 }
