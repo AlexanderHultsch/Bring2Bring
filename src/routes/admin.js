@@ -3,17 +3,7 @@ import { requireAuth, requireAdmin } from '../middleware/auth.js';
 import { findUserById } from '../repositories/users.js';
 import { adminListRecipes, adminListUsers } from '../repositories/admin.js';
 import { deleteUser, unpublishRecipeAsAdmin, deleteRecipeAsAdmin } from '../services/admin.js';
-
-function notFoundError() {
-  const error = new Error('Not found');
-  error.status = 404;
-  return error;
-}
-
-function parseId(raw) {
-  if (!/^\d+$/.test(raw)) return null;
-  return Number(raw);
-}
+import { notFoundError, parseId } from './helpers.js';
 
 function asString(value) {
   return typeof value === 'string' ? value : '';

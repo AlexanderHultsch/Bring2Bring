@@ -28,6 +28,7 @@ import {
 import { applyShareAction, ShareActionSchema } from '../services/sharing.js';
 import { publishRecipe, unpublishRecipe, PublishActionSchema } from '../services/publishing.js';
 import { recordImport, localImportDay } from '../services/imports.js';
+import { notFoundError, parseId } from './helpers.js';
 
 // SPECIFICATION.md section 8.5 / 11 (v2.0, D4): 16 random bytes, base64url,
 // httpOnly, sameSite=lax, secure in production, long expiry — mirrors the
@@ -40,21 +41,10 @@ function generateDeviceId() {
   return crypto.randomBytes(16).toString('base64url');
 }
 
-function notFoundError() {
-  const error = new Error('Not found');
-  error.status = 404;
-  return error;
-}
-
 function badRequestError() {
   const error = new Error('Bad request');
   error.status = 400;
   return error;
-}
-
-function parseRecipeId(raw) {
-  if (!/^\d+$/.test(raw)) return null;
-  return Number(raw);
 }
 
 // SPECIFICATION.md §7.5/§7.6/K6: turns the viewing user's stored preferences
@@ -133,7 +123,7 @@ export function recipesRouter(db, config) {
   });
 
   router.get('/recipes/:id', requireAuth(), (req, res, next) => {
-    const id = parseRecipeId(req.params.id);
+    const id = parseId(req.params.id);
     if (id === null) {
       next(notFoundError());
       return;
@@ -167,7 +157,7 @@ export function recipesRouter(db, config) {
   });
 
   router.get('/recipes/:id/edit', requireAuth(), (req, res, next) => {
-    const id = parseRecipeId(req.params.id);
+    const id = parseId(req.params.id);
     if (id === null) {
       next(notFoundError());
       return;
@@ -191,7 +181,7 @@ export function recipesRouter(db, config) {
   });
 
   router.post('/recipes/:id', requireAuth(), (req, res, next) => {
-    const id = parseRecipeId(req.params.id);
+    const id = parseId(req.params.id);
     if (id === null) {
       next(notFoundError());
       return;
@@ -219,7 +209,7 @@ export function recipesRouter(db, config) {
   });
 
   router.post('/recipes/:id/duplicate', requireAuth(), (req, res, next) => {
-    const id = parseRecipeId(req.params.id);
+    const id = parseId(req.params.id);
     if (id === null) {
       next(notFoundError());
       return;
@@ -239,7 +229,7 @@ export function recipesRouter(db, config) {
   // do the actual write (and, for publish, also enable the share token —
   // §8.2, §10.1).
   router.post('/recipes/:id/publish', requireAuth(), (req, res, next) => {
-    const id = parseRecipeId(req.params.id);
+    const id = parseId(req.params.id);
     if (id === null) {
       next(notFoundError());
       return;
@@ -270,7 +260,7 @@ export function recipesRouter(db, config) {
   });
 
   router.post('/recipes/:id/share/link', requireAuth(), (req, res, next) => {
-    const id = parseRecipeId(req.params.id);
+    const id = parseId(req.params.id);
     if (id === null) {
       next(notFoundError());
       return;
@@ -297,7 +287,7 @@ export function recipesRouter(db, config) {
   // double-scaling trap). Same read access as viewing the recipe (section
   // 5.1): findRecipeForRead, 404 when it returns undefined, no second rule.
   router.get('/recipes/:id/bring', requireAuth(), (req, res, next) => {
-    const id = parseRecipeId(req.params.id);
+    const id = parseId(req.params.id);
     if (id === null) {
       next(notFoundError());
       return;
@@ -344,7 +334,7 @@ export function recipesRouter(db, config) {
   });
 
   router.post('/recipes/:id/delete', requireAuth(), (req, res, next) => {
-    const id = parseRecipeId(req.params.id);
+    const id = parseId(req.params.id);
     if (id === null) {
       next(notFoundError());
       return;
@@ -374,7 +364,7 @@ export function recipesRouter(db, config) {
   // Owner-only, enforced in SQL via setRecipeArchived's write predicate —
   // 404, never 403, for a recipe the acting user may not write.
   router.post('/recipes/:id/restore', requireAuth(), (req, res, next) => {
-    const id = parseRecipeId(req.params.id);
+    const id = parseId(req.params.id);
     if (id === null) {
       next(notFoundError());
       return;

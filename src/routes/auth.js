@@ -11,18 +11,13 @@ import {
 } from '../middleware/rate-limits.js';
 import { redirectIfAuthenticated } from '../middleware/auth.js';
 import { SESSION_COOKIE_NAME } from '../middleware/session.js';
+import { regenerateSession } from './helpers.js';
 
 const LOGIN_ERROR_MESSAGE = 'Invalid username or password.';
 // §6.2: readResetChallenge returns null identically for an unknown username
 // and a known user with no question set, so this message covers both cases
 // without distinguishing them.
 const RESET_LOOKUP_FAILURE = "We couldn't find a security question for that username.";
-
-function regenerateSession(req) {
-  return new Promise((resolve, reject) => {
-    req.session.regenerate((err) => (err ? reject(err) : resolve()));
-  });
-}
 
 function destroySession(req) {
   return new Promise((resolve, reject) => {

@@ -1,12 +1,7 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { changePassword, updateUnitPreferences, setSecurityQuestion } from '../services/account.js';
-
-function regenerateSession(req) {
-  return new Promise((resolve, reject) => {
-    req.session.regenerate((err) => (err ? reject(err) : resolve()));
-  });
-}
+import { regenerateSession } from './helpers.js';
 
 function formatMemberSince(isoTimestamp, locale) {
   const date = new Date(isoTimestamp);

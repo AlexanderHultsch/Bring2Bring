@@ -6,12 +6,7 @@ import { computeFactor, scaleGroups } from '../domain/scaling.js';
 import { numberLocaleFor } from '../domain/units.js';
 import { buildRecipeJsonLd, serializeJsonLdForScriptTag } from '../domain/recipe-jsonld.js';
 import { parseYieldParam } from '../services/recipes.js';
-
-function notFoundError() {
-  const error = new Error('Not found');
-  error.status = 404;
-  return error;
-}
+import { notFoundError } from './helpers.js';
 
 // SPECIFICATION.md section 8.3: generous on purpose — it protects the Pi's
 // CPU, not the token, and must never block Bring's own fetchers.
