@@ -13,7 +13,19 @@ export function findUserByUsername(db, username) {
   return db.prepare('SELECT * FROM users WHERE username = ?').get(username);
 }
 
-export function insertUser(db, { username, email, passwordHash, role }) {
+// Deliberately narrow, not findUserByUsername: the only caller is the public,
+// unauthenticated password-reset route, which has no business holding a row
+// that carries password_hash.
+export function findResetChallengeByUsername(db, username) {
+  return db
+    .prepare('SELECT id, security_question, security_answer_hash FROM users WHERE username = ?')
+    .get(username);
+}
+
+export function insertUser(
+  db,
+  { username, email, passwordHash, role, securityQuestion, securityAnswerHash }
+) {
   const columns = ['username', 'password_hash'];
   const values = [username, passwordHash];
 
@@ -24,6 +36,14 @@ export function insertUser(db, { username, email, passwordHash, role }) {
   if (role !== undefined) {
     columns.push('role');
     values.push(role);
+  }
+  if (securityQuestion !== undefined) {
+    columns.push('security_question');
+    values.push(securityQuestion);
+  }
+  if (securityAnswerHash !== undefined) {
+    columns.push('security_answer_hash');
+    values.push(securityAnswerHash);
   }
 
   const placeholders = columns.map(() => '?').join(', ');
@@ -50,6 +70,13 @@ export function updateUserUnitPreferences(db, id, { unitLanguage, measurementSys
   const { changes } = db
     .prepare('UPDATE users SET unit_language = ?, measurement_system = ? WHERE id = ?')
     .run(unitLanguage, measurementSystem, id);
+  return changes;
+}
+
+export function updateUserSecurityQuestion(db, id, { securityQuestion, securityAnswerHash }) {
+  const { changes } = db
+    .prepare('UPDATE users SET security_question = ?, security_answer_hash = ? WHERE id = ?')
+    .run(securityQuestion, securityAnswerHash, id);
   return changes;
 }
 

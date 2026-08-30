@@ -48,7 +48,7 @@ test('pragma foreign_keys is 1 and journal_mode is wal after openDatabase', () =
   });
 });
 
-test('runMigrations on a fresh db returns 001, 002, 003 and 004 in order and creates every table', () => {
+test('runMigrations on a fresh db returns 001 through 005 in order and creates every table', () => {
   withTempDir((dir) => {
     const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
@@ -58,6 +58,7 @@ test('runMigrations on a fresh db returns 001, 002, 003 and 004 in order and cre
       '002_public_shelf.sql',
       '003_bring_imports.sql',
       '004_unit_preferences.sql',
+      '005_security_question.sql',
     ]);
 
     const tables = db
@@ -70,7 +71,7 @@ test('runMigrations on a fresh db returns 001, 002, 003 and 004 in order and cre
   });
 });
 
-test('runMigrations called a second time returns [] and leaves schema_migrations with four rows', () => {
+test('runMigrations called a second time returns [] and leaves schema_migrations with five rows', () => {
   withTempDir((dir) => {
     const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
@@ -79,7 +80,7 @@ test('runMigrations called a second time returns [] and leaves schema_migrations
     assert.deepEqual(secondRun, []);
 
     const count = db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count;
-    assert.equal(count, 4);
+    assert.equal(count, 5);
     db.close();
   });
 });
@@ -161,6 +162,33 @@ test('migration 004 adds users.unit_language and users.measurement_system, defau
     });
     assert.throws(() => {
       db.prepare('UPDATE users SET measurement_system = ? WHERE id = ?').run('cubits', userId);
+    });
+    db.close();
+  });
+});
+
+test('migration 005 adds users.security_question and users.security_answer_hash, both nullable', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'bring2bring.db');
+    const db = openDatabase(dbPath);
+    runMigrations(db);
+
+    const userId = db
+      .prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
+      .run('owner', 'hash').lastInsertRowid;
+
+    const row = db
+      .prepare('SELECT security_question, security_answer_hash FROM users WHERE id = ?')
+      .get(userId);
+    assert.equal(row.security_question, null);
+    assert.equal(row.security_answer_hash, null);
+
+    assert.doesNotThrow(() => {
+      db.prepare('UPDATE users SET security_question = ?, security_answer_hash = ? WHERE id = ?').run(
+        'City you were born in?',
+        'some-hash',
+        userId
+      );
     });
     db.close();
   });

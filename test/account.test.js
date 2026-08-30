@@ -5,6 +5,7 @@ import { createTestDb } from './helpers/db.js';
 import { loadConfig } from '../src/config.js';
 import { createApp } from '../src/app.js';
 import { hashPassword } from '../src/services/auth.js';
+import { setSecurityQuestion } from '../src/services/account.js';
 import { insertUser, findUserByUsername } from '../src/repositories/users.js';
 import { createRecipe } from '../src/services/recipes.js';
 
@@ -453,4 +454,46 @@ test('all three render(\'account\', ...) call sites render successfully', async 
     });
     assert.equal(failedUnits.status, 422);
   });
+});
+
+test('setSecurityQuestion refuses a wrong current password and leaves the stored question unchanged', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const user = await seedKnownUser(db);
+
+    const result = await setSecurityQuestion(db, user, {
+      currentPassword: 'totally-wrong-password',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    assert.equal(result.success, false);
+    assert.equal(result.error, 'Current password is incorrect.');
+
+    const stored = findUserByUsername(db, KNOWN_USERNAME);
+    assert.equal(stored.security_question, null);
+    assert.equal(stored.security_answer_hash, null);
+  } finally {
+    cleanup();
+  }
+});
+
+test('setSecurityQuestion with the correct current password stores the question and a hashed answer', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const user = await seedKnownUser(db);
+
+    const result = await setSecurityQuestion(db, user, {
+      currentPassword: KNOWN_PASSWORD,
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    assert.equal(result.success, true);
+
+    const stored = findUserByUsername(db, KNOWN_USERNAME);
+    assert.equal(stored.security_question, 'What city were you born in?');
+    assert.ok(stored.security_answer_hash.startsWith('$argon2id$'));
+    assert.notEqual(stored.security_answer_hash, 'Berlin');
+  } finally {
+    cleanup();
+  }
 });

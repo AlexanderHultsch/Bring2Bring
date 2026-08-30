@@ -1,7 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTestDb } from './helpers/db.js';
-import { hashPassword, verifyPassword, authenticate } from '../src/services/auth.js';
+import {
+  hashPassword,
+  verifyPassword,
+  authenticate,
+  registerUser,
+  readResetChallenge,
+  resetPasswordWithAnswer,
+} from '../src/services/auth.js';
 import { insertUser, findUserByUsername, countUsers, updateUserPasswordHash } from '../src/repositories/users.js';
 
 test('hashPassword produces a $argon2id$ hash, salted differently each time', async () => {
@@ -90,6 +97,199 @@ test('updateUserPasswordHash changes the stored hash so the old password fails a
     assert.equal(await authenticate(db, 'alex', 'old-password'), null);
     const authenticated = await authenticate(db, 'alex', 'new-password');
     assert.ok(authenticated);
+  } finally {
+    cleanup();
+  }
+});
+
+test('registerUser succeeds and stores a security_answer_hash that is not the plaintext answer', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const result = await registerUser(db, {
+      username: 'alex',
+      password: 'correct-horse-battery',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    assert.equal(result.success, true);
+    assert.equal(result.user.username, 'alex');
+    assert.equal(result.user.role, 'user');
+
+    const stored = findUserByUsername(db, 'alex');
+    assert.equal(stored.security_question, 'What city were you born in?');
+    assert.ok(stored.security_answer_hash.startsWith('$argon2id$'));
+    assert.notEqual(stored.security_answer_hash, 'Berlin');
+  } finally {
+    cleanup();
+  }
+});
+
+test('the security answer verifies case-insensitively and with surrounding whitespace', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    await registerUser(db, {
+      username: 'alex',
+      password: 'correct-horse-battery',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+
+    const result = await resetPasswordWithAnswer(db, {
+      username: 'alex',
+      securityAnswer: '  berlin  ',
+      newPassword: 'brand-new-password',
+    });
+    assert.equal(result.success, true);
+
+    assert.equal(await authenticate(db, 'alex', 'brand-new-password') !== null, true);
+  } finally {
+    cleanup();
+  }
+});
+
+test('registerUser refuses a duplicate username', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    await registerUser(db, {
+      username: 'alex',
+      password: 'correct-horse-battery',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+
+    const result = await registerUser(db, {
+      username: 'alex',
+      password: 'another-long-password',
+      securityQuestion: 'What is your pet?',
+      securityAnswer: 'Cat',
+    });
+    assert.equal(result.success, false);
+    assert.equal(result.error, 'That username is already taken.');
+    assert.equal(countUsers(db), 1);
+  } finally {
+    cleanup();
+  }
+});
+
+test('registerUser refuses a password under 12 characters', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const result = await registerUser(db, {
+      username: 'alex',
+      password: 'short1234',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    assert.equal(result.success, false);
+    assert.match(result.error, /at least 12 characters/);
+    assert.equal(countUsers(db), 0);
+  } finally {
+    cleanup();
+  }
+});
+
+test('registerUser refuses a username with a disallowed character', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const result = await registerUser(db, {
+      username: 'alex the great',
+      password: 'correct-horse-battery',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    assert.equal(result.success, false);
+    assert.equal(countUsers(db), 0);
+  } finally {
+    cleanup();
+  }
+});
+
+test('readResetChallenge returns null identically for an unknown username and a known user with no question set', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const passwordHash = await hashPassword('correct-horse-battery');
+    insertUser(db, { username: 'alex', passwordHash });
+
+    assert.equal(readResetChallenge(db, 'ghost'), null);
+    assert.equal(readResetChallenge(db, 'alex'), null);
+  } finally {
+    cleanup();
+  }
+});
+
+test('readResetChallenge returns the stored question for a user who has one', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    await registerUser(db, {
+      username: 'alex',
+      password: 'correct-horse-battery',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+
+    assert.equal(readResetChallenge(db, 'alex'), 'What city were you born in?');
+  } finally {
+    cleanup();
+  }
+});
+
+test('resetPasswordWithAnswer with a wrong answer fails and leaves the stored password hash unchanged', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    await registerUser(db, {
+      username: 'alex',
+      password: 'correct-horse-battery',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    const hashBefore = findUserByUsername(db, 'alex').password_hash;
+
+    const result = await resetPasswordWithAnswer(db, {
+      username: 'alex',
+      securityAnswer: 'Paris',
+      newPassword: 'brand-new-password',
+    });
+    assert.equal(result.success, false);
+    assert.equal(findUserByUsername(db, 'alex').password_hash, hashBefore);
+  } finally {
+    cleanup();
+  }
+});
+
+test('resetPasswordWithAnswer with the right answer changes the password: old fails and new succeeds via authenticate', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    await registerUser(db, {
+      username: 'alex',
+      password: 'correct-horse-battery',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+
+    const result = await resetPasswordWithAnswer(db, {
+      username: 'alex',
+      securityAnswer: 'Berlin',
+      newPassword: 'brand-new-password',
+    });
+    assert.equal(result.success, true);
+
+    assert.equal(await authenticate(db, 'alex', 'correct-horse-battery'), null);
+    const authenticated = await authenticate(db, 'alex', 'brand-new-password');
+    assert.ok(authenticated);
+  } finally {
+    cleanup();
+  }
+});
+
+test('resetPasswordWithAnswer fails identically for an unknown username, giving the same generic error', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const result = await resetPasswordWithAnswer(db, {
+      username: 'ghost',
+      securityAnswer: 'Berlin',
+      newPassword: 'brand-new-password',
+    });
+    assert.equal(result.success, false);
   } finally {
     cleanup();
   }
