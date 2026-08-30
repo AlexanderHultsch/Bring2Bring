@@ -1,14 +1,20 @@
 <nav class="bottom-nav" aria-label="Primary">
   <a class="bottom-nav__item" href="/"<% if (activeNav === 'mine') { %> aria-current="page"<% } %>>
-    <svg class="icon"><use href="#i-book"></use></svg>
+    <span class="bottom-nav__icon-slot">
+      <svg class="icon"><use href="#i-book"></use></svg>
+    </span>
     <span class="bottom-nav__label">My Recipes</span>
   </a>
   <a class="bottom-nav__item" href="/public"<% if (activeNav === 'public') { %> aria-current="page"<% } %>>
-    <svg class="icon"><use href="#i-people"></use></svg>
+    <span class="bottom-nav__icon-slot">
+      <svg class="icon"><use href="#i-people"></use></svg>
+    </span>
     <span class="bottom-nav__label">Public</span>
   </a>
   <a class="bottom-nav__item" href="/recipes/new"<% if (activeNav === 'new') { %> aria-current="page"<% } %>>
-    <svg class="icon"><use href="#i-plus"></use></svg>
+    <span class="bottom-nav__icon-slot bottom-nav__icon-ring">
+      <svg class="icon"><use href="#i-plus"></use></svg>
+    </span>
     <span class="bottom-nav__label">New</span>
   </a>
 </nav>

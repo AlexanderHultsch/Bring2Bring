@@ -12,6 +12,8 @@ import { insertRecipe } from '../src/repositories/recipes.js';
 import { applyShareAction } from '../src/services/sharing.js';
 
 const headerPartialPath = fileURLToPath(new URL('../src/views/partials/header.ejs', import.meta.url));
+const bottomNavPartialPath = fileURLToPath(new URL('../src/views/partials/bottom-nav.ejs', import.meta.url));
+const stylePath = fileURLToPath(new URL('../public/css/style.css', import.meta.url));
 
 const PASSWORD = 'correct-horse-battery';
 
@@ -123,6 +125,59 @@ test('the bottom nav has no primary item, and all three items carry a label', as
 
     const labels = [...res.text.matchAll(/class="bottom-nav__label"/g)];
     assert.equal(labels.length, 3);
+  });
+});
+
+// The New item's ring made its icon area taller than the other two,
+// pushing its label out of line with them. All three items must share the
+// same icon slot size so the labels stay on one baseline.
+test('all three bottom nav items wrap their icon in .bottom-nav__icon-slot', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+
+    const slots = [...res.text.matchAll(/class="bottom-nav__icon-slot[^"]*"/g)];
+    assert.equal(slots.length, 3);
+  });
+});
+
+// SPECIFICATION.md L10 (v2.7): "New" is distinct by shape (a circular
+// outlined target around its icon), not by weight. F3 (v2.2) demoted a
+// raised accent-filled circle here on purpose, so this must never quietly
+// grow an accent fill or a shadow again.
+test('GUARD: the New nav item\'s icon ring carries no accent fill and no shadow (F3 must not quietly be reversed)', () => {
+  const navSrc = fs.readFileSync(bottomNavPartialPath, 'utf8');
+  assert.match(navSrc, /class="[^"]*\bbottom-nav__icon-ring\b[^"]*"/, 'expected the New item to wrap its icon in .bottom-nav__icon-ring');
+  assert.ok(!navSrc.includes('bottom-nav__item--primary'));
+
+  const css = fs.readFileSync(stylePath, 'utf8');
+  const ringMatch = css.match(/\.bottom-nav__icon-ring\s*\{([^}]*)\}/);
+  assert.ok(ringMatch, 'expected a .bottom-nav__icon-ring rule in style.css');
+  const ringRule = ringMatch[1];
+  assert.ok(!/background/.test(ringRule), '.bottom-nav__icon-ring must have no fill');
+  assert.ok(!/box-shadow/.test(ringRule), '.bottom-nav__icon-ring must have no shadow/raise');
+  assert.match(ringRule, /border:\s*[^;]*var\(--color-border\)/, 'expected the default ring border to use the border token, not accent');
+
+  const activeRingMatch = css.match(/\.bottom-nav__item\[aria-current='page'\]\s*\.bottom-nav__icon-ring\s*\{([^}]*)\}/);
+  assert.ok(activeRingMatch, 'expected an active-state rule turning the ring accent-coloured when selected');
+  assert.match(activeRingMatch[1], /var\(--color-accent\)/);
+});
+
+// SPECIFICATION.md 10.0: the bottom nav's three labels are fixed text, not
+// renamed as a side effect of the L10 shape change.
+test('the three bottom nav labels are exactly "My Recipes", "Public" and "New"', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/');
+    assert.equal(res.status, 200);
+
+    const labels = [...res.text.matchAll(/class="bottom-nav__label">([^<]+)</g)].map((m) => m[1]);
+    assert.deepEqual(labels, ['My Recipes', 'Public', 'New']);
   });
 });
 

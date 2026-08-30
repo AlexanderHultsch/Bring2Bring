@@ -97,6 +97,24 @@ test('GUARD: the pinned menu toggle sits above the menu overlay in the stacking 
   );
 });
 
+// SPECIFICATION.md L11 (v2.7): the arrow used to be a single diagonal
+// straight through the leaf body (M4 20 20 4), which at icon size read as
+// a leaf with a line through it — the universal "not allowed" symbol, on
+// the button whose entire job is to invite a tap. This is a blunt check
+// (it only proves the exact old strike path is gone, not that the new
+// artwork is good — that was verified by rendering it), but it is honest
+// about what it protects: a regression back to a shaft that spans the
+// full diagonal of the viewBox and re-crosses the leaf.
+test('GUARD: #i-bring no longer contains the old full-diagonal strike path', () => {
+  const iconsSrc = fs.readFileSync(iconsPath, 'utf8');
+  const symbolMatch = iconsSrc.match(/<symbol id="i-bring"[\s\S]*?<\/symbol>/);
+  assert.ok(symbolMatch, 'expected an i-bring symbol in icons.ejs');
+  assert.ok(
+    !symbolMatch[0].includes('M4 20 20 4'),
+    'i-bring must not draw its arrow as a single diagonal straight through the leaf body'
+  );
+});
+
 test('style.css has no literal hex colours or literal font-family names', () => {
   const css = fs.readFileSync(stylePath, 'utf8');
   assert.doesNotMatch(css, /#[0-9a-fA-F]{3,8}\b/, 'style.css must reference colours only via var(--…)');
