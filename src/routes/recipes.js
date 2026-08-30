@@ -27,7 +27,8 @@ import {
 } from '../services/recipes.js';
 import { applyShareAction, ShareActionSchema } from '../services/sharing.js';
 import { publishRecipe, unpublishRecipe, PublishActionSchema } from '../services/publishing.js';
-import { recordImport, localImportDay } from '../services/imports.js';
+import { localImportDay } from '../services/imports.js';
+import { recordBringImport } from '../repositories/imports.js';
 import { notFoundError, parseId } from './helpers.js';
 
 // SPECIFICATION.md section 8.5 / 11 (v2.0, D4): 16 random bytes, base64url,
@@ -321,7 +322,11 @@ export function recipesRouter(db, config) {
         maxAge: DEVICE_COOKIE_MAX_AGE_MS,
       });
     }
-    recordImport(db, id, deviceId, localImportDay(config.importTimezone));
+    // SPECIFICATION.md section 8.5 (v2.0, D4, H2): the day is a parameter
+    // rather than something recordBringImport reads from the clock itself, so
+    // a test can drive a different day without mocking time — here it's
+    // computed via localImportDay (YYYY-MM-DD in IMPORT_TIMEZONE).
+    recordBringImport(db, id, deviceId, localImportDay(config.importTimezone));
 
     const requestedYield = parseYieldParam(req.query, recipe.yield_amount);
     const bringDeeplinkUrl = buildBringDeeplinkUrl({

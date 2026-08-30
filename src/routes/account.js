@@ -9,34 +9,37 @@ function formatMemberSince(isoTimestamp, locale) {
   return date.toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+// EJS throws at render time on a missing local, so every 'account' render
+// goes through this one place that supplies all of them.
+function accountLocals(req, config, overrides = {}) {
+  return {
+    memberSince: formatMemberSince(req.currentUser.created_at, config.numberLocale),
+    passwordChanged: false,
+    passwordError: null,
+    unitsSaved: false,
+    unitsError: null,
+    securityQuestionSaved: false,
+    securityQuestionError: null,
+    ...overrides,
+  };
+}
+
 export function accountRouter(db, config) {
   const router = express.Router();
 
   router.get('/account', requireAuth(), (req, res) => {
-    res.render('account', {
-      memberSince: formatMemberSince(req.currentUser.created_at, config.numberLocale),
+    res.render('account', accountLocals(req, config, {
       passwordChanged: req.query.passwordChanged === '1',
-      passwordError: null,
       unitsSaved: req.query.unitsSaved === '1',
-      unitsError: null,
       securityQuestionSaved: req.query.securityQuestionSaved === '1',
-      securityQuestionError: null,
-    });
+    }));
   });
 
   router.post('/account/password', requireAuth(), async (req, res, next) => {
     try {
       const result = await changePassword(db, req.currentUser, req.body);
       if (!result.success) {
-        res.status(422).render('account', {
-          memberSince: formatMemberSince(req.currentUser.created_at, config.numberLocale),
-          passwordChanged: false,
-          passwordError: result.error,
-          unitsSaved: false,
-          unitsError: null,
-          securityQuestionSaved: false,
-          securityQuestionError: null,
-        });
+        res.status(422).render('account', accountLocals(req, config, { passwordError: result.error }));
         return;
       }
 
@@ -56,15 +59,7 @@ export function accountRouter(db, config) {
   router.post('/account/units', requireAuth(), (req, res) => {
     const result = updateUnitPreferences(db, req.currentUser, req.body);
     if (!result.success) {
-      res.status(422).render('account', {
-        memberSince: formatMemberSince(req.currentUser.created_at, config.numberLocale),
-        passwordChanged: false,
-        passwordError: null,
-        unitsSaved: false,
-        unitsError: result.error,
-        securityQuestionSaved: false,
-        securityQuestionError: null,
-      });
+      res.status(422).render('account', accountLocals(req, config, { unitsError: result.error }));
       return;
     }
 
@@ -75,15 +70,7 @@ export function accountRouter(db, config) {
     try {
       const result = await setSecurityQuestion(db, req.currentUser, req.body);
       if (!result.success) {
-        res.status(422).render('account', {
-          memberSince: formatMemberSince(req.currentUser.created_at, config.numberLocale),
-          passwordChanged: false,
-          passwordError: null,
-          unitsSaved: false,
-          unitsError: null,
-          securityQuestionSaved: false,
-          securityQuestionError: result.error,
-        });
+        res.status(422).render('account', accountLocals(req, config, { securityQuestionError: result.error }));
         return;
       }
 

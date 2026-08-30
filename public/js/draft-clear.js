@@ -7,17 +7,16 @@
 
   var recipeId = el.dataset.recipeId;
 
-  try {
-    localStorage.removeItem('bring2bring-draft-' + recipeId);
-  } catch {
-    // localStorage unavailable — nothing to clear
+  var keys = ['bring2bring-draft-' + recipeId];
+  if (saved === 'new') {
+    keys.push('bring2bring-draft-new');
   }
 
-  if (saved === 'new') {
-    try {
-      localStorage.removeItem('bring2bring-draft-new');
-    } catch {
-      // localStorage unavailable — nothing to clear
-    }
+  try {
+    keys.forEach(function (key) {
+      localStorage.removeItem(key);
+    });
+  } catch {
+    // localStorage unavailable — nothing to clear
   }
 })();

@@ -1,13 +1,3 @@
-import { recordBringImport } from '../repositories/imports.js';
-
-// SPECIFICATION.md section 8.5 (v2.0, D4, H2): the day is a parameter rather
-// than something this reads from the clock itself, so a test can drive a
-// different day without mocking time — the route computes it (YYYY-MM-DD in
-// IMPORT_TIMEZONE, via localImportDay below).
-export function recordImport(db, recipeId, deviceId, day) {
-  return recordBringImport(db, recipeId, deviceId, day);
-}
-
 // SPECIFICATION.md section 3.1 / 5 (H2): the import day boundary must fall at
 // local midnight, not UTC midnight, or an import in the gap between the two
 // gets filed under the wrong day and silently swallowed by the anti-cheat's
