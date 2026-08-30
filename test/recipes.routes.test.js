@@ -1217,9 +1217,9 @@ test('GET / renders the import count and the i-bring icon on each row', async ()
   });
 });
 
-// SPECIFICATION.md section 7.4 (v2.0, D6): the servings wheel is exactly the
+// SPECIFICATION.md section 7.4 (v2.0, D6): the servings drum is exactly the
 // integers 1..10, each a real ?yield=N link (works with JavaScript disabled).
-test('the servings wheel renders exactly the integers 1..10, each linking to ?yield=N', async () => {
+test('the servings drum renders exactly the integers 1..10, each linking to ?yield=N', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -1230,7 +1230,7 @@ test('the servings wheel renders exactly the integers 1..10, each linking to ?yi
 
     const items = [
       ...res.text.matchAll(
-        /<a\s+class="servings-wheel__item[^"]*"\s+href="\?yield=(\d+)"\s+data-yield-option="(\d+)"/g
+        /<a\s+class="servings-drum__item[^"]*"\s+href="\?yield=(\d+)"\s+data-yield-option="(\d+)"/g
       ),
     ];
     assert.equal(items.length, 10);
@@ -1241,7 +1241,7 @@ test('the servings wheel renders exactly the integers 1..10, each linking to ?yi
   });
 });
 
-test('the current servings is marked as selected on the wheel; at ?yield=3 it is 3, not the base yield', async () => {
+test('the current servings is marked as selected on the drum; at ?yield=3 it is 3, not the base yield', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -1249,8 +1249,8 @@ test('the current servings is marked as selected on the wheel; at ?yield=3 it is
 
     const res = await agent.get(`/recipes/${recipeId}?yield=3`);
     assert.equal(res.status, 200);
-    assert.match(res.text, /class="servings-wheel__item servings-wheel__item--selected"\s+href="\?yield=3"/);
-    assert.doesNotMatch(res.text, /class="servings-wheel__item servings-wheel__item--selected"\s+href="\?yield=4"/);
+    assert.match(res.text, /class="servings-drum__item servings-drum__item--selected"\s+href="\?yield=3"/);
+    assert.doesNotMatch(res.text, /class="servings-drum__item servings-drum__item--selected"\s+href="\?yield=4"/);
   });
 });
 
@@ -1515,7 +1515,7 @@ test('the recipe page\'s Send to Bring! button now points at /recipes/:id/bring,
 // SPECIFICATION.md section 8.5: acceptance criterion 5, now checked over
 // HTTP against GET /recipes/:id/bring instead of the page's rendered href —
 // the deeplink is built server-side from ?yield=N, never client-side, so the
-// servings wheel and the exported quantities can never drift apart.
+// servings drum and the exported quantities can never drift apart.
 test('ACCEPTANCE 5 over HTTP: GET /recipes/:id/bring?yield=6 redirects to an api.getbring.com deeplink with baseQuantity equal to requestedQuantity, both 6, and a URL-encoded share url containing yield=6', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
@@ -2015,7 +2015,7 @@ test('an owner sees the manage disclosure; a signed-in non-owner viewing a publi
 
 // SPECIFICATION.md decision E6 (v2.1): the servings ruler wraps each number
 // in its own span so a filled circle can be drawn behind it.
-test('each servings-wheel item wraps its number in a servings-wheel__value span', async () => {
+test('each servings-drum item wraps its number in a servings-drum__value span', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -2024,18 +2024,19 @@ test('each servings-wheel item wraps its number in a servings-wheel__value span'
     const res = await agent.get(`/recipes/${recipeId}`);
     assert.equal(res.status, 200);
 
-    const values = [...res.text.matchAll(/<span class="servings-wheel__value">(\d+)<\/span>/g)];
+    const values = [...res.text.matchAll(/<span class="servings-drum__value">(\d+)<\/span>/g)];
     assert.equal(values.length, 10);
     values.forEach((m, i) => assert.equal(Number(m[1]), i + 1));
   });
 });
 
-// SPECIFICATION.md decision F5 (v2.2): the servings wheel is centre-locked.
-// The lens ring has since been removed (owner recorded separately) — the
-// selected number's own size and colour, plus the tick marks, are now the
-// only positional indicators. The scroll interaction itself is not testable
-// by this server-rendered suite; this only pins the markup shape.
-test('the servings wheel renders one scroll container and role="list" on the data-yield-wheel track', async () => {
+// SPECIFICATION.md decision F5 (v2.2) / M1 (v2.8): the servings drum is
+// centre-locked. The lens ring has since been removed (owner recorded
+// separately) — the selected number's own size and colour, plus the centre
+// band overlay, are now the only positional indicators. The scroll
+// interaction itself is not testable by this server-rendered suite; this
+// only pins the markup shape.
+test('the servings drum renders one scroll container and role="list" on the data-yield-wheel track', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -2048,7 +2049,7 @@ test('the servings wheel renders one scroll container and role="list" on the dat
     assert.equal((res.text.match(/data-yield-wheel/g) || []).length, 1);
     assert.match(
       res.text,
-      /<div class="servings-wheel__track" data-yield-wheel role="list" aria-label="Servings">/
+      /<div class="servings-drum__track" data-yield-wheel role="list" aria-label="Servings">/
     );
   });
 });
@@ -2056,7 +2057,7 @@ test('the servings wheel renders one scroll container and role="list" on the dat
 // iPhone Safari does not count padding-inline toward a scroll container's
 // scrollable width, so the track's centring padding was replaced with real
 // spacer elements — a flex item always contributes to scrollable width.
-test('the servings wheel renders exactly two servings-wheel__pad spacers, both aria-hidden', async () => {
+test('the servings drum renders exactly two servings-drum__pad spacers, both aria-hidden', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -2065,13 +2066,13 @@ test('the servings wheel renders exactly two servings-wheel__pad spacers, both a
     const res = await agent.get(`/recipes/${recipeId}`);
     assert.equal(res.status, 200);
 
-    const pads = [...res.text.matchAll(/<span class="servings-wheel__pad" aria-hidden="true"><\/span>/g)];
+    const pads = [...res.text.matchAll(/<span class="servings-drum__pad" aria-hidden="true"><\/span>/g)];
     assert.equal(pads.length, 2);
-    assert.equal((res.text.match(/class="servings-wheel__pad"/g) || []).length, 2);
+    assert.equal((res.text.match(/class="servings-drum__pad"/g) || []).length, 2);
   });
 });
 
-test('the servings wheel renders no servings-wheel__lens', async () => {
+test('the servings drum renders no servings-drum__lens', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -2080,7 +2081,7 @@ test('the servings wheel renders no servings-wheel__lens', async () => {
     const res = await agent.get(`/recipes/${recipeId}`);
     assert.equal(res.status, 200);
 
-    assert.equal((res.text.match(/servings-wheel__lens/g) || []).length, 0);
+    assert.equal((res.text.match(/servings-drum__lens/g) || []).length, 0);
   });
 });
 
@@ -2094,14 +2095,14 @@ test('all ten servings anchors still sit inside the data-yield-wheel track with 
     assert.equal(res.status, 200);
 
     const trackStart = res.text.indexOf(
-      '<div class="servings-wheel__track" data-yield-wheel role="list" aria-label="Servings">'
+      '<div class="servings-drum__track" data-yield-wheel role="list" aria-label="Servings">'
     );
-    assert.ok(trackStart >= 0, 'expected the servings-wheel__track markup');
+    assert.ok(trackStart >= 0, 'expected the servings-drum__track markup');
     const track = res.text.slice(trackStart, res.text.indexOf('</section>', trackStart));
 
     const items = [
       ...track.matchAll(
-        /<a\s+class="servings-wheel__item[^"]*"\s+href="\?yield=(\d+)"\s+data-yield-option="(\d+)"/g
+        /<a\s+class="servings-drum__item[^"]*"\s+href="\?yield=(\d+)"\s+data-yield-option="(\d+)"/g
       ),
     ];
     assert.equal(items.length, 10);
@@ -2109,5 +2110,79 @@ test('all ten servings anchors still sit inside the data-yield-wheel track with 
       assert.equal(Number(m[1]), i + 1);
       assert.equal(Number(m[2]), i + 1);
     });
+  });
+});
+
+// SPECIFICATION.md decision M1 (v2.8): the drum's ends are real spacer
+// elements, never padding — J3 (v2.5) records this control shipping broken
+// in Safari when trailing padding did not count toward scrollable width.
+test('the servings drum spacers are aria-hidden', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    const pads = [...res.text.matchAll(/<span class="servings-drum__pad" aria-hidden="true"><\/span>/g)];
+    assert.equal(pads.length, 2);
+  });
+});
+
+// SPECIFICATION.md decision M2 (v2.8): a visually hidden number input is
+// the source of truth for assistive technology, with an associated label.
+test('the visually hidden yield input renders min=1, max=10, the current value, and has an associated label', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent); // base yield 4
+
+    const res = await agent.get(`/recipes/${recipeId}?yield=6`);
+    assert.equal(res.status, 200);
+
+    const inputMatch = res.text.match(
+      /<input\s+class="visually-hidden"\s+type="number"\s+id="([^"]+)"\s+min="1"\s+max="10"\s+value="6"\s+data-yield-input\s*>/
+    );
+    assert.ok(inputMatch, 'expected the visually hidden yield input with min, max and value set');
+
+    const labelPattern = new RegExp(
+      `<label class="visually-hidden" for="${inputMatch[1]}">[^<]+</label>`
+    );
+    assert.match(res.text, labelPattern);
+  });
+});
+
+// Deliberate deviation from the change request (see task NOTES): a native
+// <input type="number"> already exposes the spinbutton role and
+// valuenow/valuemin/valuemax natively, so it is the spinbutton. Adding
+// role="spinbutton" anywhere would put two competing controls in the
+// accessibility tree, and putting it on a container that also holds ten
+// focusable anchors is an ARIA violation waiting to happen.
+test('no element on the recipe page carries role="spinbutton"', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    assert.doesNotMatch(res.text, /role="spinbutton"/);
+  });
+});
+
+// SPECIFICATION.md decision M1 (v2.8): the selected value sits in a centre
+// band; the overlay itself carries no information beyond marking position.
+test('the servings drum renders a centre band overlay that is aria-hidden', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    assert.match(res.text, /<div class="servings-drum__band" aria-hidden="true"><\/div>/);
   });
 });

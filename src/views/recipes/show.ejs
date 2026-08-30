@@ -11,26 +11,38 @@
           <%
             // Progressive enhancement (section 7.4, v2.0 D6): each number is a
             // real ?yield=N href, computed from the server-rendered
-            // requestedYield, so the wheel works with JavaScript disabled;
+            // requestedYield, so the drum works with JavaScript disabled;
             // recipe-view.js intercepts the tap and recalculates without a
             // reload.
           %>
-          <div class="servings-wheel">
-            <div class="servings-wheel__scroll" data-yield-scroll>
-              <div class="servings-wheel__track" data-yield-wheel role="list" aria-label="Servings">
-                <span class="servings-wheel__pad" aria-hidden="true"></span>
+          <div class="servings-drum">
+            <div class="servings-drum__scroll" data-yield-scroll>
+              <div class="servings-drum__track" data-yield-wheel role="list" aria-label="Servings">
+                <span class="servings-drum__pad" aria-hidden="true"></span>
                 <% for (let n = 1; n <= 10; n++) { %>
                   <a
-                    class="servings-wheel__item<%= n === requestedYield ? ' servings-wheel__item--selected' : '' %>"
+                    class="servings-drum__item<%= n === requestedYield ? ' servings-drum__item--selected' : '' %>"
                     href="?yield=<%= n %>"
                     data-yield-option="<%= n %>"
                     role="listitem"
                     <% if (n === requestedYield) { %>aria-current="true"<% } %>
-                  ><span class="servings-wheel__value"><%= n %></span></a>
+                  ><span class="servings-drum__value"><%= n %></span></a>
                 <% } %>
-                <span class="servings-wheel__pad" aria-hidden="true"></span>
+                <span class="servings-drum__pad" aria-hidden="true"></span>
               </div>
             </div>
+            <div class="servings-drum__band" aria-hidden="true"></div>
+            <span class="servings-drum__unit">servings</span>
+            <label class="visually-hidden" for="yield-input">Servings</label>
+            <input
+              class="visually-hidden"
+              type="number"
+              id="yield-input"
+              min="1"
+              max="10"
+              value="<%= requestedYield %>"
+              data-yield-input
+            >
           </div>
         </section>
 

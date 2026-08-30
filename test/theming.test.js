@@ -12,6 +12,7 @@ const viewsDir = fileURLToPath(new URL('../src/views/', import.meta.url));
 const iconsPath = path.join(viewsDir, 'partials', 'icons.ejs');
 const tokensPath = fileURLToPath(new URL('../public/css/tokens.css', import.meta.url));
 const stylePath = fileURLToPath(new URL('../public/css/style.css', import.meta.url));
+const recipeViewPath = fileURLToPath(new URL('../public/js/recipe-view.js', import.meta.url));
 
 const testEnv = () => ({
   SESSION_SECRET: 'a'.repeat(16),
@@ -124,4 +125,25 @@ test('style.css has no literal hex colours or literal font-family names', () => 
   for (const value of fontFamilyValues) {
     assert.match(value, /^var\(--[a-z-]+\)$/, `style.css must reference font families only via var(--…): "${value}"`);
   }
+});
+
+// The servings drum's renderCylinder() runs on every animation frame
+// scheduled from the scroll container's own 'scroll' handler. If it writes
+// a layout-affecting style property (margin, width, height, top/left,
+// padding, inset...), that write changes layout *inside the scroll
+// container*, which fires another 'scroll' event, which schedules another
+// frame, which writes it again — an infinite feedback loop. The symptom is
+// invisible: scrollTop does not change and nothing visibly moves, so it
+// looks fine on a desktop; on a phone it pins the CPU at one frame per
+// frame forever. Only `transform` and `opacity` are compositor-only and
+// safe to write from this handler; the taper that makes the drum read as a
+// cylinder must be expressed as a transform (e.g. a horizontal scale), not
+// a margin.
+test('GUARD: recipe-view.js never writes a layout-affecting style property from the per-frame drum render', () => {
+  const src = fs.readFileSync(recipeViewPath, 'utf8');
+  assert.doesNotMatch(
+    src,
+    /\.style\.(margin\w*|width|height|top|left|padding\w*|inset\w*)\s*=/,
+    'recipe-view.js must not assign to a layout-affecting style property (it can re-trigger the scroll handler that scheduled it, looping forever)'
+  );
 });

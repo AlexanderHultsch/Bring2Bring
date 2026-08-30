@@ -8,6 +8,8 @@
   --color-divider: #2e343a;
   --color-accent: #6bcb77;
   --color-accent-contrast: #0f1113;
+  --color-accent-band: rgba(107, 203, 119, 0.08);
+  --color-accent-band-line: rgba(107, 203, 119, 0.35);
   --color-danger: #ff6b6b;
   --color-scrim: rgba(0, 0, 0, 0.6);
 
@@ -75,6 +77,8 @@
     --color-divider: #e3e6ea;
     --color-accent: #2e7d32;
     --color-accent-contrast: #ffffff;
+    --color-accent-band: rgba(46, 125, 50, 0.08);
+    --color-accent-band-line: rgba(46, 125, 50, 0.35);
     --color-danger: #b3261e;
     --color-scrim: rgba(0, 0, 0, 0.4);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
@@ -92,6 +96,8 @@
   --color-divider: #e3e6ea;
   --color-accent: #2e7d32;
   --color-accent-contrast: #ffffff;
+  --color-accent-band: rgba(46, 125, 50, 0.08);
+  --color-accent-band-line: rgba(46, 125, 50, 0.35);
   --color-danger: #b3261e;
   --color-scrim: rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.08);
@@ -108,6 +114,8 @@
   --color-divider: #2e343a;
   --color-accent: #6bcb77;
   --color-accent-contrast: #0f1113;
+  --color-accent-band: rgba(107, 203, 119, 0.08);
+  --color-accent-band-line: rgba(107, 203, 119, 0.35);
   --color-danger: #ff6b6b;
   --color-scrim: rgba(0, 0, 0, 0.6);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
