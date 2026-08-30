@@ -4,6 +4,9 @@ const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 10;
 const RATE_LIMIT_MESSAGE = 'Too many login attempts. Please try again later.';
 
+const GLOBAL_WINDOW_MS = 60 * 1000;
+const GLOBAL_CEILING_MAX = 300;
+
 function normalizedUsername(req) {
   const raw = req.body?.username;
   return typeof raw === 'string' ? raw.trim().toLowerCase() : '';
@@ -66,4 +69,20 @@ export function resetPasswordIpLimiter() {
 
 export function resetPasswordUsernameLimiter() {
   return usernameLimiter('reset-password', { question: null });
+}
+
+// SPECIFICATION.md section 11: the global ceiling above every per-route
+// limiter — looser than all of them (300/min vs. share's 60/min and
+// login/register/reset's 10/15min), so it never becomes the binding
+// constraint on a route that already limits itself. It exists only to stop
+// a flood from costing the Pi CPU it also needs for DNS. src/app.js mounts
+// this after static assets, /healthz and the share route, so none of those
+// count against it.
+export function globalCeilingLimiter() {
+  return rateLimit({
+    windowMs: GLOBAL_WINDOW_MS,
+    limit: GLOBAL_CEILING_MAX,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 }

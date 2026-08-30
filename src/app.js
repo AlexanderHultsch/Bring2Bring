@@ -8,6 +8,7 @@ import { notFoundHandler, errorHandler } from './middleware/error-handler.js';
 import { sessionMiddleware, warnIfSessionCookieSuppressed } from './middleware/session.js';
 import { csrfProtection, csrfTokenLocals } from './middleware/csrf.js';
 import { loadCurrentUser } from './middleware/auth.js';
+import { globalCeilingLimiter } from './middleware/rate-limits.js';
 import { computeAssetVersion } from './asset-version.js';
 import { healthRouter } from './routes/health.js';
 import { authRouter } from './routes/auth.js';
@@ -69,6 +70,15 @@ export function createApp({ db, config }) {
   // to /login — Bring!'s own servers fetch this URL, not a logged-in browser.
   app.use(shareRouter(db, config));
   // -- later: public /uploads/:file --
+
+  // SPECIFICATION.md section 11: the global ceiling. Mounted after static
+  // assets, /healthz and the share route — none of those count against it,
+  // since a normal page load's CSS/JS/icon requests would burn through it
+  // fast, and §8.3 requires /r/:token stay reachable by Bring's arbitrary,
+  // unknown-IP fetchers without "aggressive rate limiting" beyond its own
+  // already-tuned limiter. Placed before body/session/csrf so it also
+  // guards those from a flood.
+  app.use(globalCeilingLimiter());
 
   app.use(express.urlencoded({ extended: true, parameterLimit: 5000 }));
   app.use(cookieParser(config.sessionSecret));

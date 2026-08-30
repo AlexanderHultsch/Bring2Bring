@@ -97,6 +97,56 @@ test('an unknown path with Accept: application/json returns 404 with a JSON body
   });
 });
 
+test('a request well under the global ceiling succeeds', async () => {
+  await withApp(async (app) => {
+    const res = await request(app).get('/login');
+    assert.equal(res.status, 200);
+  });
+});
+
+test('the 301st request from the same client within the window returns 429 (SPECIFICATION.md section 11 global ceiling)', async () => {
+  await withApp(async (app) => {
+    const agent = request.agent(app);
+    for (let i = 0; i < 300; i += 1) {
+      const res = await agent.get('/login');
+      assert.equal(res.status, 200);
+    }
+
+    const res = await agent.get('/login');
+    assert.equal(res.status, 429);
+  });
+});
+
+test('the global ceiling does not leak across app instances: a fresh app starts with a clean count', async () => {
+  await withApp(async (firstApp) => {
+    const firstAgent = request.agent(firstApp);
+    for (let i = 0; i < 300; i += 1) {
+      await firstAgent.get('/login');
+    }
+    const exhausted = await firstAgent.get('/login');
+    assert.equal(exhausted.status, 429);
+  });
+
+  await withApp(async (secondApp) => {
+    const res = await request(secondApp).get('/login');
+    assert.equal(res.status, 200);
+  });
+});
+
+test('static assets are exempt from the global ceiling (mounted before it in src/app.js)', async () => {
+  await withApp(async (app) => {
+    const agent = request.agent(app);
+    for (let i = 0; i < 300; i += 1) {
+      const res = await agent.get('/login');
+      assert.equal(res.status, 200);
+    }
+    await agent.get('/login').expect(429);
+
+    const cssRes = await agent.get('/css/style.css');
+    assert.notEqual(cssRes.status, 429);
+  });
+});
+
 test('redactPath redacts share tokens and leaves other paths untouched', () => {
   assert.equal(redactPath('/r/AbC123-token_xyz'), '/r/[redacted]');
   assert.equal(redactPath('/recipes/12'), '/recipes/12');
