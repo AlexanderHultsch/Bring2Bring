@@ -61,6 +61,14 @@
         }
         return;
       }
+      if (target.closest('[data-cancel-edit]')) {
+        try {
+          localStorage.removeItem(draftKey);
+        } catch {
+          // localStorage unavailable (private mode, quota, etc.) — nothing to clear
+        }
+        return;
+      }
     });
 
     function focusIngredientName(row) {

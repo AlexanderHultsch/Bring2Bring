@@ -59,7 +59,10 @@
           <label class="visually-hidden" for="method">Method</label>
           <textarea id="method" name="method" data-method placeholder="Optional"><%= values.method %></textarea>
 
-          <button type="submit" class="button">Save recipe</button>
+          <div class="recipe-actions">
+            <button type="submit" class="button">Save recipe</button>
+            <a class="button button--quiet" href="<%= mode === 'edit' ? '/recipes/' + recipeId : '/' %>" data-cancel-edit>Cancel</a>
+          </div>
 
           <template data-ingredient-row-template>
             <div class="ingredient-row" data-ingredient>

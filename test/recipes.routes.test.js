@@ -533,6 +533,61 @@ test('V1: the editor page renders ingredient rows with data-ingredient and a dat
   });
 });
 
+test('N3: the editor renders a Cancel link pointing at /recipes/:id when editing that recipe, and at / for a new recipe', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const newRes = await agent.get('/recipes/new');
+    assert.equal(newRes.status, 200);
+    assert.match(newRes.text, /<a class="button button--quiet" href="\/" data-cancel-edit>Cancel<\/a>/);
+
+    const editRes = await agent.get(`/recipes/${recipeId}/edit`);
+    assert.equal(editRes.status, 200);
+    assert.match(
+      editRes.text,
+      new RegExp(`<a class="button button--quiet" href="/recipes/${recipeId}" data-cancel-edit>Cancel</a>`)
+    );
+  });
+});
+
+test('N3: Cancel is a real <a>, not a <button>, and is not inside anything that would submit the form — it works with JavaScript off', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/recipes/new');
+    assert.equal(res.status, 200);
+    assert.match(res.text, /<a[^>]*data-cancel-edit[^>]*>Cancel<\/a>/);
+    assert.doesNotMatch(res.text, /<button[^>]*data-cancel-edit/);
+  });
+});
+
+test('N3: Save recipe is still rendered as the form\'s submit button', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+
+    const res = await agent.get('/recipes/new');
+    assert.equal(res.status, 200);
+    assert.match(res.text, /<button type="submit" class="button">Save recipe<\/button>/);
+  });
+});
+
+// N3 (v2.9): the Cancel link's whole point is discarding the autosaved draft
+// on the way out. Cancel and autosave read/write the key by way of the same
+// `draftKey` variable — if a future edit hardcoded a different string for
+// either side, the Cancel link would still "work" (it navigates either way)
+// while silently leaving the abandoned draft in localStorage to resurface
+// the next time the editor opens.
+test('GUARD: recipe-editor.js removes the same localStorage key on Cancel that it writes during autosave', () => {
+  const src = fs.readFileSync(fileURLToPath(new URL('../public/js/recipe-editor.js', import.meta.url)), 'utf8');
+  assert.match(src, /var draftKey = 'bring2bring-draft-' \+ \(form\.dataset\.recipeId \|\| 'new'\);/);
+  assert.match(src, /localStorage\.setItem\(draftKey,/);
+  assert.match(src, /localStorage\.removeItem\(draftKey\)/);
+});
+
 test("GET /recipes/:id for another user's recipe returns 404", async () => {
   await withApp(async (app, db) => {
     const owner = await seedUser(db, 'owner');
