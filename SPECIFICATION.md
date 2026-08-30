@@ -1,4 +1,4 @@
-# Bring2Bring! — Specification v2.7
+# Bring2Bring! — Specification v2.8
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
 > source of truth for the `Bring2Bring` repository
@@ -555,6 +555,120 @@ upholds E5 and F3 rather than reversing them. The full set of decisions:
 
 ---
 
+## Changes in v2.8
+
+A second polish round, driven by a written change request from the owner
+(Change Request 01) rather than by using the app. The servings control is
+rebuilt a fourth time, this time as a vertical drum; the rest is defects,
+defaults and copy. No scaling maths changes anywhere in this version — the
+request was explicit that it should not, and that constraint is honoured.
+The full set of decisions:
+
+- **The servings control becomes a vertical drum (M1).** The horizontal row
+  did not read as a wheel: it was not obvious what was selectable, what was
+  selected, or that it could be dragged. It becomes a barrel picker — a
+  native scroll container with `scroll-snap-type: y mandatory` and
+  `scroll-snap-align: center`, so inertia, momentum and snapping come from
+  the browser and no drag loop is hand-rolled. Items are 48px; **three are
+  visible, not the five the request proposed, giving about 140px** — five
+  would have taken a quarter of a 844px phone screen and pushed the
+  ingredient list below the fold on the app's main screen, which trades the
+  thing the app is for against the control that configures it. The selected
+  value sits in a centre band, large and full contrast; neighbours are
+  muted and never accent; both ends fade under a vertical mask. The unit
+  word "servings" sits beside the number and does **not** scroll with it.
+  This is the fourth rebuild of this control (D6's ruler, F5's horizontal
+  wheel, J3's Safari fix, J4/L4's polish), and the accumulated lessons are
+  carried forward rather than rediscovered: the ten `?yield=N` anchors
+  stay, so it still works with JavaScript off (§7.4); the ends are real
+  spacer elements rather than padding, because J3 records this control
+  shipping broken when trailing padding did not count toward scrollable
+  width in Safari; and every mask carries the `-webkit-` prefix for the
+  same reason.
+- **The drum's accessibility is part of the control, not an afterthought
+  (M2).** It exposes `role="spinbutton"` with `aria-valuenow`,
+  `aria-valuemin` and `aria-valuemax`; arrow keys change the value; a
+  visually hidden number input remains the source of truth for assistive
+  technology. Under `prefers-reduced-motion: reduce` the 3D transform and
+  smooth scrolling are dropped while the size and opacity difference stays,
+  so the selection is still obvious without the motion. A light haptic tick
+  fires on each value change via a guarded `navigator.vibrate?.(8)`.
+  **Stated plainly because it affects the owner's own device:** Safari on
+  iOS does not implement `navigator.vibrate` at all, so on an iPhone the
+  tick will silently do nothing. It is included anyway because it is
+  guarded, costs nothing, and works on Android.
+- **The blur is left out (M3).** The request offered a per-item
+  `filter: blur()` proportional to distance from centre, conditional on it
+  staying cheap. A blur recomputed on every scroll frame is the most
+  expensive thing on the list, and this app is served from a Raspberry Pi
+  to a phone. The size, opacity and rotation already carry the depth.
+  Recorded rather than silently dropped, because the request explicitly
+  made it conditional and this is the condition being exercised.
+- **The unit settings hint overlapped the button (M4).** On the Account
+  screen the helper text under the units control was drawn over the "Save
+  units" button — reproduced at both 390px and 320px, with the hint's top
+  above the button's bottom. The hint belongs in normal flow below the
+  control, with the action below it and a clear gap from the spacing
+  scale. The text is not shortened; the layout is fixed. It must hold at
+  320px and at 200% font size.
+- **The theme toggle's menu entry is called "Appearance" (M5).** Moving it
+  out of the header and into the burger menu was already done in v2.7 (L2)
+  and is the reason the request asks for it — the change was pushed but
+  not deployed, so it had not been seen. Only the label changes, from
+  "Theme" to "Appearance". The pre-paint theme initialisation script is
+  untouched, as it was by L2. The interface stays English; the German
+  label the request suggested is not recorded as pending work, because the
+  answer to that question was "only English".
+- **The A–Z rail gets a gap and a clearer position marker (M6).** The
+  request reports the rail colliding with the header. It does not —
+  measured at 390px and 320px, the rail's top and the header's bottom are
+  both at 85px, because J5 (v2.5) already derived the offset. The real
+  defect is that the gap is zero, so it reads as crowding, and the fix is
+  a real gap plus a height cap so it cannot reach the bottom navigation.
+  The letters are also restyled: inert letters small and muted, the
+  current letter larger and in an accent pill, so position is obvious
+  rather than inferred. Touch targets stay at least 24px by padding rather
+  than by font size, and the active letter must stay legible against the
+  accent pill in dark mode. **No `--header-height` token is introduced**:
+  the offset stays derived from the tokens the header is actually built
+  from, because a second source of truth for the same number is how these
+  two elements drifted apart in the first place.
+- **"No unit" is labelled "N.A." (M7).** In the editor's unit dropdown the
+  no-unit option reads "N.A." in both label languages. This is the
+  dropdown's own label only: the canonical stored key is unchanged, the
+  unit's *display* label stays the empty string so an ingredient still
+  renders "2 Eier" rather than "2 N.A. Eier", and no stored recipe is
+  migrated or altered.
+- **A new ingredient row defaults to grams (M8).** It defaulted to the
+  no-unit option purely because that option is first in the closed list.
+  Grams is what most rows actually are, and the default is now `g` in
+  both label languages. The order of the dropdown is unchanged; only which
+  option starts selected.
+- **The editor's servings field is a dropdown, and the accent is rationed
+  everywhere (M9).** In the recipe *editor* the servings control becomes a
+  plain `<select>` of 1–10 defaulting to 4, and its helper text goes: a
+  closed list cannot be filled in wrongly, so the sentence explaining the
+  valid range had nothing left to explain. The drum stays on the recipe
+  *view* only — editor is a form, view is a wheel, and that split is
+  deliberate. Separately, L6's accent rationing extends from the recipe
+  screen to the whole interface: the list's alphabetical section letters
+  and the Account screen's headings were still accent coloured, which
+  meant green marked "heading" on one screen and "action" on another.
+  Green now means only the primary action, the selected serving, the
+  active navigation item, the active rail letter, on-states, and the
+  wordmark.
+- **An honest note about Bring! (M10).** A new page reachable from exactly
+  one place — a burger-menu entry labelled "About Bring!" — stating
+  plainly that Bring2Bring! is not affiliated with Bring! Labs AG, is not
+  paid by them, is not an advertisement, and shares no data beyond the
+  recipe the user explicitly chooses to send. It appears nowhere else: no
+  footer note, no link beside the export button, no banner. Plain text,
+  **no Bring! logo or branding assets**, because using their marks would
+  undercut the exact point the note is making. The text is English
+  regardless of the unit-label language.
+
+---
+
 ## 1. Purpose
 
 Bring2Bring! is Alex's own private cookbook on the web. Recipes are entered once,
@@ -1035,19 +1149,35 @@ reader (it is what the German default resolves to).
 
 ### 7.4 UI behaviour — servings control rebuilt (D6, since v2.0)
 
-- The recipe page has a yield control: a centre-locked wheel of
-  **integers 1 to 10**, default 4 (F5, since v2.2, replacing the v2.1
-  ruler, E6) — a strip that scrolls under a fixed centre position, with the
-  selected number enlarged and accent-coloured (J4, since v2.5) and the
-  tick marks marking position. Momentum carries a flick past several
-  numbers and settles on the
+- The recipe page has a yield control: a vertical drum of **integers 1 to
+  10**, default 4 (M1, since v2.8, replacing the v2.7 horizontal wheel,
+  L4) — a native scroll container, `scroll-snap-type: y mandatory` with
+  `scroll-snap-align: center` on each 48px item, so momentum and snapping
+  come from the browser rather than a hand-rolled drag loop. Three items
+  are visible at once (about 140px): the selected value sits in a centre
+  band, large and full contrast, its neighbours above and below are muted
+  and never accent, and both ends fade under a vertical mask. The unit
+  word "servings" sits beside the number and does not itself scroll.
+  Momentum can carry a flick past several numbers and settle on the
   nearest one; this can overshoot the intended value, which §1 principle
   5 ("a wrong quantity is worse than no export") makes worth stating — it
   is acceptable because the ingredient amounts and the heading update
-  live as the wheel moves, so a wrong quantity is visible before it is
+  live as the drum moves, so a wrong quantity is visible before it is
   sent, never sent silently. Tapping a number still selects it directly.
   The old `−/+` buttons, the `×0.5`/`×2` presets and free numeric entry
-  are all **removed**.
+  are all **removed**. Underneath the drum, each item is still one of the
+  ten `?yield=N` anchors carried forward from F5, so the control still
+  works with JavaScript off.
+- **The drum is accessible as a control, not decorated with accessibility
+  afterward (M2, since v2.8).** It exposes `role="spinbutton"` with
+  `aria-valuenow`, `aria-valuemin` and `aria-valuemax`; arrow keys change
+  the value; a visually hidden number input remains the source of truth
+  for assistive technology. Under `prefers-reduced-motion: reduce` the 3D
+  transform and smooth scrolling are dropped while the size and opacity
+  difference stays, so the selection remains obvious without the motion.
+  A light haptic tick fires on each value change via a guarded
+  `navigator.vibrate?.(8)` — a no-op on iOS Safari, which does not
+  implement the API, and a real tick on Android.
 - Changing it recalculates ingredient amounts **client-side without a page
   reload**, and updates the URL query (`?yield=6`) via `history.replaceState`
   so the state is linkable and reloadable.
@@ -1336,6 +1466,7 @@ Authenticated unless marked public.
 | GET | `/uploads/:file` | **public** images — only reachable via unguessable filename. `image_path` is always `NULL` in v1.1 (§5), so this route is currently unused, kept for when images come back |
 | GET | `/account`, POST `/account/password` | |
 | GET | `/privacy` | **since v2.0** — Privacy page: documents the `bring2bring.did` cookie and nothing else tracked (D5, D4, §11) |
+| GET | `/about-bring` | **since v2.8** — About Bring! page: states Bring2Bring! is not affiliated with, paid by, or advertising for Bring! Labs AG (M10) |
 | GET | `/admin/invites`, POST `/admin/invites` | admin only |
 | GET | `/admin/recipes` | **since v2.0** — admin only. Title, author, public/private, created date, import count; unpublish, delete (D3) |
 | POST | `/admin/recipes/:id/unpublish`, POST `/admin/recipes/:id/delete` | **since v2.0** — admin only (D3) |
@@ -1374,12 +1505,16 @@ for the recorded tap-target exception in §10.E.
   navigation item F3 made it. This also supplies the way back from a
   recipe to a list — a gap v1.1 had, since it removed navigation along
   with everything else that wasn't essential.
-- **Burger menu**, top right: Account, Theme, Privacy, Report a bug, Log
-  out. Theme moved here from the header (L2, since v2.7); it is set once
-  and then forgotten, so it belongs beside Account and Privacy rather than
-  competing with the burger control for the top-right corner. The menu
-  only renders for a logged-in user, so the login screen has no manual
-  theme control and follows the operating system's setting.
+- **Burger menu**, top right: Account, Appearance, Privacy, About Bring!,
+  Report a bug, Log out. The theme control moved here from the header
+  (L2, since v2.7) and is labelled "Appearance" (M5, since v2.8) — it is
+  set once and then forgotten, so it belongs beside Account and Privacy
+  rather than competing with the burger control for the top-right corner.
+  The menu only renders for a logged-in user, so the login screen has no
+  manual theme control and follows the operating system's setting.
+  **About Bring!** is new (M10, since v2.8): a disclosure page, reachable
+  from nowhere else, stating that Bring2Bring! is not affiliated with,
+  paid by, or advertising for Bring! Labs AG.
 - The **archive moves into the burger menu**, out of the main flow — it was
   reachable from the list in v1, it is a deliberate extra step now.
 
@@ -1398,7 +1533,7 @@ for the recorded tap-target exception in §10.E.
   that no recipes have been published yet. Public is listed by every logged-in
   user; a recipe's presence there requires no ownership check beyond
   `is_public = 1` (D2).
-- **Recipe** — title, meta line, yield control (the 1–10 wheel, §7.4),
+- **Recipe** — title, meta line, yield control (the 1–10 drum, §7.4),
   ingredients (flat list, with checkboxes that survive scrolling), method
   (rendered exactly as typed, one block per typed line, with a hanging
   indent so a wrapped line aligns under the text rather than under any
@@ -1411,7 +1546,10 @@ for the recorded tap-target exception in §10.E.
   Rotate and Disable — the URL itself is not on screen until asked for. The
   publish control states, in one sentence, that publishing also enables this
   link because Bring! can only fetch a URL it can reach (D1, §8.2).
-- **Editor** — one page, no wizard. Ingredient rows: amount, unit (the
+- **Editor** — one page, no wizard. Servings is a plain `<select>` of 1–10
+  defaulting to 4 (M9, since v2.8) — a closed list needs no helper text
+  explaining the valid range, so none is shown; the drum stays on the
+  recipe view only. Ingredient rows: amount, unit (the
   fixed dropdown, §7.2), name — add or remove a row, no drag reordering, no
   quick-add line, no per-row toggles. Method is a single, optional
   textarea, stored and shown exactly as typed. Autosave draft to
@@ -1421,6 +1559,12 @@ for the recorded tap-target exception in §10.E.
 - **Privacy** — new, since v2.0. Documents the `bring2bring.did` device cookie
   (§8.5, §11) as the one cookie of its kind in the app, and states plainly
   that there is no third-party tracking or analytics (§11).
+- **About Bring!** — new, since v2.8 (M10). Reachable only from the burger
+  menu. Plain text stating that Bring2Bring! is not affiliated with, not
+  paid by, and not advertising for Bring! Labs AG, and shares no data
+  beyond the recipe the user explicitly chooses to send. No Bring! logo or
+  branding asset appears on it. English regardless of the unit-label
+  language (§7.5), since the interface itself is English-only.
 - **Report a bug** — new, since v2.0. A link in the burger menu pointing at
   the GitHub issue tracker of this repository. There is no in-app bug form:
   that would need storage and a queue nobody reads, and there is no mail
@@ -1467,11 +1611,16 @@ as a token in both themes and chosen to meet contrast against `surface`;
 the specific hex is an implementation choice, recorded in `tokens.css` when
 picked, not invented here.
 
-**The accent colour is rationed (L6, since v2.7).** It is reserved for
-four things — the primary action, the selected serving, the active
-navigation item, and positive/on states — plus the wordmark, which F2
-already claimed and L1 does not touch. It marks nothing else: not a
-heading, not a bullet, not a decorative repeat.
+**The accent colour is rationed, app-wide (L6, since v2.7; extended by M9,
+since v2.8).** L6 scoped the rule to the recipe screen; the list's
+alphabetical section letters and the Account screen's headings were still
+accent-coloured, which meant green marked "heading" on one screen and
+"action" on another. It is now reserved for the same short list
+everywhere in the interface: the primary action, the selected serving,
+the active navigation item, the active A–Z rail letter (§10.E), and
+positive/on states — plus the wordmark, which F2 already claimed and L1
+does not touch. It marks nothing else: not a heading, not a bullet, not a
+decorative repeat.
 
 Dark is the default: `prefers-color-scheme` decides which set applies, and
 an explicit `[data-theme]` attribute on the root overrides it in both
@@ -1543,14 +1692,21 @@ One paragraph per screen, matching the mockup:
    field itself that submits the search, and a secondary "ingredients"
    toggle beside it — a link, not a submit button — off by default; the
    screen needs no submit button of its own and therefore no inline
-   script. Rows are sorted A–Z with letter section headers. An A–Z rail
-   runs down the right edge (starting with `#`); it is dragged, not read
-   (F6, since v2.2) — dragging along it magnifies the letter under the
-   finger into a bubble that tracks the finger, and the list jumps to
-   that section when the finger lifts (scrolling mid-gesture would make
-   the browser cancel the pointer and end the drag), a letter with no
-   recipes stays dim and does not jump, and scrolling the list brightens
-   the letter currently in view; every letter remains a real anchor.
+   script. Rows are sorted A–Z with letter section headers, no longer
+   accent-coloured (M9, since v2.8, extending L6's rationing app-wide). An
+   A–Z rail runs down the right edge (starting with `#`), held off the
+   header by a real gap and capped short of the bottom navigation (M6,
+   since v2.8) — the rail's top and the header's bottom were already both
+   at 85px (J5, since v2.5), so the fix is spacing, not a repositioning;
+   it is dragged, not read (F6, since v2.2) — dragging along it magnifies
+   the letter under the finger into a bubble that tracks the finger, and
+   the list jumps to that section when the finger lifts (scrolling
+   mid-gesture would make the browser cancel the pointer and end the
+   drag), a letter with no recipes stays dim and does not jump, and
+   scrolling the list brightens the letter currently in view; inert
+   letters are small and muted, the current letter is larger and sits in
+   an accent pill, legible in both themes (M6, since v2.8); every letter
+   remains a real anchor.
    Each row shows the recipe name as body text and the import count with
    the `i-bring` mark, above the bottom nav. **Deliberate deviation from
    the mockup:** the mockup also shows an author name under each recipe
@@ -1561,39 +1717,49 @@ One paragraph per screen, matching the mockup:
    wordmark, burger on the right — L1, since v2.7), then, in this reading
    order (E5, since v2.1): the title, immediately below the header rule
    with no claimed gap (L3, since v2.7), a "Servings" section with the
-   1–10 wheel (F5, since v2.2, replacing the v2.1 ruler, E6), fading at
-   both scrolled edges rather than cutting hard (L4, since v2.7), and the
-   selected number enlarged and accent-coloured (J4, since v2.5), then
-   "Ingredients" — a quiet caption, no longer repeating the servings count
-   the selector above it already shows (L5, since v2.7) — the ingredient
-   list, the primary "Send to Bring!" button, now full height with no
-   underline so it reads as the one dominant control on the screen (L8,
-   since v2.7), then "Method", then Edit and Duplicate as quiet inline
-   actions with no button box (L9, since v2.7), then a single collapsed
-   disclosure holding publishing, the public link, Archive, and — for an
-   archived recipe only, before "Delete permanently" — Restore (since
-   v2.4, H1). Edit and Duplicate stay one tap away; the disclosure holds
-   only what is touched once per recipe rather than once per cook.
+   1–10 vertical drum (M1, since v2.8, replacing the v2.7 horizontal
+   wheel, L4) — three 48px items visible, the selected number in a large,
+   full-contrast centre band, its neighbours muted, both ends fading
+   under a mask — and the accessibility contract of M2 (spinbutton role,
+   arrow-key input, a reduced-motion fallback, a guarded haptic tick),
+   then "Ingredients" — a quiet caption, no longer repeating the servings
+   count the selector above it already shows (L5, since v2.7) — the
+   ingredient list, the primary "Send to Bring!" button, now full height
+   with no underline so it reads as the one dominant control on the
+   screen (L8, since v2.7), then "Method", then Edit and Duplicate as
+   quiet inline actions with no button box (L9, since v2.7), then a
+   single collapsed disclosure holding publishing, the public link,
+   Archive, and — for an archived recipe only, before "Delete
+   permanently" — Restore (since v2.4, H1). Edit and Duplicate stay one
+   tap away; the disclosure holds only what is touched once per recipe
+   rather than once per cook.
 3. **Public** — laid out as My Recipes, except each row also shows the
    author as `@username`, and the header carries a sort control of three
    segmented links — A–Z / Most imported / Recently added — rather than
    a `<select>` with a submit button, in place of the ingredients toggle
    alone.
 4. **Burger** — a panel over the page from the right, with a close control
-   and the items Account, Theme, Privacy, Report a bug, Archive, Log out
-   (Theme moved here from the header — L2, since v2.7). Log out and other
-   destructive items use the `danger` token (§10.B). The control that
-   opens the panel stays reachable above the scrim while it is open, and
+   and the items Account, Appearance, Privacy, About Bring!, Report a
+   bug, Archive, Log out (moved here from the header and relabelled from
+   "Theme" — L2, since v2.7; M5, since v2.8). About Bring! is new (M10,
+   since v2.8): plain text disclaiming any affiliation with, payment
+   from, or advertising for Bring! Labs AG, with no Bring! logo or
+   branding asset on the page. Log out and other destructive items use
+   the `danger` token (§10.B). The control that opens the panel stays
+   reachable above the scrim while it is open, and
    closing the panel works with JavaScript off (F4, since v2.2).
 
-**Tap-target exceptions (since v2.1, updated in v2.2).** One control
-falls short of the 44 px minimum restated in §10.F, deliberately and
-recorded here rather than taken silently: the A–Z rail's letters —
+**Tap-target exceptions (since v2.1, updated in v2.2 and v2.8).** One
+control falls short of the 44 px minimum restated in §10.F, deliberately
+and recorded here rather than taken silently: the A–Z rail's letters —
 its drag-magnified bubble (F6) makes them easier to hit in practice
-without making the letters themselves any bigger. The servings wheel
-is no longer an exception: F5's scroll wheel gives each position the
-full `--min-tap-target` width, where the v2.1 ruler it replaced only
-had about 29 px per position.
+without making the letters themselves any bigger, and each letter now
+holds at least 24px by padding rather than by font size (M6, since
+v2.8), so the smaller inert letters stay hittable. The servings control
+is no longer an exception: the 48px drum item (M1, since v2.8, replacing
+F5's scroll wheel) gives each position the full `--min-tap-target`
+height, where the v2.1 ruler it replaced only had about 29 px per
+position.
 
 **Bottom nav** — three equal items, always present on list and recipe
 screens: My Recipes, Public, and New — the accent colour marks only
@@ -1748,10 +1914,11 @@ while the site looks perfectly fine in a browser.
 | **C** | *v2.0.* Import counter: D4 in full (`/recipes/:id/bring`, `bring2bring.did`, `bring_imports`), sorting and filtering by import count, the Privacy page. **Migration 003.** |
 | **D** | *v2.6.* Unit language (K3): German/English labels for every unit, `users.unit_language`, the Account control, and the share page rendering in the author's language. Measurement system (K4): the imperial display family, `users.measurement_system`, its own Account control, and the amended §7.3 rounding rule. Number locale follows unit language (K6). **Migration 004.** |
 | **E** | *v2.7.* Recipe screen refinement (L1–L11): centred wordmark, theme toggle into the menu, rationed accent, aligned ingredient columns, a taller Send to Bring!, quieted Edit/Duplicate, a shape-distinct New, and a redrawn Bring icon. **No schema change.** |
+| **F** | *v2.8.* Change Request 01 (M1–M10): the servings drum replacing the horizontal wheel with its accessibility contract, the Account-screen hint/button overlap fixed, the "Appearance" menu label, the A–Z rail's gap and letter treatment, "N.A." in the unit dropdown, grams as the new-row unit default, the editor's servings dropdown, accent rationing extended app-wide, and the About Bring! disclosure page. **No schema change.** |
 
-Each of A, B, C, D and E is independently deployable. Phases 0–3 above are
-the record of what shipped to get here; they are not revised by
-A/B/C/D/E.
+Each of A, B, C, D, E and F is independently deployable. Phases 0–3 above
+are the record of what shipped to get here; they are not revised by
+A/B/C/D/E/F.
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
