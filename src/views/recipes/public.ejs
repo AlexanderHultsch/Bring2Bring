@@ -42,22 +42,7 @@
               Public recipes from any Bring2Bring! user appear here once someone publishes one. Nobody has published a recipe yet.
             <% } %>
           </p>
-        <% } else if (showAZ) { %>
-          <% groups.forEach((group) => { %>
-            <h2 class="recipe-list__section" id="sect-<%= group.letter %>"><%= group.letter %></h2>
-            <ul class="recipe-list">
-              <% group.recipes.forEach((recipe) => { %>
-                <%- include('../partials/recipe-list-row', { recipe, showAuthor: true }) %>
-              <% }) %>
-            </ul>
-          <% }) %>
-        <% } else { %>
-          <ul class="recipe-list">
-            <% recipes.forEach((recipe) => { %>
-              <%- include('../partials/recipe-list-row', { recipe, showAuthor: true }) %>
-            <% }) %>
-          </ul>
-        <% } %>
+        <% } else { %><%- include('../partials/recipe-list-body', { groups, recipes, showAZ, showAuthor: true }) %><% } %>
       </main>
       <%- include('../partials/bottom-nav', { activeNav: 'public' }) %>
 <%- include('../partials/foot') %>

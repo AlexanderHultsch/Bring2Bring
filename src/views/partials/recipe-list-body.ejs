@@ -1,0 +1,16 @@
+<% if (showAZ) { %>
+          <% groups.forEach((group) => { %>
+            <h2 class="recipe-list__section" id="sect-<%= group.letter %>"><%= group.letter %></h2>
+            <ul class="recipe-list">
+              <% group.recipes.forEach((recipe) => { %>
+                <%- include('recipe-list-row', { recipe, showAuthor }) %>
+              <% }) %>
+            </ul>
+          <% }) %>
+        <% } else { %>
+          <ul class="recipe-list">
+            <% recipes.forEach((recipe) => { %>
+              <%- include('recipe-list-row', { recipe, showAuthor }) %>
+            <% }) %>
+          </ul>
+        <% } %>

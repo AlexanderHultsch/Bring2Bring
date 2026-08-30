@@ -44,22 +44,7 @@
               No recipes yet. <a href="/recipes/new">Add your first recipe</a>.
             <% } %>
           </p>
-        <% } else if (showAZ) { %>
-          <% groups.forEach((group) => { %>
-            <h2 class="recipe-list__section" id="sect-<%= group.letter %>"><%= group.letter %></h2>
-            <ul class="recipe-list">
-              <% group.recipes.forEach((recipe) => { %>
-                <%- include('../partials/recipe-list-row', { recipe, showAuthor: false }) %>
-              <% }) %>
-            </ul>
-          <% }) %>
-        <% } else { %>
-          <ul class="recipe-list">
-            <% recipes.forEach((recipe) => { %>
-              <%- include('../partials/recipe-list-row', { recipe, showAuthor: false }) %>
-            <% }) %>
-          </ul>
-        <% } %>
+        <% } else { %><%- include('../partials/recipe-list-body', { groups, recipes, showAZ, showAuthor: false }) %><% } %>
       </main>
       <%- include('../partials/bottom-nav', { activeNav: archived ? null : 'mine' }) %>
 <%- include('../partials/foot') %>
