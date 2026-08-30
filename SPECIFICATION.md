@@ -1,4 +1,4 @@
-# Bring2Bring! — Specification v2.6
+# Bring2Bring! — Specification v2.7
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
 > source of truth for the `Bring2Bring` repository
@@ -452,6 +452,106 @@ decisions:
   follows `unit_language`: `'de'` resolves to `de-DE`, `'en'` to `en-US`.
   `NUMBER_LOCALE` in §3 stays as the default for anything with no reader —
   it is what the German default resolves to. This answers §16 question 2.
+
+---
+
+## Changes in v2.7
+
+A refinement pass on the recipe screen, not a redesign: no route, no data
+and no scaling behaviour changes anywhere in this version. The problem
+being solved is hierarchy — the accent colour had spread to headings,
+bullets and the wordmark until nothing stood out, and the screen's actual
+primary action was competing with a theme toggle, an Edit button and a
+Duplicate button for the eye. Two of the requested changes turned out to
+contradict decisions made in v2.1 and v2.2; both were raised and both were
+resolved in favour of the earlier decision, which is why this section
+upholds E5 and F3 rather than reversing them. The full set of decisions:
+
+- **The header is three zones, and the wordmark sits in the middle (L1).**
+  Back on the left, wordmark centred, burger on the right. The wordmark
+  keeps the size and the accent colour F2 gave it — it is the app's
+  identity, not decoration, and it is the one place the accent is not
+  being rationed by L6. Centring it needs the header to become a
+  three-column grid rather than two flex ends, so that the middle stays
+  centred on the screen regardless of what the two sides contain.
+- **The theme toggle leaves the header for the menu (L2).** It was a
+  boxed icon button sitting immediately beside the burger, and the two
+  together made the top-right of every screen read as two competing
+  controls. Theme is set once and then forgotten, so it belongs with
+  Account and Privacy. **Stated consequence:** the menu only renders for
+  a logged-in user, so the login screen loses its manual theme control
+  and follows the operating system's setting. That is judged acceptable
+  because the default already follows the system and a logged-out screen
+  is passed through, not lived in.
+- **The recipe title moves up (L3).** Nothing between the header rule and
+  the `<h1>` earns the gap that was there.
+- **The servings row admits it scrolls (L4).** The wheel ran off both
+  edges with a hard cut, which read as a clipped layout rather than as
+  more content. Both ends now fade. The fade is a mask on the scroll
+  container, and it must carry the `-webkit-` prefix as well — v2.5 (J3)
+  is the standing reminder that this control has already shipped broken
+  once because a scroll behaviour was verified in one engine and assumed
+  universal.
+- **"Ingredients" stops shouting, and stops repeating the servings
+  (L5).** The heading was accent-coloured, bold, and larger than the
+  body, and it restated a number the selector directly above it already
+  shows and already updates. It becomes a quiet caption in the same style
+  as "SERVINGS", and the `data-servings-count` span goes with it. The
+  client-side recalculation already guards for that element's absence, so
+  nothing breaks; the selector remains the single place the current
+  servings are shown, which is what the wheel was for.
+- **Green leaves the ingredient list (L6).** The bullets were
+  accent-coloured, which spent the strongest signal in the palette on a
+  decorative marker repeated once per row. The accent is now reserved for
+  four things: the primary action, the selected serving, the active
+  navigation item, and positive/on states.
+- **The ingredient columns align on every row, including the ones with no
+  amount (L7).** An ingredient with no number — a pinch, or "to taste" —
+  rendered no amount cell at all, so its name slid left into the amount
+  column and broke the two-column read. It now gets an empty cell.
+  Recorded as a defect rather than a preference: it was visible on any
+  recipe with a pinch in it. **Left deliberately unfixed and still open:**
+  the same ingredient renders as "Salz" on the page but reaches Bring! as
+  "Prise Salz" in the JSON-LD, because `scaleIngredient` returns a null
+  `amountText` for the pinch dimension while its `text` carries the
+  label. Screen and export disagreeing is what §8.5 exists to prevent, so
+  it needs a decision about what the page should say, not a quiet patch
+  alongside a layout fix.
+- **"Send to Bring!" is unmistakably the primary action (L8).** It was
+  the same height as the minimum tap target and its label was underlined,
+  which made the screen's most important control look like a link that
+  happened to have a background. It gets real height and loses the
+  underline. §1 principle 1 — the app exists to get an existing recipe
+  into Bring! in one tap — is the reason this is the one control allowed
+  to dominate.
+- **Edit and Duplicate stay one tap away, and stop competing (L9).** The
+  request was to move them into the burger menu. E5 (v2.1) put them on
+  the page deliberately, on the owner's instruction, and that holds: they
+  stay. What changes is weight — they lose their bordered button boxes
+  and become quiet inline actions below the method, so the only thing
+  with a filled background on the screen is the one in L8. This is the
+  cheaper half of what the request was actually after: the complaint was
+  visual competition, and the tap cost was never the thing being
+  complained about.
+- **"New" is distinct by shape, not by weight (L10).** The request was
+  for a circular floating action. F3 (v2.2) demoted exactly that, and the
+  reasoning still holds — the app is for sending existing recipes, not
+  adding them. So the plus gets a circular outlined target that marks it
+  as a different kind of action, with no accent fill and no raise, and
+  "Send to Bring!" remains the only accent-filled button in the app. The
+  guard test asserting the navigation has no primary item stays, and a
+  second one now asserts the New item carries no accent fill, so the
+  shape change cannot quietly become the weight change F3 ruled out. The
+  navigation also gets slightly shorter.
+- **The Bring icon read as a prohibition sign (L11).** It was already the
+  intended leaf-and-arrow rather than a shopping cart, but the arrow's
+  shaft was drawn as a single diagonal straight through the leaf, so at
+  icon size the whole mark read as a leaf with a line through it — the
+  universal symbol for *not allowed*, on the button whose entire job is
+  to invite a tap. Redrawn so the arrow sits clear of the leaf. Worth
+  recording because the icon was correct by description and wrong by
+  appearance, and only looking at it rendered at its real size showed the
+  difference.
 
 ---
 
@@ -1260,12 +1360,26 @@ for the recorded tap-target exception in §10.E.
 
 ### 10.0 Navigation
 
+- **Header**, three zones (L1, since v2.7): back (or nothing) on the
+  left, the wordmark centred, burger on the right — a three-column grid,
+  not two flex ends, so the middle stays centred regardless of what the
+  two sides contain. The wordmark keeps the size and accent colour F2
+  gave it. The theme toggle is not a header control; it lives in the
+  burger menu (L2, since v2.7).
 - **Bottom navigation bar**, thumb-reachable, exactly three equal items:
   **My Recipes**, **Public**, **New** — the accent colour marks only
-  whichever one is current (F3, since v2.2). This also supplies the way
-  back from a recipe to a list — a gap v1.1 had, since it removed
-  navigation along with everything else that wasn't essential.
-- **Burger menu**, top right: Account, Privacy, Report a bug, Log out.
+  whichever one is current (F3, since v2.2). **New** is additionally
+  marked by a circular outline rather than by accent fill (L10, since
+  v2.7): distinct by shape, not by weight, so it stays the ordinary
+  navigation item F3 made it. This also supplies the way back from a
+  recipe to a list — a gap v1.1 had, since it removed navigation along
+  with everything else that wasn't essential.
+- **Burger menu**, top right: Account, Privacy, Theme, Report a bug, Log
+  out. Theme moved here from the header (L2, since v2.7); it is set once
+  and then forgotten, so it belongs beside Account and Privacy rather than
+  competing with the burger control for the top-right corner. The menu
+  only renders for a logged-in user, so the login screen has no manual
+  theme control and follows the operating system's setting.
 - The **archive moves into the burger menu**, out of the main flow — it was
   reachable from the list in v1, it is a deliberate extra step now.
 
@@ -1353,6 +1467,12 @@ as a token in both themes and chosen to meet contrast against `surface`;
 the specific hex is an implementation choice, recorded in `tokens.css` when
 picked, not invented here.
 
+**The accent colour is rationed (L6, since v2.7).** It is reserved for
+four things — the primary action, the selected serving, the active
+navigation item, and positive/on states — plus the wordmark, which F2
+already claimed and L1 does not touch. It marks nothing else: not a
+heading, not a bullet, not a decorative repeat.
+
 Dark is the default: `prefers-color-scheme` decides which set applies, and
 an explicit `[data-theme]` attribute on the root overrides it in both
 directions — the existing mechanism, unchanged. The existing manual-toggle
@@ -1437,28 +1557,34 @@ One paragraph per screen, matching the mockup:
    on this screen, but on My Recipes every recipe is by definition the
    signed-in user's own, so the author line is omitted here and shown
    only on the Public shelf (§10.1).
-2. **Recipe** — a back arrow and a burger control in the header, then, in
-   this reading order (E5, since v2.1): the title, a "Servings" section
-   with the 1–10 wheel (F5, since v2.2, replacing the v2.1 ruler, E6) and
-   the selected number enlarged and accent-coloured (J4, since v2.5), then
-   "Ingredients (for N servings)" where N
-   is the selected servings, the ingredient list, the primary "Send to
-   Bring!" button, then "Method", then Edit and Duplicate, then a single
-   collapsed disclosure holding publishing, the public link, Archive, and
-   — for an archived recipe only, before "Delete permanently" — Restore
-   (since v2.4, H1). Edit and Duplicate stay one tap away; the disclosure
-   holds only what is touched once per recipe rather than once per cook.
+2. **Recipe** — the three-zone header (back on the left, the centred
+   wordmark, burger on the right — L1, since v2.7), then, in this reading
+   order (E5, since v2.1): the title, immediately below the header rule
+   with no claimed gap (L3, since v2.7), a "Servings" section with the
+   1–10 wheel (F5, since v2.2, replacing the v2.1 ruler, E6), fading at
+   both scrolled edges rather than cutting hard (L4, since v2.7), and the
+   selected number enlarged and accent-coloured (J4, since v2.5), then
+   "Ingredients" — a quiet caption, no longer repeating the servings count
+   the selector above it already shows (L5, since v2.7) — the ingredient
+   list, the primary "Send to Bring!" button, now full height with no
+   underline so it reads as the one dominant control on the screen (L8,
+   since v2.7), then "Method", then Edit and Duplicate as quiet inline
+   actions with no button box (L9, since v2.7), then a single collapsed
+   disclosure holding publishing, the public link, Archive, and — for an
+   archived recipe only, before "Delete permanently" — Restore (since
+   v2.4, H1). Edit and Duplicate stay one tap away; the disclosure holds
+   only what is touched once per recipe rather than once per cook.
 3. **Public** — laid out as My Recipes, except each row also shows the
    author as `@username`, and the header carries a sort control of three
    segmented links — A–Z / Most imported / Recently added — rather than
    a `<select>` with a submit button, in place of the ingredients toggle
    alone.
 4. **Burger** — a panel over the page from the right, with a close control
-   and the items Account, Privacy, Report a bug, Archive, Log out. Log out
-   and other destructive items use the `danger` token (§10.B). The
-   control that opens the panel stays reachable above the scrim while it
-   is open, and closing the panel works with JavaScript off (F4, since
-   v2.2).
+   and the items Account, Privacy, Theme, Report a bug, Archive, Log out
+   (Theme moved here from the header — L2, since v2.7). Log out and other
+   destructive items use the `danger` token (§10.B). The control that
+   opens the panel stays reachable above the scrim while it is open, and
+   closing the panel works with JavaScript off (F4, since v2.2).
 
 **Tap-target exceptions (since v2.1, updated in v2.2).** One control
 falls short of the 44 px minimum restated in §10.F, deliberately and
@@ -1471,8 +1597,9 @@ had about 29 px per position.
 
 **Bottom nav** — three equal items, always present on list and recipe
 screens: My Recipes, Public, and New — the accent colour marks only
-whichever one is current (F3, since v2.2). This is also the way back
-from a recipe to a list.
+whichever one is current (F3, since v2.2). New is additionally marked by
+a circular outline rather than accent fill (L10, since v2.7). This is
+also the way back from a recipe to a list.
 
 ### 10.F Rules that survive
 
@@ -1620,9 +1747,11 @@ while the site looks perfectly fine in a browser.
 | **B** | *v2.0.* Public shelf and admin: `is_public`, the `/public` gallery, author on cards, duplicate-from-public, the D2 authorization change, the D3 admin screens (`/admin/recipes`, `/admin/users`), delete users. **Migration 002.** |
 | **C** | *v2.0.* Import counter: D4 in full (`/recipes/:id/bring`, `bring2bring.did`, `bring_imports`), sorting and filtering by import count, the Privacy page. **Migration 003.** |
 | **D** | *v2.6.* Unit language (K3): German/English labels for every unit, `users.unit_language`, the Account control, and the share page rendering in the author's language. Measurement system (K4): the imperial display family, `users.measurement_system`, its own Account control, and the amended §7.3 rounding rule. Number locale follows unit language (K6). **Migration 004.** |
+| **E** | *v2.7.* Recipe screen refinement (L1–L11): centred wordmark, theme toggle into the menu, rationed accent, aligned ingredient columns, a taller Send to Bring!, quieted Edit/Duplicate, a shape-distinct New, and a redrawn Bring icon. **No schema change.** |
 
-Each of A, B, C and D is independently deployable. Phases 0–3 above are the
-record of what shipped to get here; they are not revised by A/B/C/D.
+Each of A, B, C, D and E is independently deployable. Phases 0–3 above are
+the record of what shipped to get here; they are not revised by
+A/B/C/D/E.
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
