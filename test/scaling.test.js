@@ -163,41 +163,41 @@ test('7.3 rounding bands: values within and at the boundaries of each band', () 
 // N2 (v2.9) scoped the count-rounding reversal to 'piece' alone. The
 // following four tests used to run against 'piece' (pre-N2, 'piece' was
 // just another count unit); they now run against 'stueck' so they keep
-// guarding the whole-number/floor-of-1 behaviour that still applies to
+// guarding the half-step/floor-0.5 behaviour (O1, v2.10) that applies to
 // every count unit other than 'piece'.
 test('count dimension (stueck): 2 onions x1.5 -> 3', () => {
   const result = scaleIngredient(ingredient({ amount: 2, unit: 'stueck', name: 'Zwiebeln' }), 1.5);
   assert.equal(result.amount, 3);
 });
 
-test('count dimension (stueck): 1 onion x0.5 -> 1', () => {
+test('O1: count dimension (stueck): 1 onion x0.5 -> 0.5, half-steps are shoppable', () => {
   const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.5);
-  assert.equal(result.amount, 1);
+  assert.equal(result.amount, 0.5);
 });
 
-test('count dimension (stueck): an onion x0.1 -> 1, never below 1 and never 0', () => {
+test('O1: count dimension (stueck): an onion x0.1 -> 0.5, never below 0.5 and never 0', () => {
   const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.1);
-  assert.equal(result.amount, 1);
-  assert.ok(result.amount >= 1);
+  assert.equal(result.amount, 0.5);
+  assert.ok(result.amount >= 0.5);
   assert.notEqual(result.amount, 0);
 });
 
-test('REGRESSION (owner report), N2-scoped to stueck: 1 onion at base yield 4 scales to a whole number across servings 1-8, never below 1', () => {
+test('O1 REGRESSION (owner report), N2-scoped to stueck: 1 onion at base yield 4 scales in half-steps across servings 1-8, never below 0.5', () => {
   const base = 4;
-  const expected = { 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2 };
+  const expected = { 1: 0.5, 2: 0.5, 3: 1, 4: 1, 5: 1.5, 6: 1.5, 7: 2, 8: 2 };
   for (const servings of [1, 2, 3, 4, 5, 6, 7, 8]) {
     const factor = computeFactor(servings, base);
     const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), factor);
-    assert.equal(Number.isInteger(result.amount), true, `${servings} servings gave ${result.amount}, not a whole number`);
-    assert.ok(result.amount >= 1, `${servings} servings gave ${result.amount}, below the floor of 1`);
+    assert.equal(result.amount * 2, Math.round(result.amount * 2), `${servings} servings gave ${result.amount}, not a multiple of 0.5`);
+    assert.ok(result.amount >= 0.5, `${servings} servings gave ${result.amount}, below the floor of 0.5`);
     assert.equal(result.amount, expected[servings], `${servings} servings expected ${expected[servings]}, got ${result.amount}`);
   }
 });
 
-test('count dimension (stueck): scaled far down, the raw value floors at 1 rather than 0 or a fraction', () => {
+test('O1: count dimension (stueck): scaled far down, the raw value floors at 0.5 rather than 0 or 1', () => {
   const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.01);
-  assert.equal(result.amount, 1);
-  assert.equal(Number.isInteger(result.amount), true);
+  assert.equal(result.amount, 0.5);
+  assert.notEqual(result.amount, 1);
 });
 
 // N2 (v2.9): 'piece' — the editor's "N.A." option — stops scaling and stops
@@ -230,6 +230,45 @@ test('count change is scoped to count: a gram amount still rounds by the mass th
   const result = scaleIngredient(ingredient({ amount: 1250, unit: 'g', name: 'Mehl' }), 1);
   assert.equal(result.amount, 1.25);
   assert.equal(result.unit, 'kg');
+});
+
+// O1 (v2.10): count rounds to the nearest 0.5 again, floor 0.5 — reversing
+// v2.5's whole-number rule now that N2 (v2.9) handles 'piece' separately.
+test('O1 (owner report): 2 Zwiebeln x2.25 -> "4,5 Stück Zwiebeln", the exact string from the report', () => {
+  const result = scaleIngredient(ingredient({ amount: 2, unit: 'stueck', name: 'Zwiebeln' }), 2.25);
+  assert.equal(result.amount, 4.5);
+  assert.equal(result.text, '4,5 Stück Zwiebeln');
+});
+
+test('O1: the floor is 0.5, not 0 and not 1 — a stueck ingredient scaled far down renders "0,5 Stück"', () => {
+  const result = scaleIngredient(ingredient({ amount: 2, unit: 'stueck', name: 'Radieschen' }), 0.01);
+  assert.equal(result.amount, 0.5);
+  assert.equal(result.text, '0,5 Stück Radieschen');
+});
+
+test('O1: count values round to the nearest half, not to a whole number', () => {
+  const a = scaleIngredient(ingredient({ amount: 2.25, unit: 'stueck', name: 'Zutat' }), 1);
+  assert.equal(a.amount, 2.5);
+  const b = scaleIngredient(ingredient({ amount: 2.3, unit: 'stueck', name: 'Zutat' }), 1);
+  assert.equal(b.amount, 2.5);
+  const c = scaleIngredient(ingredient({ amount: 2.1, unit: 'stueck', name: 'Zutat' }), 1);
+  assert.equal(c.amount, 2);
+});
+
+test('O1 did not undo N2: piece still neither scales nor rounds', () => {
+  for (const factor of [1, 2.25, 0.5, 0.01]) {
+    const result = scaleIngredient(ingredient({ amount: 4.5, unit: 'piece', name: 'Zwiebel' }), factor);
+    assert.equal(result.amount, 4.5, `factor ${factor} gave ${result.amount}, expected the stored 4.5 unchanged`);
+  }
+});
+
+test('O1: g, ml and tbsp are unaffected by the count half-step rule', () => {
+  const g = scaleIngredient(ingredient({ amount: 250, unit: 'g', name: 'Mehl' }), 2.25);
+  assert.equal(g.amount, 565);
+  const ml = scaleIngredient(ingredient({ amount: 100, unit: 'ml', name: 'Milch' }), 2.25);
+  assert.equal(ml.amount, 225);
+  const tbsp = scaleIngredient(ingredient({ amount: 2, unit: 'tbsp', name: 'Öl' }), 2.25);
+  assert.equal(tbsp.amount, 4.5);
 });
 
 test('flags: isOptional and excludeFromShopping pass through as booleans, true when 1 and false when 0', () => {
@@ -467,9 +506,9 @@ test('V1: stueck is a count-dimension unit that never converts and shows its own
   assert.equal(result.text, '3 Stück Butter');
 });
 
-test('V1: stueck rounds like the other count unit, never below 1', () => {
+test('V1/O1: stueck rounds like the other count unit, never below 0.5', () => {
   const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.1);
-  assert.equal(result.amount, 1);
+  assert.equal(result.amount, 0.5);
 });
 
 // §7.5 (K3): unitLabel(key, language) — every UNITS key has a German and an

@@ -17,7 +17,7 @@ export function computeFactor(requestedYield, baseYield) {
 // (N2, since v2.9 — 'piece' passes its stored amount straight through).
 function roundOnce(value, dimension) {
   if (dimension === 'count') {
-    return Math.max(Math.round(value), 1);
+    return Math.max(Math.round(value * 2) / 2, 0.5);
   }
   if (value >= 100) return Math.round(value / 5) * 5;
   if (value >= 10) return Math.round(value);

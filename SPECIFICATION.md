@@ -1,4 +1,4 @@
-# Bring2Bring! — Specification v2.9
+# Bring2Bring! — Specification v2.10
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
 > source of truth for the `Bring2Bring` repository
@@ -732,6 +732,36 @@ rounding ladder. The full set of decisions:
 
 ---
 
+## Changes in v2.10
+
+One decision, reversing v2.5. No schema change.
+
+- **Count rounds to the nearest 0.5 again, never below 0.5 (O1).** The
+  owner: "Stück can be 1,5 and so on. Just not smaller than 0,5 steps." This
+  is the third time this rule has moved, and the sequence is worth keeping
+  straight so nobody flips it a fourth time without knowing what happened.
+  **v1** rounded `count` to the nearest 0.5, floor 0.5 — the original rule.
+  **v2.5** changed it to whole numbers, floor 1, because the owner reported
+  that an ingredient "is not scaling at all": one egg read `1` at both
+  three and four servings. The observation was right and the diagnosis was
+  wrong — the ingredient in question used the `piece` unit, and the fix
+  landed on the whole `count` dimension instead. **v2.10, now**, reverses
+  that: half a Stück is a real quantity, and the thing that actually needed
+  fixing was `piece`, which N2 (v2.9) has since handled properly by making
+  it neither scale nor round. The v2.5 change is superseded rather than
+  merely reverted — the problem it aimed at is solved, by the right unit.
+  `piece` is unaffected by O1 and stays exactly as N2 left it. There is
+  also a process lesson here, in the same register as J3 and L11: the
+  owner's original v2.9 report was "4,5 Stück Zwiebel has a line break =>
+  we need wider col", and it named the value as legitimate and the column
+  as the defect. The response that produced N1 treated the rounding rule as
+  settled and spent its effort proving `4,5 Stück` could not occur, rather
+  than asking whether the rule itself was what was being reported. The
+  column widening (N1) was needed and stands; the detour was not. When a
+  report contradicts a rule, the report may be about the rule.
+
+---
+
 ## 1. Purpose
 
 Bring2Bring! is Alex's own private cookbook on the web. Recipes are entered once,
@@ -1179,10 +1209,11 @@ straight through: on the recipe view, in the client-side recalculation, and
 in the Bring! export, the number shown is exactly what was entered, at every
 serving count. This is specific to the `piece` unit, not to the `count`
 dimension — `stueck`, `clove`, `slice`, `can`, `bunch` and `pack` all keep
-scaling and keep the whole-number rounding §7.3 gives the count dimension.
-It reverses part of v2.5's decision to round counts to whole numbers so a
-"no unit" ingredient visibly changed across servings; the unit's rename to
-"N.A." (M7, v2.8) settles the question the other way — "not applicable"
+scaling and keep the count-dimension rounding §7.3 gives them (nearest 0.5,
+floor 0.5, since O1/v2.10). It reverses part of v2.5's decision to round
+counts to whole numbers so a "no unit" ingredient visibly changed across
+servings; the unit's rename to "N.A." (M7, v2.8) settles the question the
+other way — "not applicable"
 means the number is not a measure that scales. Stated because it reaches
 the shopping list: an N.A. ingredient sends the same quantity to Bring! at
 one serving and at ten, which is a deliberate reading of §1 principle 5, not
@@ -1218,7 +1249,7 @@ which is not a shoppable quantity.
 | 10–99 | round to nearest 1 |
 | 1–9.99 | 1 decimal place |
 | < 1 | 2 decimal places, and prefer a converted-down unit if one exists |
-| `count` dimension (eggs, onions) | round to nearest whole number, never below 1 — a fractional count is not shoppable, and rounding to the nearest 0.5 made small scaled amounts appear not to change across servings |
+| `count` dimension (eggs, onions) | round to nearest 0.5, never below 0.5 (O1, since v2.10) — half a Stück is a real, shoppable quantity; `piece` is exempt from this row entirely (N2, since v2.9): it neither scales nor rounds |
 | `pinch`, `to taste` | never numeric |
 
 Trailing zeros are stripped (`2.0 → 2`). Decimals are rendered with the
@@ -2014,10 +2045,11 @@ while the site looks perfectly fine in a browser.
 | **E** | *v2.7.* Recipe screen refinement (L1–L11): centred wordmark, theme toggle into the menu, rationed accent, aligned ingredient columns, a taller Send to Bring!, quieted Edit/Duplicate, a shape-distinct New, and a redrawn Bring icon. **No schema change.** |
 | **F** | *v2.8.* Change Request 01 (M1–M10): the servings drum replacing the horizontal wheel with its accessibility contract, the Account-screen hint/button overlap fixed, the "Appearance" menu label, the A–Z rail's gap and letter treatment, "N.A." in the unit dropdown, grams as the new-row unit default, the editor's servings dropdown, accent rationing extended app-wide, and the About Bring! disclosure page. **No schema change.** |
 | **G** | *v2.9.* N1–N3: the ingredient amount column widened to fit the formatter's real worst case, `piece` stops scaling with servings (N.A. is not a measure), and the recipe editor gets a Cancel that discards its autosaved draft. **No schema change.** |
+| **H** | *v2.10.* O1: `count` rounds to the nearest 0.5 again, floor 0.5, reversing v2.5's whole-number rule now that N2 (v2.9) has separately handled `piece`. **No schema change.** |
 
-Each of A, B, C, D, E, F and G is independently deployable. Phases 0–3 above
-are the record of what shipped to get here; they are not revised by
-A/B/C/D/E/F/G.
+Each of A, B, C, D, E, F, G and H is independently deployable. Phases 0–3
+above are the record of what shipped to get here; they are not revised by
+A/B/C/D/E/F/G/H.
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
