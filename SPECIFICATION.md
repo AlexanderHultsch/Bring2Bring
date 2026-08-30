@@ -1,4 +1,4 @@
-# Bring2Bring! — Specification v2.12
+# Bring2Bring! — Specification v2.13
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
 > source of truth for the `Bring2Bring` repository
@@ -909,6 +909,98 @@ nullable columns on `users`. The full set of decisions:
 
 ---
 
+## Changes in v2.13
+
+Five things actually changed, two v2.0-and-later decisions turn out to
+describe behaviour the code deliberately does not have, one more section
+joins D7 (K2, v2.6) and §6.2/§6.3 (Q4, v2.12) as specified-but-never-built,
+and §9's route table is caught up with two routes that already existed. No
+change here touches §5.1 authorization or the scaling engine (§7.1–§7.3).
+The full set of decisions:
+
+- **A global rate ceiling now exists (R1).** §11 has listed "login,
+  registration, share route, and a global ceiling" since v2.0, but no
+  app-wide limiter was ever mounted — the fourth item in that list was
+  prose, not code, the same kind of gap D7 and Q4 found elsewhere. It is
+  mounted now: **300 requests per minute per IP**, in `src/app.js`, after
+  static assets, `/healthz` and the share router, so none of those three
+  count against it. It has to stay looser than every per-route limiter it
+  sits above (share is 60/min, login/register/reset are 10/15min) or it
+  would become the binding constraint on a route that already limits
+  itself; static assets are excluded because a normal page load's CSS/JS/
+  icon requests would burn through it on their own; `/r/:token` is excluded
+  because §8.3 requires it stay reachable by Bring's own fetchers from
+  unknown IPs, which the global ceiling cannot distinguish from an
+  attacker.
+- **A password change or reset now ends the account's other sessions
+  (R2).** Migration 007 adds `users.password_changed_at`, written in the
+  same statement as the new `password_hash`. Login, registration and the
+  password-change route mirror it into the session; `loadCurrentUser`
+  compares the two by **exact string equality** on every request and
+  evicts a session that does not match. This is the whole point of a
+  reset: it exists precisely so a party holding the account's session
+  loses it, not just the password. There is no user→session index in the
+  SQLite session store to delete by user id, so eviction happens lazily,
+  at the next request on the stale session, rather than immediately. The
+  accepted consequence: every session that predates this deploy is logged
+  out once, the first time it is used. `scripts/seed-admin.js` — the
+  production admin password-rotation path — now supplies the stamp on
+  every run, and `updateUserPasswordHash` rejects a call that omits it.
+- **Migration 006 — index correction (R3).** `idx_recipes_owner_archived`
+  on `recipes(owner_id, is_archived)` replaces `idx_recipes_is_archived`,
+  which is dropped. Measured, not guessed: for the "My Dishes" query
+  (`owner_id = ? AND is_archived = 0`), SQLite was choosing the
+  near-boolean single-column index over the composite one, which made the
+  cost of the post-login landing page scale with the total number of
+  recipes in the database rather than with the caller's own. The guard
+  test asserts the **query plan** (`EXPLAIN QUERY PLAN`), not timing.
+- **The Archived list filters in SQL (R4)**, not in JS after fetching every
+  recipe the user owns — the same `WHERE owner_id = ? AND is_archived = 1`
+  shape the "My Dishes" query already used.
+- **The recipe editor's draft autosave is debounced (R5).** 400 ms after
+  the last keystroke, flushed on `pagehide`, instead of writing the whole
+  draft to `localStorage` on every keystroke — so a long method field typed
+  on a phone does not hit `localStorage` once per character.
+- **§8.5's auto-enable is not what the code does, and that is deliberate
+  (R6).** §8.5 said, since v2.0: *"If sharing is disabled for the recipe,
+  `/recipes/:id/bring` enables the public link first."* The code instead
+  redirects back to the recipe, and the recipe page offers an explicit
+  **POST** button instead ("Enable public link and send to Bring!",
+  `src/views/recipes/show.ejs`). **The code is right and the spec sentence
+  was wrong:** a GET that enables a public share link is CSRF-able — a
+  third-party page could publish someone's recipe with nothing more than
+  an `<img src="…">` tag pointed at it. §8.5's body text above is amended
+  to describe the two-step flow the code actually has, rather than left to
+  contradict it.
+- **§7.4/§10.E's `role="spinbutton"` requirement (M2, v2.8) is deliberately
+  not implemented (R7).** A native `<input type="number">` already exposes
+  spinbutton semantics with `aria-valuenow`/`valuemin`/`valuemax`; adding
+  the ARIA role on top would put two competing controls in the
+  accessibility tree, and the role would land on a container that also
+  holds ten focusable anchors — the ten `?yield=N` links §7.4 keeps for
+  JavaScript-off — which is itself an ARIA violation. `test/
+  recipes.routes.test.js` asserts the role is **absent** from the recipe
+  page. §7.4 and §10.E above are amended to drop the `role="spinbutton"`
+  requirement rather than continue describing a drum that would fail its
+  own accessibility contract if built as specified.
+- **§8.7 "Other exports" — none of it was ever built (R8).** Not "Copy
+  ingredients as text", not `GET /recipes/:id/export.json`, not
+  `GET /export/all.json`, not the `?print=1` print view — verified by a
+  repo-wide grep of `src/`. This is the fourth thing found
+  specced-but-absent in this document, after D7 (K2, v2.6), §6.2's invite
+  flow and §6.3's admin reset link (both Q4, v2.12): a feature described
+  in prose here does not fail a test run, so nobody notices it was never
+  written. §8.7 above is marked as not-yet-built rather than left reading
+  as though it describes shipped behaviour.
+- **§9's route table is missing two real routes (R9).** `POST
+  /account/units` and `POST /account/security-question` both exist,
+  are tested (`test/account.test.js`, and `test/authorization.test.js`'s
+  `ROUTES` table), and are reachable — they were simply never added to the
+  table in §9 when they shipped in v2.12 (Q4). Added now, matching the
+  table's existing column style and "since vX" convention.
+
+---
+
 ## 1. Purpose
 
 Bring2Bring! is Alex's own digital cookbook on the web. Recipes are entered once,
@@ -1479,14 +1571,21 @@ reader (it is what the German default resolves to).
   ten `?yield=N` anchors carried forward from F5, so the control still
   works with JavaScript off.
 - **The drum is accessible as a control, not decorated with accessibility
-  afterward (M2, since v2.8).** It exposes `role="spinbutton"` with
-  `aria-valuenow`, `aria-valuemin` and `aria-valuemax`; arrow keys change
-  the value; a visually hidden number input remains the source of truth
-  for assistive technology. Under `prefers-reduced-motion: reduce` the 3D
-  transform and smooth scrolling are dropped while the size and opacity
-  difference stays, so the selection remains obvious without the motion.
-  A light haptic tick fires on each value change via a guarded
-  `navigator.vibrate?.(8)` — a no-op on iOS Safari, which does not
+  afterward (M2, since v2.8; amended R7, v2.13).** A visually hidden
+  `<input type="number">` remains the source of truth for assistive
+  technology, already exposing spinbutton semantics natively via
+  `aria-valuenow`, `aria-valuemin` and `aria-valuemax` — so the drum
+  carries no explicit `role="spinbutton"` of its own: M2 originally called
+  for one, but that was never built, deliberately, and the requirement is
+  dropped here rather than left to describe a control the code does not
+  have. Adding the role would put two competing controls in the
+  accessibility tree, and the container the role would land on also holds
+  the ten focusable `?yield=N` anchors below, which is itself an ARIA
+  violation. Arrow keys change the value. Under `prefers-reduced-motion:
+  reduce` the 3D transform and smooth scrolling are dropped while the size
+  and opacity difference stays, so the selection remains obvious without
+  the motion. A light haptic tick fires on each value change via a
+  guarded `navigator.vibrate?.(8)` — a no-op on iOS Safari, which does not
   implement the API, and a real tick on Android.
 - Changing it recalculates ingredient amounts **client-side without a page
   reload**, and updates the URL query (`?yield=6`) via `history.replaceState`
@@ -1707,9 +1806,15 @@ Behaviour details:
 - Include the yield in the share URL so that the "back to recipe" link stored
   inside Bring! reopens the recipe at the same quantity, and so that Bring's
   per-URL caching does not serve a stale quantity.
-- If sharing is disabled for the recipe, `/recipes/:id/bring` enables the
-  public link first (as v1 did before handing off to Bring), still
-  explaining in one sentence that Bring! needs to fetch the recipe itself.
+- **If sharing is disabled for the recipe, `/recipes/:id/bring` does *not*
+  enable the public link itself (amended R6, v2.13).** Through v2.12 this
+  said the GET auto-enabled the link, as v1 did before handing off to
+  Bring; that is CSRF-able — a third-party page could publish someone's
+  recipe with nothing more than an `<img src="…">` pointed at the route —
+  so the GET now redirects back to the recipe instead, and the recipe page
+  (`src/views/recipes/show.ejs`) shows an explicit **POST** button, "Enable
+  public link and send to Bring!", one sentence still explaining that
+  Bring! needs to fetch the recipe itself.
 
 **Import counter and anti-cheat — since v2.0 (D4).** A first-party cookie
 `bring2bring.did` identifies a device: 16 random bytes, base64url-encoded,
@@ -1738,7 +1843,15 @@ No extra work: the same JSON-LD makes the share URL importable by Mealie,
 Tandoor, Paprika, AnyList and Samsung Food. Document this in the README rather
 than building integrations.
 
-### 8.7 Other exports
+### 8.7 Other exports — not yet built (R8, since v2.13)
+
+**None of this section exists in `src/`, as of v2.13** — not "Copy
+ingredients as text", not `GET /recipes/:id/export.json`, not
+`GET /export/all.json`, not the `?print=1` print view, verified by a
+repo-wide grep. It remains here as a design that was specified but never
+implemented, in the same category as D7's "pcs" label (K2, v2.6) and the
+invite and admin-reset flows (Q4, v2.12) — not as a description of current
+behaviour:
 
 - **Copy ingredients as text** — clipboard, one ingredient per line, at the
   currently selected yield, respecting `exclude_from_shopping`.
@@ -1775,11 +1888,13 @@ Authenticated unless marked public.
 | POST | `/recipes/:id/publish` | **since v2.0** — toggle `is_public` (D1); enabling also enables the share token (§8.2, §10) |
 | POST | `/recipes/:id/share/link` | Enable / rotate / disable public token |
 | GET | `/recipes/:id/bring` | **since v2.0** — records a Bring! import, `302`s to the deeplink (§8.5, D4) |
-| GET | `/recipes/:id/export.json` | |
-| GET | `/export/all.json` | |
+| GET | `/recipes/:id/export.json` | **not built** — part of §8.7's JSON export design; no such route exists in `src/`, kept here as the intended design, not a route in service (R8, v2.13) |
+| GET | `/export/all.json` | **not built** — part of §8.7's JSON export design (full backup of the user's own recipes); no such route exists in `src/`, kept here as the intended design, not a route in service (R8, v2.13) |
 | GET | `/r/:token` | **public** share page (§8.3) |
 | GET | `/uploads/:file` | **public** images — only reachable via unguessable filename. `image_path` is always `NULL` in v1.1 (§5), so this route is currently unused, kept for when images come back |
-| GET | `/account`, POST `/account/password` | |
+| GET | `/account`, POST `/account/password` | Account settings screen; POST changes the password (§6.3) |
+| POST | `/account/units` | **since v2.6**, added to this table in v2.13 (R9) — sets `unit_language` and `measurement_system` (§7.5, §7.6, K3, K4) |
+| POST | `/account/security-question` | **since v2.12**, added to this table in v2.13 (R9) — sets or replaces the account's security question and answer, requires the current password (Q4, §6.2, §6.3) |
 | GET | `/privacy` | **since v2.0** — Privacy page: documents the `bring2bring.did` cookie and nothing else tracked (D5, D4, §11) |
 | GET | `/about-bring` | **since v2.8** — About Bring! page: states Bring2Bring! is not affiliated with, paid by, or advertising for Bring! Labs AG (M10) |
 | GET | `/admin/recipes` | **since v2.0** — admin only. Title, author, public/private, created date, import count; unpublish, delete (D3) |
@@ -2064,8 +2179,10 @@ One paragraph per screen, matching the mockup:
    1–10 vertical drum (M1, since v2.8, replacing the v2.7 horizontal
    wheel, L4) — three 48px items visible, the selected number in a large,
    full-contrast centre band, its neighbours muted, both ends fading
-   under a mask — and the accessibility contract of M2 (spinbutton role,
-   arrow-key input, a reduced-motion fallback, a guarded haptic tick),
+   under a mask — and the accessibility contract of M2 (native spinbutton
+   semantics via a hidden `<input type="number">`, **no explicit
+   `role="spinbutton"`, amended R7, v2.13** — see §7.4, arrow-key input, a
+   reduced-motion fallback, a guarded haptic tick),
    then "Ingredients" — a quiet caption, no longer repeating the servings
    count the selector above it already shows (L5, since v2.7) — the
    ingredient list (a two-column grid, amount then name, every row aligned
@@ -2286,10 +2403,11 @@ while the site looks perfectly fine in a browser.
 | **H** | *v2.10.* O1: `count` rounds to the nearest 0.5 again, floor 0.5, reversing v2.5's whole-number rule now that N2 (v2.9) has separately handled `piece`. **No schema change.** |
 | **I** | *v2.11.* P1–P3: N.A. (`piece`) carries no quantity at all, superseding N2's `fixed` mechanism; the editor's amount field is disabled and cleared for N.A., server-enforced as well as client-enforced; ingredient ranges are confirmed unnecessary and `amount_max` stays dormant. **No schema change.** |
 | **J** | *v2.12.* Q1–Q4: the ingredient list's bullet marker removed, its padding reclaimed by the name; Edit and Duplicate move off the recipe page into the owner-only "Manage this recipe" disclosure, with Duplicate staying on the page for a non-owner; the publish control's unpublish hint removed; registration opens up to self-service with a security-question reset, replacing the invite-gated model that was never built. **Migration 005.** |
+| **K** | *v2.13.* R1–R9: a global 300/min-per-IP rate ceiling mounted (§11); a password change or reset now evicts the account's other sessions via `users.password_changed_at`; the "My Dishes" query's index corrected; the Archived list filters in SQL; the recipe editor's draft autosave debounced; §8.5's auto-enable reversed to an explicit POST button (CSRF); §7.4/§10.E's `role="spinbutton"` requirement dropped as never built and unneeded; §8.7 marked not-yet-built; §9's route table gains `/account/units` and `/account/security-question`. **Migrations 006 and 007.** |
 
-Each of A, B, C, D, E, F, G, H, I and J is independently deployable. Phases
-0–3 above are the record of what shipped to get here; they are not revised
-by A/B/C/D/E/F/G/H/I/J.
+Each of A, B, C, D, E, F, G, H, I, J and K is independently deployable.
+Phases 0–3 above are the record of what shipped to get here; they are not
+revised by A/B/C/D/E/F/G/H/I/J/K.
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
