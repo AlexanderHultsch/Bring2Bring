@@ -160,39 +160,70 @@ test('7.3 rounding bands: values within and at the boundaries of each band', () 
   }
 });
 
-test('count dimension: 2 eggs x1.5 -> 3', () => {
-  const result = scaleIngredient(ingredient({ amount: 2, unit: 'piece', name: 'Eier' }), 1.5);
+// N2 (v2.9) scoped the count-rounding reversal to 'piece' alone. The
+// following four tests used to run against 'piece' (pre-N2, 'piece' was
+// just another count unit); they now run against 'stueck' so they keep
+// guarding the whole-number/floor-of-1 behaviour that still applies to
+// every count unit other than 'piece'.
+test('count dimension (stueck): 2 onions x1.5 -> 3', () => {
+  const result = scaleIngredient(ingredient({ amount: 2, unit: 'stueck', name: 'Zwiebeln' }), 1.5);
   assert.equal(result.amount, 3);
 });
 
-test('count dimension: 1 egg x0.5 -> 1', () => {
-  const result = scaleIngredient(ingredient({ amount: 1, unit: 'piece', name: 'Ei' }), 0.5);
+test('count dimension (stueck): 1 onion x0.5 -> 1', () => {
+  const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.5);
   assert.equal(result.amount, 1);
 });
 
-test('count dimension: an egg x0.1 -> 1, never below 1 and never 0', () => {
-  const result = scaleIngredient(ingredient({ amount: 1, unit: 'piece', name: 'Ei' }), 0.1);
+test('count dimension (stueck): an onion x0.1 -> 1, never below 1 and never 0', () => {
+  const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.1);
   assert.equal(result.amount, 1);
   assert.ok(result.amount >= 1);
   assert.notEqual(result.amount, 0);
 });
 
-test('REGRESSION (owner report): 1 egg at base yield 4 scales to a whole number across servings 1-8, never below 1', () => {
+test('REGRESSION (owner report), N2-scoped to stueck: 1 onion at base yield 4 scales to a whole number across servings 1-8, never below 1', () => {
   const base = 4;
   const expected = { 1: 1, 2: 1, 3: 1, 4: 1, 5: 1, 6: 2, 7: 2, 8: 2 };
   for (const servings of [1, 2, 3, 4, 5, 6, 7, 8]) {
     const factor = computeFactor(servings, base);
-    const result = scaleIngredient(ingredient({ amount: 1, unit: 'piece', name: 'Ei' }), factor);
+    const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), factor);
     assert.equal(Number.isInteger(result.amount), true, `${servings} servings gave ${result.amount}, not a whole number`);
     assert.ok(result.amount >= 1, `${servings} servings gave ${result.amount}, below the floor of 1`);
     assert.equal(result.amount, expected[servings], `${servings} servings expected ${expected[servings]}, got ${result.amount}`);
   }
 });
 
-test('count dimension: scaled far down, the raw value floors at 1 rather than 0 or a fraction', () => {
-  const result = scaleIngredient(ingredient({ amount: 1, unit: 'piece', name: 'Ei' }), 0.01);
+test('count dimension (stueck): scaled far down, the raw value floors at 1 rather than 0 or a fraction', () => {
+  const result = scaleIngredient(ingredient({ amount: 1, unit: 'stueck', name: 'Zwiebel' }), 0.01);
   assert.equal(result.amount, 1);
   assert.equal(Number.isInteger(result.amount), true);
+});
+
+// N2 (v2.9): 'piece' — the editor's "N.A." option — stops scaling and stops
+// being rounded. These are the tests that replace the ones above for 'piece'
+// itself.
+test('N2: piece does not scale — 2 eggs renders as 2 at factor 1, 2, 0.5 and 2.5', () => {
+  for (const factor of [1, 2, 0.5, 2.5]) {
+    const result = scaleIngredient(ingredient({ amount: 2, unit: 'piece', name: 'Eier' }), factor);
+    assert.equal(result.amount, 2, `factor ${factor} gave ${result.amount}, expected the stored 2 unchanged`);
+  }
+});
+
+test('N2: piece is not rounded — a stored 4.5 renders as "4,5", not "5"', () => {
+  const result = scaleIngredient(ingredient({ amount: 4.5, unit: 'piece', name: 'Zwiebel' }), 2);
+  assert.equal(result.amount, 4.5);
+  assert.equal(result.amountText, '4,5');
+  assert.notEqual(result.amountText, '5');
+});
+
+test('N2: g, ml and tbsp are unaffected by the piece exception', () => {
+  const g = scaleIngredient(ingredient({ amount: 250, unit: 'g', name: 'Mehl' }), 2);
+  assert.equal(g.amount, 500);
+  const ml = scaleIngredient(ingredient({ amount: 100, unit: 'ml', name: 'Milch' }), 2);
+  assert.equal(ml.amount, 200);
+  const tbsp = scaleIngredient(ingredient({ amount: 2, unit: 'tbsp', name: 'Öl' }), 2);
+  assert.equal(tbsp.amount, 4);
 });
 
 test('count change is scoped to count: a gram amount still rounds by the mass thresholds, unaffected', () => {
@@ -274,14 +305,25 @@ test('nulls: a pinch never gets a number', () => {
   assert.equal(result.text, 'Prise Salz');
 });
 
-test('ranges: 2-3 apples x2 -> 4-6', () => {
+test('ranges: 2-3 onions (stueck) x2 -> 4-6', () => {
   const result = scaleIngredient(
-    ingredient({ amount: 2, amount_max: 3, unit: 'piece', name: 'Äpfel' }),
+    ingredient({ amount: 2, amount_max: 3, unit: 'stueck', name: 'Zwiebeln' }),
     2
   );
   assert.equal(result.amount, 4);
   assert.equal(result.amountMax, 6);
-  assert.equal(result.text, '4-6 Äpfel');
+  assert.equal(result.text, '4-6 Stück Zwiebeln');
+});
+
+// N2: piece's "no scaling" applies to a range's amount_max too, not just amount.
+test('N2: piece does not scale a range either — 2-3 apples x2 stays 2-3', () => {
+  const result = scaleIngredient(
+    ingredient({ amount: 2, amount_max: 3, unit: 'piece', name: 'Äpfel' }),
+    2
+  );
+  assert.equal(result.amount, 2);
+  assert.equal(result.amountMax, 3);
+  assert.equal(result.text, '2-3 Äpfel');
 });
 
 test('ranges: a range that would split units ends in one unit', () => {

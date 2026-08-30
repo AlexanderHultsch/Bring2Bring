@@ -13,7 +13,8 @@ export function computeFactor(requestedYield, baseYield) {
 
 // Section 7.3/7.6: round once, in the unit the reader will actually see —
 // g/ml under metric, oz/fl oz under imperial (whichever displayFamily
-// resolved to `small`). Never called for 'pinch'.
+// resolved to `small`). Never called for 'pinch', nor for a 'fixed' unit
+// (N2, since v2.9 — 'piece' passes its stored amount straight through).
 function roundOnce(value, dimension) {
   if (dimension === 'count') {
     return Math.max(Math.round(value), 1);
@@ -45,7 +46,8 @@ export function scaleIngredient(ingredient, factor, options = {}) {
   const scaled = Boolean(ingredient?.scales);
   const isOptional = Boolean(ingredient?.is_optional);
   const excludeFromShopping = Boolean(ingredient?.exclude_from_shopping);
-  const effectiveFactor = scaled ? factor : 1;
+  const isFixed = Boolean(unitEntry?.fixed);
+  const effectiveFactor = isFixed ? 1 : scaled ? factor : 1;
 
   const hasAmount = ingredient?.amount !== null && ingredient?.amount !== undefined;
   const isPinch = dimension === 'pinch';
@@ -79,7 +81,7 @@ export function scaleIngredient(ingredient, factor, options = {}) {
     const scaledAmount = amount * effectiveFactor;
     const baseAmount = toBase(scaledAmount);
     const roundingAmount = family ? baseAmount / family.small.base : baseAmount;
-    const rounded = roundOnce(roundingAmount, dimension);
+    const rounded = isFixed ? roundingAmount : roundOnce(roundingAmount, dimension);
     return { roundingAmount, rounded };
   };
 

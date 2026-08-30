@@ -1132,7 +1132,9 @@ For each ingredient:
 - `scales = false` → amount unchanged, factor ignored.
 - `amount IS NULL` → nothing to scale ("salt to taste").
 - otherwise → `amount * factor`, then unit normalization (§7.2), then
-  rounding (§7.3). Ranges scale both `amount` and `amount_max`.
+  rounding (§7.3). Ranges scale both `amount` and `amount_max`. The `piece`
+  unit is a fourth case, sitting outside this tree at the unit level rather
+  than the ingredient level — see the N2 exception in §7.2.
 
 ### 7.2 Unit normalization
 

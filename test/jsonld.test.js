@@ -228,3 +228,29 @@ test("the deeplink's url parameter is absolute and starts with the configured PU
   assert.ok(shareUrl.startsWith(BASE_URL), `expected ${shareUrl} to start with ${BASE_URL}`);
   assert.equal(shareUrl, `${BASE_URL}/r/the-token?yield=6`);
 });
+
+// N2 (v2.9): the Bring! export agrees with the screen — a piece ingredient's
+// number must be identical in both, at every scaled yield. Asserted by
+// comparing the export against the same scaleGroups output the recipe page
+// renders from, not by writing the expected number twice.
+test('N2: recipeIngredient carries the same unscaled piece number the recipe page shows, at a scaled yield', () => {
+  const groups = [
+    {
+      name: 'Base',
+      ingredients: [ingredient({ amount: 4.5, unit: 'piece', name: 'Zwiebel' })],
+    },
+  ];
+  const factor = computeFactor(10, 4);
+  const screenGroups = scaleGroups(groups, factor);
+  const jsonLdGroups = scaledGroupsForJsonLd(groups, 10, 4);
+
+  const jsonLd = buildRecipeJsonLd({
+    recipe: recipe(),
+    groups: jsonLdGroups,
+    requestedYield: 10,
+    locale: 'de-DE',
+  });
+
+  assert.equal(jsonLd.recipeIngredient[0], screenGroups[0].ingredients[0].text);
+  assert.match(jsonLd.recipeIngredient[0], /^4,5 /);
+});
