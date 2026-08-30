@@ -1374,7 +1374,7 @@ for the recorded tap-target exception in §10.E.
   navigation item F3 made it. This also supplies the way back from a
   recipe to a list — a gap v1.1 had, since it removed navigation along
   with everything else that wasn't essential.
-- **Burger menu**, top right: Account, Privacy, Theme, Report a bug, Log
+- **Burger menu**, top right: Account, Theme, Privacy, Report a bug, Log
   out. Theme moved here from the header (L2, since v2.7); it is set once
   and then forgotten, so it belongs beside Account and Privacy rather than
   competing with the burger control for the top-right corner. The menu
@@ -1580,7 +1580,7 @@ One paragraph per screen, matching the mockup:
    a `<select>` with a submit button, in place of the ingredients toggle
    alone.
 4. **Burger** — a panel over the page from the right, with a close control
-   and the items Account, Privacy, Theme, Report a bug, Archive, Log out
+   and the items Account, Theme, Privacy, Report a bug, Archive, Log out
    (Theme moved here from the header — L2, since v2.7). Log out and other
    destructive items use the `danger` token (§10.B). The control that
    opens the panel stays reachable above the scrim while it is open, and
