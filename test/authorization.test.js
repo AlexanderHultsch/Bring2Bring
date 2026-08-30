@@ -101,6 +101,14 @@ const ROUTES = [
   // A valid body is required so the assertion below proves the auth check
   // fired, not the UnitPreferencesSchema validation in src/services/account.js.
   { method: 'post', path: '/account/units', recipeScoped: false, body: { unitLanguage: 'de', measurementSystem: 'metric' } },
+  // A valid body is required so the assertion below proves the auth check
+  // fired, not the SecurityQuestionSchema validation in src/services/account.js.
+  {
+    method: 'post',
+    path: '/account/security-question',
+    recipeScoped: false,
+    body: { currentPassword: 'anything', securityQuestion: 'Q?', securityAnswer: 'A' },
+  },
   { method: 'get', path: '/privacy', recipeScoped: false },
   { method: 'get', path: '/about-bring', recipeScoped: false },
   { method: 'post', path: '/logout', recipeScoped: false, body: {} },
@@ -120,6 +128,10 @@ const PUBLIC_ROUTES = [
   { method: 'get', path: '/healthz' }, // §9: for Uptime Kuma
   { method: 'get', path: '/login' }, // §9: public by design
   { method: 'post', path: '/login' }, // §9: public by design
+  { method: 'get', path: '/register' }, // §9/§6.2: public since v2.12 (Q4)
+  { method: 'post', path: '/register' }, // §9/§6.2: public since v2.12 (Q4)
+  { method: 'get', path: '/reset-password' }, // §9/§6.2: public since v2.12 (Q4)
+  { method: 'post', path: '/reset-password' }, // §9/§6.2: public since v2.12 (Q4)
   { method: 'get', path: '/r/:token' }, // §8.3: the one route open to the internet
 ];
 

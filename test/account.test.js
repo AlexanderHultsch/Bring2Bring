@@ -427,9 +427,10 @@ test('M4: the units field-hint is inside the auth-form, between the measurementS
 });
 
 // Every render('account', ...) call site must pass the full set of locals
-// (memberSince, passwordChanged, passwordError, unitsSaved, unitsError) or
-// EJS throws on an undefined local — exercise all three paths.
-test('all three render(\'account\', ...) call sites render successfully', async () => {
+// (memberSince, passwordChanged, passwordError, unitsSaved, unitsError,
+// securityQuestionSaved, securityQuestionError) or EJS throws on an
+// undefined local — exercise all four paths.
+test('all four render(\'account\', ...) call sites render successfully', async () => {
   await withApp(async (app, db) => {
     await seedKnownUser(db);
     const agent = await loginAgent(app);
@@ -453,6 +454,60 @@ test('all three render(\'account\', ...) call sites render successfully', async 
       measurementSystem: 'metric',
     });
     assert.equal(failedUnits.status, 422);
+
+    const securityQuestionCsrf = await csrfFor(agent, '/account');
+    const failedSecurityQuestion = await agent.post('/account/security-question').type('form').send({
+      _csrf: securityQuestionCsrf,
+      currentPassword: 'totally-wrong-password',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    assert.equal(failedSecurityQuestion.status, 422);
+  });
+});
+
+test('POST /account/security-question with the correct current password saves the question, and GET /account?securityQuestionSaved=1 shows the success message', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+    const csrfToken = await csrfFor(agent, '/account');
+
+    const res = await agent.post('/account/security-question').type('form').send({
+      _csrf: csrfToken,
+      currentPassword: KNOWN_PASSWORD,
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.location, '/account?securityQuestionSaved=1');
+
+    const stored = findUserByUsername(db, KNOWN_USERNAME);
+    assert.equal(stored.security_question, 'What city were you born in?');
+    assert.ok(stored.security_answer_hash.startsWith('$argon2id$'));
+
+    const confirmPage = await agent.get(res.headers.location);
+    assert.match(confirmPage.text, /Security question saved\./);
+  });
+});
+
+test('POST /account/security-question with a wrong current password returns 422 and does not change the stored question', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const agent = await loginAgent(app);
+    const csrfToken = await csrfFor(agent, '/account');
+
+    const res = await agent.post('/account/security-question').type('form').send({
+      _csrf: csrfToken,
+      currentPassword: 'totally-wrong-password',
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    assert.equal(res.status, 422);
+    assert.match(res.text, /Current password is incorrect\./);
+
+    const stored = findUserByUsername(db, KNOWN_USERNAME);
+    assert.equal(stored.security_question, null);
+    assert.equal(stored.security_answer_hash, null);
   });
 });
 

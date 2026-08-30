@@ -35,6 +35,43 @@
           <button type="submit" class="button">Save units</button>
         </form>
 
+        <% if (securityQuestionSaved) { %>
+          <p class="form-success">Security question saved.</p>
+        <% } %>
+        <% if (securityQuestionError) { %>
+          <p class="form-error"><%= securityQuestionError %></p>
+        <% } %>
+
+        <h2>Security question</h2>
+        <form method="post" action="/account/security-question" class="auth-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label for="securityQuestionCurrentPassword">Current password</label>
+          <input
+            type="password"
+            id="securityQuestionCurrentPassword"
+            name="currentPassword"
+            autocomplete="current-password"
+            required
+          >
+          <label for="securityQuestion">Security question</label>
+          <input
+            type="text"
+            id="securityQuestion"
+            name="securityQuestion"
+            required
+          >
+          <label for="securityAnswer">Security answer</label>
+          <input
+            type="text"
+            id="securityAnswer"
+            name="securityAnswer"
+            autocomplete="off"
+            required
+          >
+          <p class="field-hint">This is what a password reset will ask for — there is no email.</p>
+          <button type="submit" class="button">Save security question</button>
+        </form>
+
         <% if (passwordChanged) { %>
           <p class="form-success">Password changed.</p>
         <% } %>

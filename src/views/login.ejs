@@ -2,6 +2,9 @@
       <%- include('partials/header', { currentUser, csrfToken }) %>
       <main class="auth-page">
         <h1>Log in</h1>
+        <% if (passwordReset) { %>
+          <p class="form-success">Password changed. Log in with your new password.</p>
+        <% } %>
         <% if (error) { %>
           <p class="form-error"><%= error %></p>
         <% } %>
@@ -28,5 +31,7 @@
           >
           <button type="submit" class="button">Log in</button>
         </form>
+        <p><a href="/register">Create an account</a></p>
+        <p><a href="/reset-password">Forgot your password?</a></p>
       </main>
 <%- include('partials/foot') %>

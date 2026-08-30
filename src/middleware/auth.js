@@ -20,6 +20,18 @@ export function requireAuth() {
   };
 }
 
+// SPECIFICATION.md section 6.1/6.2: a signed-in visitor already has an
+// account, so /login, /register and /reset-password are not for them.
+export function redirectIfAuthenticated() {
+  return function (req, res, next) {
+    if (req.currentUser) {
+      res.redirect('/');
+      return;
+    }
+    next();
+  };
+}
+
 export function requireAdmin() {
   return function (req, res, next) {
     if (!req.currentUser || req.currentUser.role !== 'admin') {

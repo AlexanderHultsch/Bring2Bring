@@ -1,0 +1,51 @@
+<%- include('partials/head', { title: 'Register — Bring2Bring!' }) %>
+      <%- include('partials/header', { currentUser, csrfToken }) %>
+      <main class="auth-page">
+        <h1>Register</h1>
+        <% if (error) { %>
+          <p class="form-error"><%= error %></p>
+        <% } %>
+        <form method="post" action="/register" class="auth-form">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label for="username">Username</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            value="<%= username %>"
+            autocomplete="username"
+            autocapitalize="off"
+            autofocus
+            minlength="3"
+            maxlength="32"
+            required
+          >
+          <label for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            autocomplete="new-password"
+            minlength="12"
+            required
+          >
+          <label for="securityQuestion">Security question</label>
+          <input
+            type="text"
+            id="securityQuestion"
+            name="securityQuestion"
+            required
+          >
+          <label for="securityAnswer">Security answer</label>
+          <input
+            type="text"
+            id="securityAnswer"
+            name="securityAnswer"
+            autocomplete="off"
+            required
+          >
+          <p class="field-hint">There is no email, so this question is the only way to reset your password. Choose something you won't forget.</p>
+          <button type="submit" class="button">Register</button>
+        </form>
+      </main>
+<%- include('partials/foot') %>
