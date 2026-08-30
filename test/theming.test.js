@@ -67,6 +67,30 @@ test('GUARD: every icon referenced in a template is defined as a symbol in icons
   );
 });
 
+test('GUARD: every symbol defined in icons.ejs is referenced by at least one template', () => {
+  const iconsSrc = fs.readFileSync(iconsPath, 'utf8');
+  const definedIds = new Set(
+    [...iconsSrc.matchAll(/<symbol\s+id="([^"]+)"/g)].map((m) => m[1])
+  );
+  assert.ok(definedIds.size > 0, 'expected icons.ejs to define at least one symbol');
+
+  const referencedIds = new Set();
+  for (const entry of fs.readdirSync(viewsDir, { recursive: true })) {
+    if (!entry.endsWith('.ejs')) continue;
+    const src = fs.readFileSync(path.join(viewsDir, entry), 'utf8');
+    for (const m of src.matchAll(/href="#(i-[a-z-]+)"/g)) {
+      referencedIds.add(m[1]);
+    }
+  }
+
+  const unreferencedIds = [...definedIds].filter((id) => !referencedIds.has(id));
+  assert.deepEqual(
+    unreferencedIds,
+    [],
+    `icons.ejs defines <symbol id="…"> for icon(s) no template references: ${unreferencedIds.join(', ')}`
+  );
+});
+
 test('tokens.css contains only custom properties: every opening brace belongs to a :root or @media block', () => {
   const css = fs.readFileSync(tokensPath, 'utf8');
   const lines = css.split('\n');

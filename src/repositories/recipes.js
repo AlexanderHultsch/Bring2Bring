@@ -16,7 +16,7 @@ const RECIPE_COLUMNS = [
 
 // SPECIFICATION.md section 5.1 (v2.0, D2): per-user sharing (recipe_shares)
 // is dormant. Read = owner or public; write = owner, full stop.
-export const READ_PREDICATE = `(owner_id = ? OR is_public = 1)`;
+const READ_PREDICATE = `(owner_id = ? OR is_public = 1)`;
 
 const WRITE_PREDICATE = `(owner_id = ?)`;
 
@@ -265,10 +265,6 @@ export function setRecipePublic(db, recipeId, actingUserId, isPublic) {
     .run(isPublic ? 1 : 0, recipeId, actingUserId);
 
   return changes;
-}
-
-export function countRecipesByOwner(db, userId) {
-  return db.prepare('SELECT COUNT(*) AS count FROM recipes WHERE owner_id = ?').get(userId).count;
 }
 
 export function deleteRecipe(db, recipeId, actingUserId) {

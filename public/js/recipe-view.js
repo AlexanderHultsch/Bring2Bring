@@ -16,7 +16,6 @@ if (container) {
     const yieldWheel = document.querySelector('[data-yield-wheel]');
     const yieldScroll = document.querySelector('[data-yield-scroll]');
     const yieldInput = document.querySelector('[data-yield-input]');
-    const servingsCount = document.querySelector('[data-servings-count]');
     const bringLink = document.querySelector('[data-bring-link]');
 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -70,7 +69,6 @@ if (container) {
         itemEls.forEach((el, index) => applyToElement(el, scaledIngredients[index]));
       });
 
-      if (servingsCount) servingsCount.textContent = String(requestedYield);
       if (yieldInput && Number(yieldInput.value) !== requestedYield) {
         yieldInput.value = String(requestedYield);
       }
