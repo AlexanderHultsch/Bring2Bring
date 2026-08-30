@@ -205,3 +205,13 @@ test('GUARD: h2, .recipe-list__section and .error-status do not use the accent c
   assert.ok(statusMatch, 'expected an .error-status rule in style.css');
   assert.doesNotMatch(statusMatch[1], /color:\s*var\(--color-accent\)/, '.error-status must not use var(--color-accent) — a 404 is not a success message');
 });
+
+test('GUARD: the ingredient list draws no bullet marker (Q1, v2.12)', () => {
+  const css = fs.readFileSync(stylePath, 'utf8');
+
+  assert.doesNotMatch(css, /\.ingredient-list__item::before/, '.ingredient-list__item::before must not exist — the orphaned bullet was removed');
+
+  const itemMatch = css.match(/\.ingredient-list__item\s*\{([^}]*)\}/);
+  assert.ok(itemMatch, 'expected an .ingredient-list__item rule in style.css');
+  assert.match(itemMatch[1], /padding:\s*var\(--space-1\)\s*0\s*;/, '.ingredient-list__item should reclaim the left padding the bullet used to need');
+});

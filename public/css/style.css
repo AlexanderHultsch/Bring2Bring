@@ -694,18 +694,7 @@ label {
   grid-template-columns: 5.75rem 1fr;
   column-gap: var(--space-2);
   align-items: baseline;
-  padding: var(--space-1) 0 var(--space-1) var(--space-4);
-}
-
-.ingredient-list__item::before {
-  content: '';
-  position: absolute;
-  left: var(--space-1);
-  top: 0.65em;
-  width: 0.4em;
-  height: 0.4em;
-  border-radius: 50%;
-  background: var(--color-text-muted);
+  padding: var(--space-1) 0;
 }
 
 .ingredient-list__amount {

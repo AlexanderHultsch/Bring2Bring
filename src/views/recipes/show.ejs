@@ -97,15 +97,14 @@
           </section>
         <% } %>
 
-        <div class="recipe-actions">
-          <% if (isOwner) { %>
-            <a class="button button--quiet" href="/recipes/<%= recipe.id %>/edit">Edit</a>
-          <% } %>
-          <form method="post" action="/recipes/<%= recipe.id %>/duplicate" class="recipe-actions__form">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button type="submit" class="button button--quiet">Duplicate</button>
-          </form>
-        </div>
+        <% if (!isOwner) { %>
+          <div class="recipe-actions">
+            <form method="post" action="/recipes/<%= recipe.id %>/duplicate" class="recipe-actions__form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <button type="submit" class="button button--quiet">Duplicate</button>
+            </form>
+          </div>
+        <% } %>
 
         <% if (isOwner) { %>
           <details class="manage">
@@ -115,6 +114,14 @@
               <svg class="icon manage__chevron manage__chevron--open"><use href="#i-chevron-up"></use></svg>
             </summary>
             <div class="manage__content">
+              <div class="recipe-actions">
+                <a class="button button--quiet" href="/recipes/<%= recipe.id %>/edit">Edit</a>
+                <form method="post" action="/recipes/<%= recipe.id %>/duplicate" class="recipe-actions__form">
+                  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                  <button type="submit" class="button button--quiet">Duplicate</button>
+                </form>
+              </div>
+
               <section class="publish-control">
                 <% if (recipe.is_public) { %>
                   <p class="publish-control__status">
@@ -124,7 +131,6 @@
                   <form method="post" action="/recipes/<%= recipe.id %>/publish" class="publish-control__form">
                     <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                     <input type="hidden" name="action" value="unpublish">
-                    <p class="publish-control__hint">Taking it off the shelf does not touch the public link — anyone who already has it can still open it; use Rotate below to retract it.</p>
                     <button type="submit" class="button button--ghost">Remove from Public shelf</button>
                   </form>
                 <% } else { %>

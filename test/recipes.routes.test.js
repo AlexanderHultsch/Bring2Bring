@@ -1528,6 +1528,86 @@ test('Edit and Duplicate are quiet inline actions, and button--bring marks only 
   });
 });
 
+// SPECIFICATION.md decision Q2 (v2.12): Edit and Duplicate move inside the
+// Manage this recipe disclosure for the owner, and no longer render as a
+// standalone block on the page.
+test('for an owner, Edit and Duplicate render inside the manage disclosure and not in a standalone block outside it', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    const manageIndex = res.text.indexOf('<details class="manage">');
+    const editIndex = res.text.indexOf(`href="/recipes/${recipeId}/edit">Edit<`);
+    const duplicateIndex = res.text.indexOf('Duplicate</button>');
+    const manageContentIndex = res.text.indexOf('<div class="manage__content">');
+
+    assert.ok(manageIndex > -1, 'expected the manage disclosure');
+    assert.ok(editIndex > -1, 'expected the Edit link');
+    assert.ok(duplicateIndex > -1, 'expected the Duplicate button');
+    assert.ok(editIndex > manageContentIndex, 'Edit should be inside manage__content');
+    assert.ok(duplicateIndex > manageContentIndex, 'Duplicate should be inside manage__content');
+
+    assert.doesNotMatch(res.text.slice(0, manageIndex), /class="recipe-actions"/, 'a standalone .recipe-actions block must not render before the manage disclosure for an owner');
+  });
+});
+
+// SPECIFICATION.md decision Q2 (v2.12): duplicating a public recipe is the
+// entire purpose of the Public shelf (D1), so a non-owner must not lose
+// Duplicate even though Manage this recipe never renders for them.
+test('for a non-owner on a public recipe, Duplicate renders on the page and there is no manage disclosure at all (Public-shelf reasoning, Q2/D1)', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const owner = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(owner);
+    const publishCsrf = await csrfFor(owner, `/recipes/${recipeId}`);
+    await owner.post(`/recipes/${recipeId}/publish`).type('form').send({ _csrf: publishCsrf, action: 'publish' });
+
+    await seedUser(db, 'other');
+    const other = await loginAgent(app, 'other');
+    const res = await other.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    assert.match(res.text, /class="recipe-actions"/);
+    assert.match(res.text, /Duplicate\s*<\/button>/);
+    assert.doesNotMatch(res.text, /<details class="manage">/);
+  });
+});
+
+// SPECIFICATION.md decision Q3 (v2.12): the unpublish hint is removed; the
+// behaviour it described (Rotate, not unpublish, retracts the link) is
+// unchanged and still documented elsewhere in the spec.
+test('the removed unpublish hint text appears nowhere in a rendered recipe page', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+    const publishCsrf = await csrfFor(agent, `/recipes/${recipeId}`);
+    await agent.post(`/recipes/${recipeId}/publish`).type('form').send({ _csrf: publishCsrf, action: 'publish' });
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.doesNotMatch(res.text, /Taking it off the shelf does not touch the public link/);
+  });
+});
+
+// SPECIFICATION.md decision Q3 (v2.12): only the unpublish hint was removed;
+// the publish hint was not asked for and stays.
+test('the kept publish hint still renders', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+    assert.match(res.text, /Publishing also turns on a link anyone on the internet can open/);
+  });
+});
+
 test('the public-link <details> has no open attribute on load, and the expanded content has the URL, Copy, Rotate and Disable controls', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
