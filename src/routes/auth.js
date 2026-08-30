@@ -56,6 +56,7 @@ export function authRouter(db, config) {
 
         await regenerateSession(req);
         req.session.userId = user.id;
+        req.session.passwordChangedAt = user.password_changed_at;
         updateUserLastLoginAt(db, user.id, new Date().toISOString());
 
         res.redirect('/');
@@ -89,6 +90,7 @@ export function authRouter(db, config) {
         // what POST /login does after a successful authenticate.
         await regenerateSession(req);
         req.session.userId = result.user.id;
+        req.session.passwordChangedAt = result.user.password_changed_at;
         updateUserLastLoginAt(db, result.user.id, new Date().toISOString());
 
         res.redirect('/');

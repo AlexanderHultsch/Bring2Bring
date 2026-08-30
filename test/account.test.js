@@ -250,6 +250,37 @@ test('POST /account/password stays logged in after a successful change (session 
   });
 });
 
+// SPECIFICATION.md section 6.3: a password change stamps password_changed_at
+// and mirrors it into the session, so every *other* live session for the
+// account — the whole reason someone changes a password — stops
+// authenticating, while the session that made the change is unaffected.
+test('POST /account/password invalidates every other live session for the account, leaving the changing session logged in', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const otherAgent = await loginAgent(app);
+    const changingAgent = await loginAgent(app);
+
+    assert.equal((await otherAgent.get('/account')).status, 200);
+    assert.equal((await changingAgent.get('/account')).status, 200);
+
+    const csrfToken = await csrfFor(changingAgent, '/account');
+    const changeRes = await changingAgent.post('/account/password').type('form').send({
+      _csrf: csrfToken,
+      currentPassword: KNOWN_PASSWORD,
+      newPassword: NEW_PASSWORD,
+      confirmPassword: NEW_PASSWORD,
+    });
+    assert.equal(changeRes.status, 302);
+
+    const changingAfter = await changingAgent.get('/account');
+    assert.equal(changingAfter.status, 200);
+
+    const otherAfter = await otherAgent.get('/account');
+    assert.equal(otherAfter.status, 302);
+    assert.equal(otherAfter.headers.location, '/login');
+  });
+});
+
 test('POST /account/password with a wrong current password returns 422 and does not change the stored hash', async () => {
   await withApp(async (app, db) => {
     await seedKnownUser(db);
@@ -490,6 +521,29 @@ test('POST /account/security-question with the correct current password saves th
   });
 });
 
+// SPECIFICATION.md section 6.3: setSecurityQuestion never touches
+// password_hash, so it must never touch password_changed_at either — an
+// unrelated other session must stay logged in.
+test('POST /account/security-question does not invalidate other live sessions for the account', async () => {
+  await withApp(async (app, db) => {
+    await seedKnownUser(db);
+    const otherAgent = await loginAgent(app);
+    const settingAgent = await loginAgent(app);
+
+    const csrfToken = await csrfFor(settingAgent, '/account');
+    const res = await settingAgent.post('/account/security-question').type('form').send({
+      _csrf: csrfToken,
+      currentPassword: KNOWN_PASSWORD,
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    assert.equal(res.status, 302);
+
+    const otherAfter = await otherAgent.get('/account');
+    assert.equal(otherAfter.status, 200);
+  });
+});
+
 test('POST /account/security-question with a wrong current password returns 422 and does not change the stored question', async () => {
   await withApp(async (app, db) => {
     await seedKnownUser(db);
@@ -548,6 +602,26 @@ test('setSecurityQuestion with the correct current password stores the question 
     assert.equal(stored.security_question, 'What city were you born in?');
     assert.ok(stored.security_answer_hash.startsWith('$argon2id$'));
     assert.notEqual(stored.security_answer_hash, 'Berlin');
+  } finally {
+    cleanup();
+  }
+});
+
+test('setSecurityQuestion leaves password_changed_at untouched', async () => {
+  const { db, cleanup } = createTestDb();
+  try {
+    const user = await seedKnownUser(db);
+    const before = findUserByUsername(db, KNOWN_USERNAME).password_changed_at;
+
+    const result = await setSecurityQuestion(db, user, {
+      currentPassword: KNOWN_PASSWORD,
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    assert.equal(result.success, true);
+
+    const after = findUserByUsername(db, KNOWN_USERNAME).password_changed_at;
+    assert.equal(after, before);
   } finally {
     cleanup();
   }

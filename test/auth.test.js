@@ -91,7 +91,7 @@ test('updateUserPasswordHash changes the stored hash so the old password fails a
     const user = insertUser(db, { username: 'alex', passwordHash: oldHash });
 
     const newHash = await hashPassword('new-password');
-    const changes = updateUserPasswordHash(db, user.id, newHash);
+    const changes = updateUserPasswordHash(db, user.id, newHash, new Date().toISOString());
     assert.equal(changes, 1);
 
     assert.equal(await authenticate(db, 'alex', 'old-password'), null);

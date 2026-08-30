@@ -147,6 +147,6 @@ export async function resetPasswordWithAnswer(db, body) {
   }
 
   const passwordHash = await hashPassword(newPassword);
-  updateUserPasswordHash(db, row.id, passwordHash);
+  updateUserPasswordHash(db, row.id, passwordHash, new Date().toISOString());
   return { success: true };
 }

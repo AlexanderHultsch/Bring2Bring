@@ -49,6 +49,7 @@ export function accountRouter(db, config) {
       const userId = req.currentUser.id;
       await regenerateSession(req);
       req.session.userId = userId;
+      req.session.passwordChangedAt = result.passwordChangedAt;
 
       res.redirect('/account?passwordChanged=1');
     } catch (err) {

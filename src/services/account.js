@@ -43,8 +43,9 @@ export async function changePassword(db, user, body) {
   }
 
   const passwordHash = await hashPassword(newPassword);
-  updateUserPasswordHash(db, user.id, passwordHash);
-  return { success: true };
+  const passwordChangedAt = new Date().toISOString();
+  updateUserPasswordHash(db, user.id, passwordHash, passwordChangedAt);
+  return { success: true, passwordChangedAt };
 }
 
 const UnitPreferencesSchema = z.object({

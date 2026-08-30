@@ -187,3 +187,109 @@ test('POST /reset-password phase two with a wrong answer fails and does not chan
     assert.equal(stillWorks.status, 302);
   });
 });
+
+// SPECIFICATION.md section 6.3: the reset exists precisely because the user
+// suspects another party holds their session — so every live session for
+// the account must stop authenticating once the reset succeeds, exactly
+// like a self-service password change.
+test('a password reset via the security question invalidates every other live session for the account', async () => {
+  await withApp(async (app) => {
+    const registerAgent = request.agent(app);
+    const registerPage = await registerAgent.get('/register');
+    const registerCsrf = csrfFieldFrom(registerPage.text);
+    await registerAgent.post('/register').type('form').send({
+      _csrf: registerCsrf,
+      username: 'newbie',
+      password: KNOWN_PASSWORD,
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+
+    const secondAgent = request.agent(app);
+    const loginCsrf = csrfFieldFrom((await secondAgent.get('/login')).text);
+    await secondAgent
+      .post('/login')
+      .type('form')
+      .send({ _csrf: loginCsrf, username: 'newbie', password: KNOWN_PASSWORD });
+
+    assert.equal((await registerAgent.get('/account')).status, 200);
+    assert.equal((await secondAgent.get('/account')).status, 200);
+
+    const NEW_PASSWORD = 'brand-new-long-password';
+    const resetAgent = request.agent(app);
+    const lookupPage = await resetAgent.get('/reset-password');
+    const lookupCsrf = csrfFieldFrom(lookupPage.text);
+    const lookupRes = await resetAgent
+      .post('/reset-password')
+      .type('form')
+      .send({ _csrf: lookupCsrf, username: 'newbie' });
+    assert.equal(lookupRes.status, 200);
+
+    const answerCsrf = csrfFieldFrom(lookupRes.text);
+    const answerRes = await resetAgent.post('/reset-password').type('form').send({
+      _csrf: answerCsrf,
+      username: 'newbie',
+      securityAnswer: 'Berlin',
+      newPassword: NEW_PASSWORD,
+    });
+    assert.equal(answerRes.status, 302);
+
+    const registerAgentAfter = await registerAgent.get('/account');
+    assert.equal(registerAgentAfter.status, 302);
+    assert.equal(registerAgentAfter.headers.location, '/login');
+
+    const secondAgentAfter = await secondAgent.get('/account');
+    assert.equal(secondAgentAfter.status, 302);
+    assert.equal(secondAgentAfter.headers.location, '/login');
+  });
+});
+
+// The reset route is public and never itself holds a session (§6.2), so the
+// parallel to "the changing session stays logged in" is that a session
+// created *after* the reset — the one born from logging in with the new
+// password — is unaffected and stays authenticated.
+test('after a security-question reset, logging in with the new password starts a fresh session that stays authenticated', async () => {
+  await withApp(async (app) => {
+    const registerAgent = request.agent(app);
+    const registerPage = await registerAgent.get('/register');
+    const registerCsrf = csrfFieldFrom(registerPage.text);
+    await registerAgent.post('/register').type('form').send({
+      _csrf: registerCsrf,
+      username: 'newbie',
+      password: KNOWN_PASSWORD,
+      securityQuestion: 'What city were you born in?',
+      securityAnswer: 'Berlin',
+    });
+    const logoutCsrf = csrfFieldFrom((await registerAgent.get('/')).text);
+    await registerAgent.post('/logout').type('form').send({ _csrf: logoutCsrf });
+
+    const NEW_PASSWORD = 'brand-new-long-password';
+    const resetAgent = request.agent(app);
+    const lookupPage = await resetAgent.get('/reset-password');
+    const lookupCsrf = csrfFieldFrom(lookupPage.text);
+    const lookupRes = await resetAgent
+      .post('/reset-password')
+      .type('form')
+      .send({ _csrf: lookupCsrf, username: 'newbie' });
+
+    const answerCsrf = csrfFieldFrom(lookupRes.text);
+    await resetAgent.post('/reset-password').type('form').send({
+      _csrf: answerCsrf,
+      username: 'newbie',
+      securityAnswer: 'Berlin',
+      newPassword: NEW_PASSWORD,
+    });
+
+    const freshAgent = request.agent(app);
+    const freshCsrf = csrfFieldFrom((await freshAgent.get('/login')).text);
+    const loginRes = await freshAgent
+      .post('/login')
+      .type('form')
+      .send({ _csrf: freshCsrf, username: 'newbie', password: NEW_PASSWORD });
+    assert.equal(loginRes.status, 302);
+    assert.equal(loginRes.headers.location, '/');
+
+    const afterLogin = await freshAgent.get('/account');
+    assert.equal(afterLogin.status, 200);
+  });
+});

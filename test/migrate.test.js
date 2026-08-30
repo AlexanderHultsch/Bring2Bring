@@ -48,7 +48,7 @@ test('pragma foreign_keys is 1 and journal_mode is wal after openDatabase', () =
   });
 });
 
-test('runMigrations on a fresh db returns 001 through 006 in order and creates every table', () => {
+test('runMigrations on a fresh db returns 001 through 007 in order and creates every table', () => {
   withTempDir((dir) => {
     const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
@@ -60,6 +60,7 @@ test('runMigrations on a fresh db returns 001 through 006 in order and creates e
       '004_unit_preferences.sql',
       '005_security_question.sql',
       '006_recipes_owner_archived_index.sql',
+      '007_password_changed_at.sql',
     ]);
 
     const tables = db
@@ -72,7 +73,7 @@ test('runMigrations on a fresh db returns 001 through 006 in order and creates e
   });
 });
 
-test('runMigrations called a second time returns [] and leaves schema_migrations with six rows', () => {
+test('runMigrations called a second time returns [] and leaves schema_migrations with seven rows', () => {
   withTempDir((dir) => {
     const dbPath = path.join(dir, 'bring2bring.db');
     const db = openDatabase(dbPath);
@@ -81,7 +82,7 @@ test('runMigrations called a second time returns [] and leaves schema_migrations
     assert.deepEqual(secondRun, []);
 
     const count = db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count;
-    assert.equal(count, 6);
+    assert.equal(count, 7);
     db.close();
   });
 });
@@ -217,6 +218,44 @@ test('migration 006 replaces idx_recipes_is_archived with a composite idx_recipe
       .map((row) => row.detail)
       .join(' ');
     assert.ok(plan.includes('idx_recipes_owner_archived'));
+    db.close();
+  });
+});
+
+test('migration 007 adds users.password_changed_at, backfilled to a millisecond-precision timestamp for rows that pre-date it', () => {
+  withTempDir((dir) => {
+    const dbPath = path.join(dir, 'bring2bring.db');
+    const db = openDatabase(dbPath);
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        filename TEXT PRIMARY KEY,
+        applied_at TEXT NOT NULL
+      )
+    `);
+    const migrationsDir = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'src', 'db', 'migrations');
+    const priorFiles = fs
+      .readdirSync(migrationsDir)
+      .filter((filename) => filename.endsWith('.sql') && filename !== '007_password_changed_at.sql')
+      .sort();
+    const insertMigration = db.prepare(
+      'INSERT INTO schema_migrations (filename, applied_at) VALUES (?, ?)'
+    );
+    for (const filename of priorFiles) {
+      db.exec(fs.readFileSync(path.join(migrationsDir, filename), 'utf8'));
+      insertMigration.run(filename, new Date().toISOString());
+    }
+
+    const userId = db
+      .prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
+      .run('owner', 'hash').lastInsertRowid;
+
+    runMigrations(db);
+
+    const row = db
+      .prepare('SELECT password_changed_at FROM users WHERE id = ?')
+      .get(userId);
+    assert.match(row.password_changed_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     db.close();
   });
 });

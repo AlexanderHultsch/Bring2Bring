@@ -54,10 +54,21 @@ export function insertUser(
   return findUserById(db, lastInsertRowid);
 }
 
-export function updateUserPasswordHash(db, id, passwordHash) {
+// passwordChangedAt is required, not merely positional: every caller (login's
+// changePassword, the security-question reset, and scripts/seed-admin.js)
+// must stamp it in the same write as the hash, because a session is only
+// evicted by this stamp changing to something it wasn't before — a caller
+// that silently omitted it used to write NULL, which on a second such write
+// compares NULL to NULL and evicts nobody. Throwing here turns that into an
+// immediate failure instead of a quiet hole in the one protection this
+// column exists for.
+export function updateUserPasswordHash(db, id, passwordHash, passwordChangedAt) {
+  if (typeof passwordChangedAt !== 'string' || passwordChangedAt === '') {
+    throw new TypeError('updateUserPasswordHash requires passwordChangedAt');
+  }
   const { changes } = db
-    .prepare('UPDATE users SET password_hash = ? WHERE id = ?')
-    .run(passwordHash, id);
+    .prepare('UPDATE users SET password_hash = ?, password_changed_at = ? WHERE id = ?')
+    .run(passwordHash, passwordChangedAt, id);
   return changes;
 }
 

@@ -13,7 +13,7 @@ async function main() {
   const existing = findUserByUsername(db, config.adminUser);
 
   if (existing) {
-    updateUserPasswordHash(db, existing.id, passwordHash);
+    updateUserPasswordHash(db, existing.id, passwordHash, new Date().toISOString());
     updateUserRole(db, existing.id, 'admin');
     console.log(`Admin user "${config.adminUser}" updated.`);
   } else {
