@@ -139,6 +139,41 @@ test('style.css has no literal hex colours or literal font-family names', () => 
 // safe to write from this handler; the taper that makes the drum read as a
 // cylinder must be expressed as a transform (e.g. a horizontal scale), not
 // a margin.
+// M6 (v2.8): the accent is a light green in dark theme, so an accent-on-accent
+// pill (the old .az-rail__letter--current just recoloured the text) would
+// vanish. --color-accent-contrast exists precisely for text on an accent
+// fill (the primary button already uses it) — named here so nobody
+// "simplifies" the pill back to plain accent-on-accent and loses legibility
+// in dark mode.
+test('GUARD: the A-Z rail\'s current-letter pill uses --color-accent-contrast for text on a --color-accent background, for dark-mode legibility', () => {
+  const css = fs.readFileSync(stylePath, 'utf8');
+  const currentMatch = css.match(/\.az-rail__letter--current\s*\{([^}]*)\}/);
+  assert.ok(currentMatch, 'expected a .az-rail__letter--current rule in style.css');
+  const rule = currentMatch[1];
+  assert.match(rule, /color:\s*var\(--color-accent-contrast\)/, '.az-rail__letter--current must colour its text with var(--color-accent-contrast), not the accent itself');
+  assert.match(rule, /background(?:-color)?:\s*var\(--color-accent\)\s*;/, '.az-rail__letter--current must fill its background with var(--color-accent)');
+});
+
+// M6 (v2.8): the rail's top offset is derived from the same tokens the
+// header is built from (J5, v2.5) plus a spacing-scale gap. A
+// --header-height token would be a second source of truth for a number the
+// header already defines, which is how the rail and the header drifted
+// apart in the first place.
+test('GUARD: the A-Z rail\'s top stays a derived calc() of existing tokens, and no --header-height token exists', () => {
+  const css = fs.readFileSync(stylePath, 'utf8');
+  const railMatch = css.match(/\.az-rail\s*\{([^}]*)\}/);
+  assert.ok(railMatch, 'expected a .az-rail rule in style.css');
+  const topMatch = railMatch[1].match(/top:\s*(calc\([^;]*\))\s*;/);
+  assert.ok(topMatch, '.az-rail must position its top with a calc(...) expression');
+  assert.match(topMatch[1], /var\(--space-4\)/);
+  assert.match(topMatch[1], /var\(--min-tap-target\)/);
+  assert.match(topMatch[1], /var\(--space-3\)/);
+  assert.doesNotMatch(topMatch[1], /--header-height/);
+
+  const tokensCss = fs.readFileSync(tokensPath, 'utf8');
+  assert.doesNotMatch(tokensCss, /--header-height/, 'tokens.css must not gain a --header-height token');
+});
+
 test('GUARD: recipe-view.js never writes a layout-affecting style property from the per-frame drum render', () => {
   const src = fs.readFileSync(recipeViewPath, 'utf8');
   assert.doesNotMatch(
