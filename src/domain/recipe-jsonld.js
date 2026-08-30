@@ -33,21 +33,23 @@ export function buildRecipeJsonLd({ recipe, groups, requestedYield, locale }) {
   return jsonLd;
 }
 
-// D5: application/ld+json is a data block, not executable script, so the
-// strict CSP does not block it and no nonce is needed — but a recipe title
-// containing `</script>` could still break out of the surrounding tag, so
-// the `</` sequence is escaped here, once, rather than inline in the
-// template (which would need to use unescaped `<%- %>` on raw JSON).
+// SPECIFICATION.md §11: application/ld+json is a data block, not executable
+// script, so the strict CSP does not block it and no nonce is needed — but a
+// recipe title containing `</script>` could still break out of the
+// surrounding tag, so the `</` sequence is escaped here, once, rather than
+// inline in the template (which would need to use unescaped `<%- %>` on raw
+// JSON).
 export function serializeJsonLdForScriptTag(data) {
   return JSON.stringify(data).replace(/<\//g, '<\\/');
 }
 
 // SPECIFICATION.md section 8.5: the Bring! deeplink, built as a plain,
-// directly-testable URL string — never fetched with JavaScript, since the
-// endpoint answers 307 to an app deeplink. baseQuantity and requestedQuantity
-// are always set to the SAME requestedYield the share page renders with, so
-// Bring's requestedQuantity/baseQuantity multiplier is always exactly 1.0 —
-// our page already delivers scaled amounts (the double-scaling trap).
+// directly-testable URL string — never fetched with JavaScript, since
+// Bring!'s deeplink endpoint (api.getbring.com) answers 307 with a redirect
+// to an app deeplink. baseQuantity and requestedQuantity are always set to
+// the SAME requestedYield the share page renders with, so Bring's
+// requestedQuantity/baseQuantity multiplier is always exactly 1.0 — our page
+// already delivers scaled amounts (the double-scaling trap).
 export function buildBringDeeplinkUrl({ baseUrl, token, requestedYield }) {
   const shareUrl = `${String(baseUrl).replace(/\/+$/, '')}/r/${token}?yield=${requestedYield}`;
   const quantity = String(requestedYield);

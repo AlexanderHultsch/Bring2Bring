@@ -11,8 +11,9 @@ function generateShareToken() {
   return crypto.randomBytes(32).toString('base64url');
 }
 
-// The three actions of D3: enable reuses an existing token, rotate replaces
-// it immediately, disable turns the link off without clearing the token.
+// The three actions of SPECIFICATION.md §8.2: enable reuses an existing
+// token, rotate replaces it immediately, disable turns the link off without
+// clearing the token.
 // All three require write access to the recipe, enforced by findRecipeForWrite
 // exactly as every other mutation in this app; an unauthorized caller sees
 // { success: false } and the route above turns that into a 404.

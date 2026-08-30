@@ -177,7 +177,7 @@ const RecipeFieldsSchema = z.object({
   yield_amount: requiredYieldAmount,
 });
 
-// SPECIFICATION.md section 2.1 A1 / this task's V2: a row counts only if its
+// SPECIFICATION.md section 2.1 A1: a row counts only if its
 // name is non-blank after trimming; blank-name rows are dropped silently. A
 // non-blank row's amount (blank -> NULL) and unit (must be one of
 // EDITOR_UNITS) are validated — reject rather than coerce (section 11).

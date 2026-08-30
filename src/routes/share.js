@@ -51,8 +51,8 @@ export function shareRouter(db, config) {
 
     const scaledGroups = scaleGroups(groups, factor, { locale, language, system });
 
-    // D3: the JSON-LD builder reads excludeFromShopping straight off the
-    // already-scaled ingredients (D1) — scaleIngredient carries it through.
+    // §2.1 A2: the JSON-LD builder reads excludeFromShopping straight off the
+    // already-scaled ingredients — scaleIngredient carries it through.
     // The same `locale` that produced the on-screen text goes into the
     // JSON-LD Bring! fetches, so the two can never disagree (§7.5/§7.6).
     const jsonLd = buildRecipeJsonLd({

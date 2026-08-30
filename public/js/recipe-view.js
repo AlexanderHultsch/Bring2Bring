@@ -1,7 +1,7 @@
 // Client-side recalculation for the recipe page (SPECIFICATION.md section 7.4).
-// Imports the byte-identical file the server renders with — see D1 in the
-// step-15 task and src/app.js's /js/domain static mount. Degrades silently
-// when the page has none of the elements below (e.g. any other page).
+// Imports the byte-identical file the server renders with — see src/app.js's
+// /js/domain static mount. Degrades silently when the page has none of the
+// elements below (e.g. any other page).
 import { computeFactor, scaleGroups } from '/js/domain/scaling.js';
 
 const container = document.querySelector('[data-base-yield]');
@@ -246,7 +246,8 @@ if (container) {
 
     // The hidden number input is the keyboard and assistive-technology path
     // (arrow keys and typing already work natively on <input type="number">
-    // — see the NOTES on role="spinbutton" in the task write-up).
+    // — see the test 'no element on the recipe page carries role="spinbutton"'
+    // in test/recipes.routes.test.js).
     if (yieldInput) {
       yieldInput.addEventListener('input', () => {
         const next = Number(yieldInput.value);
