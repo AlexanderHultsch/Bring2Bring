@@ -1268,7 +1268,7 @@ test("?yield=0, ?yield=11, ?yield=3.5 and ?yield=abc each fall back to the recip
   });
 });
 
-test('the ingredients heading names the selected servings', async () => {
+test('the ingredients heading is a quiet caption and does not repeat the servings count (L5)', async () => {
   await withApp(async (app, db) => {
     await seedUser(db, 'alex');
     const agent = await loginAgent(app, 'alex');
@@ -1276,7 +1276,50 @@ test('the ingredients heading names the selected servings', async () => {
 
     const res = await agent.get(`/recipes/${recipeId}?yield=6`);
     assert.equal(res.status, 200);
-    assert.match(res.text, /Ingredients \(for <span data-servings-count>6<\/span> servings\)/);
+    assert.match(res.text, /<h2 class="section-caption">Ingredients<\/h2>/);
+    assert.doesNotMatch(res.text, /data-servings-count/);
+  });
+});
+
+test('every ingredient row renders exactly one amount cell, including a pinch ingredient with no amount (L7)', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent, {
+      ingredients: [
+        { name: 'Flour', amount: '250', unit: 'g' },
+        { name: 'Salt', unit: 'pinch' },
+      ],
+    });
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    const amountCells = res.text.match(/<span class="ingredient-list__amount"[^>]*>/g) || [];
+    assert.equal(amountCells.length, 2);
+    assert.match(
+      res.text,
+      /<span class="ingredient-list__amount" data-amount-display><\/span>\s*<span class="ingredient-list__name">Salt<\/span>/
+    );
+  });
+});
+
+test('Edit and Duplicate are quiet inline actions, and button--bring marks only the primary action (L8, L9)', async () => {
+  await withApp(async (app, db) => {
+    await seedUser(db, 'alex');
+    const agent = await loginAgent(app, 'alex');
+    const recipeId = await createScalingRecipe(agent);
+
+    const res = await agent.get(`/recipes/${recipeId}`);
+    assert.equal(res.status, 200);
+
+    assert.match(res.text, new RegExp(`class="button button--quiet" href="/recipes/${recipeId}/edit">Edit<`));
+    assert.match(res.text, /<button type="submit" class="button button--quiet">Duplicate<\/button>/);
+    assert.doesNotMatch(res.text, /class="button button--ghost" href="\/recipes\/\d+\/edit">Edit</);
+    assert.doesNotMatch(res.text, /<button type="submit" class="button button--ghost">Duplicate<\/button>/);
+
+    const bringOccurrences = (res.text.match(/button--bring/g) || []).length;
+    assert.equal(bringOccurrences, 1);
   });
 });
 

@@ -35,7 +35,7 @@
         </section>
 
         <section class="recipe-ingredients" data-base-yield="<%= recipe.yield_amount %>" data-locale="<%= locale %>" data-unit-language="<%= unitLanguage %>" data-measurement-system="<%= measurementSystem %>">
-          <h2>Ingredients (for <span data-servings-count><%= requestedYield %></span> servings)</h2>
+          <h2 class="section-caption">Ingredients</h2>
           <ul class="ingredient-list" data-ingredient-list>
             <% groups[0].ingredients.forEach((ingredient, ingredientIndex) => {
                  const scaledIngredient = scaledGroups[0].ingredients[ingredientIndex];
@@ -48,9 +48,7 @@
                 data-name="<%= ingredient.name || '' %>"
                 data-scales="1"
               >
-                <% if (scaledIngredient.amountText != null) { %>
-                  <span class="ingredient-list__amount" data-amount-display<% if (scaledIngredient.exactText) { %> title="<%= scaledIngredient.exactText %>"<% } %>><%= scaledIngredient.amountText %></span>
-                <% } %>
+                <span class="ingredient-list__amount" data-amount-display<% if (scaledIngredient.exactText) { %> title="<%= scaledIngredient.exactText %>"<% } %>><%= scaledIngredient.amountText != null ? scaledIngredient.amountText : '' %></span>
                 <span class="ingredient-list__name"><%= ingredient.name %></span>
               </li>
             <% }) %>
@@ -89,11 +87,11 @@
 
         <div class="recipe-actions">
           <% if (isOwner) { %>
-            <a class="button button--ghost" href="/recipes/<%= recipe.id %>/edit">Edit</a>
+            <a class="button button--quiet" href="/recipes/<%= recipe.id %>/edit">Edit</a>
           <% } %>
           <form method="post" action="/recipes/<%= recipe.id %>/duplicate" class="recipe-actions__form">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <button type="submit" class="button button--ghost">Duplicate</button>
+            <button type="submit" class="button button--quiet">Duplicate</button>
           </form>
         </div>
 

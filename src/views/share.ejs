@@ -26,9 +26,7 @@
                      const scaledIngredient = scaledGroups[groupIndex].ingredients[ingredientIndex];
                 %>
                   <li class="ingredient-list__item"<% if (!scaledIngredient.excludeFromShopping) { %> itemprop="recipeIngredient"<% } %>>
-                    <% if (scaledIngredient.amountText != null) { %>
-                      <span class="ingredient-list__amount"><%= scaledIngredient.amountText %></span>
-                    <% } %>
+                    <span class="ingredient-list__amount"><%= scaledIngredient.amountText != null ? scaledIngredient.amountText : '' %></span>
                     <span class="ingredient-list__name"><%= ingredient.name %></span>
                     <% if (ingredient.note) { %><span class="ingredient-list__note">(<%= ingredient.note %>)</span><% } %>
                     <% if (scaledIngredient.isOptional) { %><span class="ingredient-list__marker">optional</span><% } %>

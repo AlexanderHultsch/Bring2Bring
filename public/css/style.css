@@ -118,6 +118,7 @@ button {
   color: var(--color-accent-contrast);
   font-family: var(--font-sans);
   font-size: var(--font-size-base);
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -243,6 +244,12 @@ label {
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text);
+}
+
+.button--quiet {
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
 }
 
 .button--icon {
@@ -557,6 +564,10 @@ label {
   margin-bottom: var(--space-2);
 }
 
+.recipe-page > h1:first-child {
+  margin-top: calc(var(--space-2) - var(--space-4));
+}
+
 .section-caption {
   font-size: var(--text-caption-size);
   line-height: var(--text-caption-line-height);
@@ -656,9 +667,9 @@ label {
 
 .ingredient-list__item {
   position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  column-gap: var(--space-2);
   align-items: baseline;
   padding: var(--space-1) 0 var(--space-1) var(--space-4);
 }
@@ -671,12 +682,11 @@ label {
   width: 0.4em;
   height: 0.4em;
   border-radius: 50%;
-  background: var(--color-accent);
+  background: var(--color-text-muted);
 }
 
 .ingredient-list__amount {
   font-weight: 600;
-  min-width: 4rem;
 }
 
 .recipe-method__text {
@@ -806,10 +816,12 @@ label {
 
 .button--bring {
   width: 100%;
+  min-height: 3.5rem;
   gap: var(--space-2);
   border-color: var(--color-accent);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
+  font-size: var(--font-size-md);
   font-weight: 600;
 }
 
