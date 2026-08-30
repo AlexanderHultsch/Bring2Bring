@@ -1,4 +1,4 @@
-# Bring2Bring! — Specification v2.10
+# Bring2Bring! — Specification v2.11
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
 > source of truth for the `Bring2Bring` repository
@@ -762,6 +762,65 @@ One decision, reversing v2.5. No schema change.
 
 ---
 
+## Changes in v2.11
+
+N.A. finally gets a coherent definition. It has taken two earlier attempts
+to get there: M7 (v2.8) renamed "no unit" to "N.A.", and N2 (v2.9) stopped
+it scaling — but both left a number sitting on the ingredient regardless of
+which serving count it was viewed at. This version says what "not
+applicable" was reaching for the whole time: **no quantity**, not a frozen
+one. Alongside it, one open question is settled rather than reopened. No
+schema change; `amount_max` stays dormant rather than being dropped.
+
+- **N.A. carries no quantity at all (P1).** The `piece` unit — the
+  editor's "N.A." option — becomes **quantity-less**. It renders as just
+  the ingredient name, with no number and no unit word: on the recipe
+  page, in the client-side recalculation, and in the Bring! export, which
+  receives the ingredient with no quantity attached. The owner's
+  rationale, in their words: **"NA might be spices etc"** — N.A. is for
+  ingredients where a quantity is not meaningful, so it should not carry
+  one. The app already has exactly this shape: `pinch` is `numeric: false`
+  and renders "Prise Salz" — a label and a name, no number. `piece`
+  becomes the same thing with an empty label, so it renders just "Salz".
+  **This supersedes the `fixed` mechanism introduced in N2 (v2.9)**: a
+  unit that has no number is simpler than a unit that has a number which
+  refuses to move, and it removes a special case from the scaling path
+  rather than adding one. The owner offered two forms — "without any
+  number, or as one". **Without any number** is the one taken: "1 Salz" on
+  a shopping list is noise, and `pinch` already establishes the pattern
+  for a quantity-less ingredient. **Existing data is not migrated.**
+  Recipes already hold N.A. ingredients with stored amounts — those
+  numbers stay in the database and simply stop being displayed. The next
+  save of such a recipe clears them, because the editor no longer offers
+  the field (P2). Nothing is destroyed by this change on its own.
+- **The editor's amount field is disabled for N.A. (P2).** Selecting
+  **N.A.** in an ingredient row disables and clears that row's amount
+  input; selecting any other unit re-enables it. A row that opens already
+  set to N.A. starts with the field disabled. This is enforced **on the
+  server as well as in the browser**: a submitted amount against an N.A.
+  unit is discarded rather than stored, so a crafted POST cannot put one
+  back. The browser behaviour is the convenience; the server rule is what
+  makes the model true. The client half is progressive enhancement,
+  consistent with the rest of the editor: with JavaScript off the field is
+  not disabled, and the server rule still discards the value.
+- **Ranges are confirmed unnecessary and stay dormant (P3).** The owner
+  has confirmed they do not need ingredient ranges ("2-3 apples"). This
+  settles an open question rather than changing behaviour: the editor has
+  never offered a max-amount field and `src/services/recipes.js` has never
+  set one, so every ingredient created through the app already stores
+  `amount_max` as `NULL`. `amount_max` **stays in the schema, dormant**,
+  alongside `image_path` and `recipe_shares.can_edit` — the spec's
+  existing precedent for keeping an unused column rather than paying for a
+  migration to drop it. `scaleIngredient` keeps its range handling; it is
+  tested, it is correct, and removing it would be churn for no
+  user-visible gain. Record the consequence that already mattered: N1
+  (v2.9)'s column-width decision treated range strings as unreachable, and
+  this confirms that reading. A half-step range such as `9-11,5 Stück`
+  does not fit the amount column and no width up to the cap would fit a
+  two-sided one — that is accepted, because the app cannot produce one.
+
+---
+
 ## 1. Purpose
 
 Bring2Bring! is Alex's own private cookbook on the web. Recipes are entered once,
@@ -1189,35 +1248,44 @@ free text, so the table is deliberately small — exactly:
 | `stueck` | Stück | pcs | count |
 
 "No unit" is stored as the `piece` unit (count dimension with empty label), so
-`2 Eier` renders without a unit word. This is a deliberate internal
-representation, not an accident — it lets `piece` (displayed as "2 Eier") and
-the `stueck` unit (displayed as "2 Stück Butter" in German, "2 pcs Butter" in
-English) share the count dimension and conversion rules while differing only
-in the label shown. Since v2.9 (N2) they no longer share rounding: `piece`
-does not scale at all (below), while `stueck` keeps scaling and keeps the
-count rounding rule. The `stueck` unit was new in v1.1;
-D7 (v2.0) decided its label should read "pcs" but was never implemented, and
-K3 (v2.6) resolves that by giving every unit both labels — see §7.5. The key
-is unchanged, so this is a display-only change: nothing stored migrates.
-`piece` and `stueck` are deliberately kept as two separate units and are not
-collapsed (K1, since v2.6): the empty label and "Stück" are a real
-difference in what renders, not a duplication.
+an ingredient like "Eier" renders with no number and no unit word at all —
+see below. This is a deliberate internal representation, not an accident —
+it lets `piece` (displayed as just "Eier") and the `stueck` unit (displayed
+as "2 Stück Butter" in German, "2 pcs Butter" in English) share the count
+dimension and conversion rules while differing in what they carry, not just
+the label shown. The `stueck` unit was new in v1.1; D7 (v2.0) decided its
+label should read "pcs" but was never implemented, and K3 (v2.6) resolves
+that by giving every unit both labels — see §7.5. The key is unchanged, so
+this is a display-only change: nothing stored migrates. `piece` and
+`stueck` are deliberately kept as two separate units and are not collapsed
+(K1, since v2.6): the empty label and "Stück" are a real difference in what
+renders, not a duplication.
 
-**`piece` does not scale (N2, since v2.9).** Unlike every other unit
-(including every other `count` unit), `piece` passes the stored amount
-straight through: on the recipe view, in the client-side recalculation, and
-in the Bring! export, the number shown is exactly what was entered, at every
-serving count. This is specific to the `piece` unit, not to the `count`
-dimension — `stueck`, `clove`, `slice`, `can`, `bunch` and `pack` all keep
-scaling and keep the count-dimension rounding §7.3 gives them (nearest 0.5,
-floor 0.5, since O1/v2.10). It reverses part of v2.5's decision to round
-counts to whole numbers so a "no unit" ingredient visibly changed across
-servings; the unit's rename to "N.A." (M7, v2.8) settles the question the
-other way — "not applicable"
-means the number is not a measure that scales. Stated because it reaches
-the shopping list: an N.A. ingredient sends the same quantity to Bring! at
-one serving and at ten, which is a deliberate reading of §1 principle 5, not
-an oversight.
+**`piece` carries no quantity at all (P1, since v2.11).** Unlike every
+other unit, `piece` renders as just the ingredient name — no number, no
+unit word — on the recipe view, in the client-side recalculation, and in
+the Bring! export, which receives the ingredient with no quantity attached.
+`piece` now shares `numeric: false` with `pinch` (§7.3's last row): a label
+and a name, no number — `piece`'s label just happens to be the empty
+string, so what's left is only the name. **This supersedes N2 (v2.9)**,
+which stopped `piece` from scaling but left whatever number was stored
+displayed unchanged at every serving count; a unit that carries no number
+at all is simpler than a unit that carries a number which refuses to move,
+and it removes a special case from the scaling path (§7.1) rather than
+adding one — N2's `fixed` mechanism is retired by this, not merely
+adjusted. The owner's rationale, in their words: **"NA might be spices
+etc"** — N.A. is for ingredients where a quantity is not meaningful, so it
+should not carry one, full stop, rather than carrying one that is merely
+frozen. This is specific to the `piece` unit, not to the `count` dimension
+— `stueck`, `clove`, `slice`, `can`, `bunch` and `pack` are unaffected and
+keep scaling and the count-dimension rounding §7.3 gives them (nearest 0.5,
+floor 0.5, since O1/v2.10). Stated because it reaches the shopping list: an
+N.A. ingredient now reaches Bring! with no quantity attached at any serving
+count (§8.5), which is a deliberate reading of §1 principle 5, not an
+oversight. **Existing data is not migrated:** recipes already holding N.A.
+ingredients with stored amounts keep those numbers in the database; they
+simply stop being displayed, and the next save through the editor clears
+them (§10.1, P2) since the editor no longer offers the field.
 
 Rules:
 - Convert **up** when the scaled amount gets unwieldy: `1500 g → 1.5 kg`,
@@ -1249,8 +1317,8 @@ which is not a shoppable quantity.
 | 10–99 | round to nearest 1 |
 | 1–9.99 | 1 decimal place |
 | < 1 | 2 decimal places, and prefer a converted-down unit if one exists |
-| `count` dimension (eggs, onions) | round to nearest 0.5, never below 0.5 (O1, since v2.10) — half a Stück is a real, shoppable quantity; `piece` is exempt from this row entirely (N2, since v2.9): it neither scales nor rounds |
-| `pinch`, `to taste` | never numeric |
+| `count` dimension (eggs, onions) | round to nearest 0.5, never below 0.5 (O1, since v2.10) — `piece` no longer belongs to this row at all: it moved to the row below (P1, since v2.11) |
+| `pinch`, `to taste`, `piece` | never numeric |
 
 Trailing zeros are stripped (`2.0 → 2`). Decimals are rendered with the
 locale-appropriate separator for the reader's `unit_language` (K6, since
@@ -1494,6 +1562,10 @@ disabled (a plain `<a href="/recipes/:id/bring?yield=N">` is correct), and
 the rule that the Bring! deeplink itself must never be **fetched** by
 JavaScript is untouched — we redirect to it, we do not fetch it.
 
+**An N.A. ingredient reaches Bring! with no quantity at all (P1, since
+v2.11).** The JSON-LD `recipeIngredient` string for a `piece`-unit
+ingredient carries no number and no unit word, only the name — §7.2, §8.4.
+
 **`baseQuantity` and `requestedQuantity` must be identical** and must equal
 `N`. Bring multiplies by `requestedQuantity / baseQuantity`; since our page
 already delivers scaled amounts, the factor must be exactly `1.0`. Sending
@@ -1663,7 +1735,13 @@ for the recorded tap-target exception in §10.E.
   explaining the valid range, so none is shown; the drum stays on the
   recipe view only. Ingredient rows: amount, unit (the
   fixed dropdown, §7.2), name — add or remove a row, no drag reordering, no
-  quick-add line, no per-row toggles. Method is a single, optional
+  quick-add line, no per-row toggles. **Selecting N.A. disables and clears
+  that row's amount field; selecting any other unit re-enables it, and a
+  row that opens already set to N.A. starts disabled (P2, since v2.11).**
+  This is a progressive enhancement, consistent with the rest of the editor
+  (§7.4's pattern) — with JavaScript off the field is not disabled, and the
+  server discards a submitted amount against an N.A. unit regardless (§7.2).
+  Method is a single, optional
   textarea, stored and shown exactly as typed. Autosave draft to
   `localStorage` so a dropped connection never loses a half-typed recipe.
   Beside "Save recipe" is a **Cancel** link (N3, since v2.9) that returns to
@@ -2046,10 +2124,11 @@ while the site looks perfectly fine in a browser.
 | **F** | *v2.8.* Change Request 01 (M1–M10): the servings drum replacing the horizontal wheel with its accessibility contract, the Account-screen hint/button overlap fixed, the "Appearance" menu label, the A–Z rail's gap and letter treatment, "N.A." in the unit dropdown, grams as the new-row unit default, the editor's servings dropdown, accent rationing extended app-wide, and the About Bring! disclosure page. **No schema change.** |
 | **G** | *v2.9.* N1–N3: the ingredient amount column widened to fit the formatter's real worst case, `piece` stops scaling with servings (N.A. is not a measure), and the recipe editor gets a Cancel that discards its autosaved draft. **No schema change.** |
 | **H** | *v2.10.* O1: `count` rounds to the nearest 0.5 again, floor 0.5, reversing v2.5's whole-number rule now that N2 (v2.9) has separately handled `piece`. **No schema change.** |
+| **I** | *v2.11.* P1–P3: N.A. (`piece`) carries no quantity at all, superseding N2's `fixed` mechanism; the editor's amount field is disabled and cleared for N.A., server-enforced as well as client-enforced; ingredient ranges are confirmed unnecessary and `amount_max` stays dormant. **No schema change.** |
 
-Each of A, B, C, D, E, F, G and H is independently deployable. Phases 0–3
+Each of A, B, C, D, E, F, G, H and I is independently deployable. Phases 0–3
 above are the record of what shipped to get here; they are not revised by
-A/B/C/D/E/F/G/H.
+A/B/C/D/E/F/G/H/I.
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
