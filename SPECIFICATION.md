@@ -1,4 +1,4 @@
-# Bring2Bring! — Specification v2.8
+# Bring2Bring! — Specification v2.9
 
 > **Status:** Concept, pre-implementation. This document is the authoritative
 > source of truth for the `Bring2Bring` repository
@@ -672,6 +672,66 @@ The full set of decisions:
 
 ---
 
+## Changes in v2.9
+
+A small round of three: one layout defect found by real data, one deliberate
+reversal, and one missing control. No schema change and no change to the §7.3
+rounding ladder. The full set of decisions:
+
+- **The ingredient amount column is too narrow (N1).**
+  `.ingredient-list__item`'s first grid track is `4.5rem` (72px), chosen in
+  v2.7 (L7) by measuring the amounts a test recipe happened to produce —
+  `250 g`, `500 ml`, `2 EL`, `1 Stück`. It is too narrow for real data.
+  **Reproduced at 390px: `10-13 Stück` wraps onto two lines.** `30 Stück`
+  fits only just. The track widens — the exact value lives in the
+  stylesheet, not here. Worth recording *why* it was wrong, because the
+  mistake is repeatable: the width was fitted to the sample in front of it
+  rather than to the longest string the formatter can actually emit. A range
+  plus the longest unit label is the real worst case, and no test recipe
+  contained one. The owner reported this as "4,5 Stück Zwiebel has a line
+  break". That exact string cannot appear on the recipe view — `stueck` is a
+  count unit and §7.3 rounds counts to whole numbers, never below 1, so 4.5
+  renders as `5 Stück` (checked six ways of reaching it). `4,5` is what the
+  *editor* shows, because the editor displays the raw stored amount rather
+  than the scaled and rounded one. Both the editor and the view are in
+  scope; the wrap in the view is the defect the fix is measured against.
+- **An N.A. ingredient does not scale (N2).** The `piece` unit — the
+  editor's "N.A." option since M7 — stops scaling with servings. Its number
+  stays whatever was entered, at every serving count, on the recipe page,
+  in the client-side recalculation, and in the Bring! export. This
+  **reverses part of an earlier decision and the reversal is recorded as
+  such.** In v2.5 the owner reported that a "no unit" ingredient "is not
+  scaling at all", and the response was to change count rounding from
+  half-steps to whole numbers so small counts visibly changed across
+  serving sizes. The unit has since been renamed from "no unit" to "N.A."
+  (M7, v2.8), and that rename settles the question the other way: "not
+  applicable" means the number is not a measure that scales, so it is left
+  alone. **Stated plainly because it reaches the shopping list:** an N.A.
+  ingredient sends the same quantity to Bring! at one serving and at ten.
+  §1 principle 5 says a wrong quantity is worse than no export, so this is
+  worth being explicit about rather than leaving to be discovered — it is
+  the owner's decision, taken deliberately, and it is what "not applicable"
+  means. **Scoped precisely:** only `piece` stops scaling. The other count
+  units — `stueck`, `clove`, `slice`, `can`, `bunch`, `pack` — keep scaling
+  and keep the whole-number rounding v2.5 gave them. The §7.3 rounding
+  ladder is unchanged.
+- **The recipe editor gets a Cancel (N3).** The editor has only "Save
+  recipe". Leaving without saving means using the browser's back gesture,
+  which is not an answer the interface offers. It gets a Cancel that
+  returns to the recipe being edited, or to the list for a new recipe.
+  **The part that matters, and that makes this more than a link:** the
+  editor autosaves to `localStorage` under `bring2bring-draft-<id>` as you
+  type, and restores that draft when the form is next opened. A Cancel that
+  only navigated away would leave the draft behind, so the abandoned edits
+  would reappear on the next visit — which is the opposite of what the
+  button promises. Cancel **discards the draft** as well as leaving. It
+  stays a real link so it still works with JavaScript off, matching how the
+  rest of the editor is built (§7.4's pattern: a plain control that works
+  first, improved by JavaScript on top) — the draft-clearing is the
+  progressive enhancement.
+
+---
+
 ## 1. Purpose
 
 Bring2Bring! is Alex's own private cookbook on the web. Recipes are entered once,
@@ -1097,18 +1157,34 @@ free text, so the table is deliberately small — exactly:
 | `stueck` | Stück | pcs | count |
 
 "No unit" is stored as the `piece` unit (count dimension with empty label), so
-`2 Eier` renders without a unit word while still getting the count rounding
-rule (§7.3: nearest whole number, never below 1). This is a deliberate
-internal representation, not an accident — it lets `piece` (displayed as
-"2 Eier") and the `stueck` unit (displayed as "2 Stück Butter" in German,
-"2 pcs Butter" in English) share the count rounding and conversion rules
-while differing only in the label shown. The `stueck` unit was new in v1.1;
+`2 Eier` renders without a unit word. This is a deliberate internal
+representation, not an accident — it lets `piece` (displayed as "2 Eier") and
+the `stueck` unit (displayed as "2 Stück Butter" in German, "2 pcs Butter" in
+English) share the count dimension and conversion rules while differing only
+in the label shown. Since v2.9 (N2) they no longer share rounding: `piece`
+does not scale at all (below), while `stueck` keeps scaling and keeps the
+count rounding rule. The `stueck` unit was new in v1.1;
 D7 (v2.0) decided its label should read "pcs" but was never implemented, and
 K3 (v2.6) resolves that by giving every unit both labels — see §7.5. The key
 is unchanged, so this is a display-only change: nothing stored migrates.
 `piece` and `stueck` are deliberately kept as two separate units and are not
 collapsed (K1, since v2.6): the empty label and "Stück" are a real
 difference in what renders, not a duplication.
+
+**`piece` does not scale (N2, since v2.9).** Unlike every other unit
+(including every other `count` unit), `piece` passes the stored amount
+straight through: on the recipe view, in the client-side recalculation, and
+in the Bring! export, the number shown is exactly what was entered, at every
+serving count. This is specific to the `piece` unit, not to the `count`
+dimension — `stueck`, `clove`, `slice`, `can`, `bunch` and `pack` all keep
+scaling and keep the whole-number rounding §7.3 gives the count dimension.
+It reverses part of v2.5's decision to round counts to whole numbers so a
+"no unit" ingredient visibly changed across servings; the unit's rename to
+"N.A." (M7, v2.8) settles the question the other way — "not applicable"
+means the number is not a measure that scales. Stated because it reaches
+the shopping list: an N.A. ingredient sends the same quantity to Bring! at
+one serving and at ten, which is a deliberate reading of §1 principle 5, not
+an oversight.
 
 Rules:
 - Convert **up** when the scaled amount gets unwieldy: `1500 g → 1.5 kg`,
@@ -1557,6 +1633,10 @@ for the recorded tap-target exception in §10.E.
   quick-add line, no per-row toggles. Method is a single, optional
   textarea, stored and shown exactly as typed. Autosave draft to
   `localStorage` so a dropped connection never loses a half-typed recipe.
+  Beside "Save recipe" is a **Cancel** link (N3, since v2.9) that returns to
+  the recipe being edited, or to the list for a new recipe, and clears that
+  recipe's autosaved draft so abandoned edits do not resurface on the next
+  visit (§10.E).
 - **Share page** — recipe only, stripped down further than the app view:
   name, servings and ingredients only, no method (§8.4).
 - **Privacy** — new, since v2.0. Documents the `bring2bring.did` device cookie
@@ -1727,7 +1807,11 @@ One paragraph per screen, matching the mockup:
    arrow-key input, a reduced-motion fallback, a guarded haptic tick),
    then "Ingredients" — a quiet caption, no longer repeating the servings
    count the selector above it already shows (L5, since v2.7) — the
-   ingredient list, the primary "Send to Bring!" button, now full height
+   ingredient list (a two-column grid, amount then name, every row aligned
+   even with no amount — L7, since v2.7; the amount track was widened in
+   v2.9, N1, to fit the longest string the formatter can emit rather than a
+   sample recipe's amounts, its exact width left to the stylesheet), the
+   primary "Send to Bring!" button, now full height
    with no underline so it reads as the one dominant control on the
    screen (L8, since v2.7), then "Method", then Edit and Duplicate as
    quiet inline actions with no button box (L9, since v2.7), then a
@@ -1769,6 +1853,15 @@ screens: My Recipes, Public, and New — the accent colour marks only
 whichever one is current (F3, since v2.2). New is additionally marked by
 a circular outline rather than accent fill (L10, since v2.7). This is
 also the way back from a recipe to a list.
+
+**The editor's Cancel control (N3, since v2.9).** A plain link beside "Save
+recipe" (§10.1), styled as a secondary action so it does not compete with
+Save. It works with JavaScript off, the way closing the burger panel does
+(F4, since v2.2) — a real `<a href>` back to the recipe, or to the list for
+a new recipe. On top of that, JavaScript clears the recipe's
+`bring2bring-draft-<id>` entry from `localStorage` before navigating, so
+the autosaved draft the plain link alone would have left behind does not
+resurface the next time the form opens.
 
 ### 10.F Rules that survive
 
@@ -1918,10 +2011,11 @@ while the site looks perfectly fine in a browser.
 | **D** | *v2.6.* Unit language (K3): German/English labels for every unit, `users.unit_language`, the Account control, and the share page rendering in the author's language. Measurement system (K4): the imperial display family, `users.measurement_system`, its own Account control, and the amended §7.3 rounding rule. Number locale follows unit language (K6). **Migration 004.** |
 | **E** | *v2.7.* Recipe screen refinement (L1–L11): centred wordmark, theme toggle into the menu, rationed accent, aligned ingredient columns, a taller Send to Bring!, quieted Edit/Duplicate, a shape-distinct New, and a redrawn Bring icon. **No schema change.** |
 | **F** | *v2.8.* Change Request 01 (M1–M10): the servings drum replacing the horizontal wheel with its accessibility contract, the Account-screen hint/button overlap fixed, the "Appearance" menu label, the A–Z rail's gap and letter treatment, "N.A." in the unit dropdown, grams as the new-row unit default, the editor's servings dropdown, accent rationing extended app-wide, and the About Bring! disclosure page. **No schema change.** |
+| **G** | *v2.9.* N1–N3: the ingredient amount column widened to fit the formatter's real worst case, `piece` stops scaling with servings (N.A. is not a measure), and the recipe editor gets a Cancel that discards its autosaved draft. **No schema change.** |
 
-Each of A, B, C, D, E and F is independently deployable. Phases 0–3 above
+Each of A, B, C, D, E, F and G is independently deployable. Phases 0–3 above
 are the record of what shipped to get here; they are not revised by
-A/B/C/D/E/F.
+A/B/C/D/E/F/G.
 
 Later, explicitly not in v1: meal planning, weekly plans, "cooked on" history,
 recipe import by URL scraping, PWA/offline, shopping-list management inside
