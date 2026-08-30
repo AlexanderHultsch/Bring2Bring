@@ -139,37 +139,14 @@ export function loadRecipeAggregate(db, recipeId, actingUserId) {
   const recipe = findRecipeForRead(db, recipeId, actingUserId);
   if (!recipe) return undefined;
 
-  const groupRows = db
-    .prepare('SELECT * FROM ingredient_groups WHERE recipe_id = ? ORDER BY position')
-    .all(recipeId);
-  const ingredientsStmt = db.prepare(
-    'SELECT * FROM ingredients WHERE group_id = ? ORDER BY position'
-  );
-  const groups = groupRows.map((group) => ({
-    ...group,
-    ingredients: ingredientsStmt.all(group.id),
-  }));
-
-  const steps = db
-    .prepare('SELECT * FROM steps WHERE recipe_id = ? ORDER BY position')
-    .all(recipeId);
-
-  const tags = db
-    .prepare(
-      `SELECT t.* FROM tags t
-       JOIN recipe_tags rt ON rt.tag_id = t.id
-       WHERE rt.recipe_id = ?
-       ORDER BY t.name`
-    )
-    .all(recipeId);
-
-  return { recipe, groups, steps, tags };
+  return { recipe, ...loadRecipeContentById(db, recipeId) };
 }
 
 // Companion to findRecipeByShareToken: loads the same groups/ingredients/
 // steps/tags shape as loadRecipeAggregate, but by recipeId alone, since the
 // share route has no acting user to check read access with — the caller has
-// already established access via the token itself.
+// already established access via the token itself. loadRecipeAggregate
+// reuses this once its own access check has passed.
 export function loadRecipeContentById(db, recipeId) {
   const groupRows = db
     .prepare('SELECT * FROM ingredient_groups WHERE recipe_id = ? ORDER BY position')
@@ -269,7 +246,7 @@ export function setRecipePublic(db, recipeId, actingUserId, isPublic) {
 
 export function deleteRecipe(db, recipeId, actingUserId) {
   const { changes } = db
-    .prepare('DELETE FROM recipes WHERE id = ? AND owner_id = ?')
+    .prepare(`DELETE FROM recipes WHERE id = ? AND ${WRITE_PREDICATE}`)
     .run(recipeId, actingUserId);
 
   return changes;
