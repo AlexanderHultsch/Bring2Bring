@@ -78,7 +78,7 @@ h2 {
   font-size: var(--text-heading-size);
   line-height: var(--text-heading-line-height);
   font-weight: var(--text-heading-weight);
-  color: var(--color-accent);
+  color: var(--color-text);
   margin: var(--space-4) 0 var(--space-2);
 }
 
@@ -156,7 +156,7 @@ label {
 .error-status {
   font-family: var(--font-serif);
   font-size: var(--font-size-xxl);
-  color: var(--color-accent);
+  color: var(--color-text-muted);
   margin: 0;
 }
 
@@ -502,7 +502,7 @@ label {
   font-size: var(--text-heading-size);
   line-height: var(--text-heading-line-height);
   font-weight: var(--text-heading-weight);
-  color: var(--color-accent);
+  color: var(--color-text);
 }
 
 .recipe-list__item {

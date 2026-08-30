@@ -656,7 +656,10 @@ The full set of decisions:
   meant green marked "heading" on one screen and "action" on another.
   Green now means only the primary action, the selected serving, the
   active navigation item, the active rail letter, on-states, and the
-  wordmark.
+  wordmark. The error page's large status number went with them: a 404
+  rendered in the same green as a success message and a primary action is
+  the clearest case of the accent meaning nothing at all, so it is muted
+  text now.
 - **An honest note about Bring! (M10).** A new page reachable from exactly
   one place — a burger-menu entry labelled "About Bring!" — stating
   plainly that Bring2Bring! is not affiliated with Bring! Labs AG, is not

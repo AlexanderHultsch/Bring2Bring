@@ -182,3 +182,26 @@ test('GUARD: recipe-view.js never writes a layout-affecting style property from 
     'recipe-view.js must not assign to a layout-affecting style property (it can re-trigger the scroll handler that scheduled it, looping forever)'
   );
 });
+
+// M9 (v2.8): the accent is rationed app-wide (§10.B) to the primary action,
+// the selected serving, the active nav item, the active A-Z rail letter and
+// positive/on states — never a heading. h2, the list's sticky A/B/C section
+// letters and the error page's status number are the three places green
+// quietly meant "heading" or "just a number" instead. A heading turning
+// green again is exactly how that ration erodes back to nothing meaning
+// anything.
+test('GUARD: h2, .recipe-list__section and .error-status do not use the accent colour', () => {
+  const css = fs.readFileSync(stylePath, 'utf8');
+
+  const h2Match = css.match(/(?:^|\n)h2\s*\{([^}]*)\}/);
+  assert.ok(h2Match, 'expected an h2 rule in style.css');
+  assert.doesNotMatch(h2Match[1], /color:\s*var\(--color-accent\)/, 'h2 must not be coloured with var(--color-accent) — a heading is not an action or a state');
+
+  const sectionMatch = css.match(/\.recipe-list__section\s*\{([^}]*)\}/);
+  assert.ok(sectionMatch, 'expected a .recipe-list__section rule in style.css');
+  assert.doesNotMatch(sectionMatch[1], /color:\s*var\(--color-accent\)/, '.recipe-list__section must not use var(--color-accent) — it competes with the A-Z rail\'s current-letter pill for the same meaning');
+
+  const statusMatch = css.match(/\.error-status\s*\{([^}]*)\}/);
+  assert.ok(statusMatch, 'expected an .error-status rule in style.css');
+  assert.doesNotMatch(statusMatch[1], /color:\s*var\(--color-accent\)/, '.error-status must not use var(--color-accent) — a 404 is not a success message');
+});
