@@ -21,7 +21,7 @@ const head = (title, w, h, extra = '') => `<!doctype html>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
   <style>
     body { margin: 0; background: ${C.bg}; color: ${C.text}; font-family: ${BODY}; }
-    a { color: ${C.accent || '#2e7d32'}; text-decoration: none; }
+    a { color: #2e7d32; text-decoration: none; }
     a:hover { color: #1f5c24; text-decoration: underline; }
     .eyebrow { font-family: ${FONT}; font-weight: 600; font-size: 12px; letter-spacing: 0.16em;
                text-transform: uppercase; color: ${C.faint}; }
@@ -71,7 +71,7 @@ function conceptBoard(m) {
   <div style="background: ${C.surface}; border: 1px solid ${C.border}; border-radius: 16px;
               padding: 34px; display: flex; align-items: center; justify-content: center;
               color: {{accent}};">
-    ${glyph(m, `${m.id}-hero`, 232)}
+    ${glyph(m, `${m.id}-hero`, 232, { label: true })}
   </div>
 
   <div style="display: flex; flex-direction: column; gap: 14px;">
@@ -82,12 +82,10 @@ function conceptBoard(m) {
     </div>
   </div>
 
-  <div style="display: flex; gap: 16px;">
-    <div style="flex-grow: 1; background: ${C.dark}; border-radius: 14px; padding: 20px 24px;
-                display: flex; align-items: center; gap: 20px; color: ${C.darkAccent};">
-      ${glyph(m, `${m.id}-d1`, 44)}${glyph(m, `${m.id}-d2`, 22)}
-      <span style="font-size: 11px; color: #7f878f; font-family: ${BODY}; margin-left: auto;">Dark UI</span>
-    </div>
+  <div style="background: ${C.dark}; border-radius: 14px; padding: 20px 24px;
+              display: flex; align-items: center; gap: 20px; color: ${C.darkAccent};">
+    ${glyph(m, `${m.id}-d1`, 44)}${glyph(m, `${m.id}-d2`, 22)}
+    <span style="font-size: 11px; color: #7f878f; font-family: ${BODY}; margin-left: auto;">Dark UI</span>
   </div>
 
   <div style="display: flex; flex-direction: column; gap: 14px;">
@@ -118,8 +116,8 @@ function mainBoard() {
                   height: 232px; display: flex; align-items: center; justify-content: center;
                   color: {{accent}};">${glyph(m, `ov-${m.id}`, 156)}</div>
       <div style="display: flex; flex-direction: column; gap: 6px; min-height: 92px;">
-        <span style="font-family: ${FONT}; font-weight: 700; font-size: 17px; color: ${C.text};
-                     letter-spacing: -0.01em;">${m.n} &nbsp;${m.name}</span>
+        <span style="display: flex; gap: 10px; font-family: ${FONT}; font-weight: 700; font-size: 17px;
+                     color: ${C.text}; letter-spacing: -0.01em;"><span style="color: ${C.faint};">${m.n}</span><span>${m.name}</span></span>
         <span style="font-size: 13px; line-height: 1.5; color: ${C.muted}; text-wrap: pretty;">${m.trade}</span>
       </div>
       <div style="display: flex; align-items: center; gap: 14px; padding-top: 2px; color: {{accent}};">
@@ -132,12 +130,12 @@ function mainBoard() {
             flex-direction: column; gap: 34px; box-sizing: border-box;">
   <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 40px;">
     <div style="display: flex; flex-direction: column; gap: 12px;">
-      <span class="eyebrow">Bring2Bring! &nbsp;·&nbsp; Logo directions</span>
+      <span class="eyebrow" style="display: flex; gap: 10px;"><span>Bring2Bring!</span><span>·</span><span>Logo directions</span></span>
       <h1 style="margin: 0; font-family: ${FONT}; font-weight: 700; font-size: 44px;
                  letter-spacing: -0.025em; line-height: 1.02; color: ${C.text};">Two B&rsquo;s, one shared 2</h1>
     </div>
     <p style="margin: 0; font-size: 15px; line-height: 1.6; color: ${C.muted}; max-width: 44ch;
-              text-wrap: pretty;">Every mark is built the same way: two bold geometric B&rsquo;s are
+              text-wrap: pretty;">Every mark is built the same way: two geometric capital B&rsquo;s are
        overlapped into a single form, and the channel they leave between them is cut as the
        number 2. Nothing is drawn twice &mdash; the 2 only exists as the letters&rsquo; negative space.</p>
   </div>

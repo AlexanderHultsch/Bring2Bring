@@ -41,7 +41,7 @@ export const MARKS = [
   {
     id: 'spine', n: '01', name: 'Spine',
     idea: 'Both B’s share one central stem and turn their bowls outward, so the whole interior is free for the 2.',
-    trade: 'The most compact and the most legible small — but it reads as a 2 first and resolves into two B’s second.',
+    trade: 'The calmest and most compact of the five — but it reads as a 2 first, and resolves into two B’s only on a second look.',
     fills: [spineB({ sx: 54, sw: 20, y: 10, R: 27 })],
     cuts: [{ d: two({ cx: 64, cy: 42, r: 23, fx: 42, fy: 100, fw: 46 }), w: 14 }],
     notches: [[25, 64, 12], [103, 64, 12]],
@@ -50,8 +50,8 @@ export const MARKS = [
     id: 'slab', n: '02', name: 'Slab',
     idea: 'A B and a reversed B pressed into one solid block; the 2 is the only cut in it.',
     trade: 'Holds together at 16 px better than anything else here, which makes it the natural app icon and favicon.',
-    fills: [plainB({ x: 16, y: 16, T: 19, R: 24 }), { d: plainB({ x: 16, y: 16, T: 19, R: 24 }), tf: 'translate(112,0) scale(-1,1)' }],
-    cuts: [{ d: two({ cx: 60, cy: 44, r: 22, fx: 38, fy: 96, fw: 48 }), w: 17 }],
+    fills: [plainB({ x: 24, y: 16, T: 19, R: 24 }), { d: plainB({ x: 24, y: 16, T: 19, R: 24 }), tf: 'translate(128,0) scale(-1,1)' }],
+    cuts: [{ d: two({ cx: 68, cy: 44, r: 22, fx: 46, fy: 96, fw: 48 }), w: 17 }],
   },
   {
     id: 'interlock', n: '03', name: 'Interlock',
@@ -63,23 +63,23 @@ export const MARKS = [
   },
   {
     id: 'rotor', n: '04', name: 'Rotor',
-    idea: 'Two identical B’s, the second rotated a half turn — the mark is the same upside down.',
+    idea: 'Two identical B’s, the second turned a half turn, so the letters lock point-symmetrically around the centre.',
     trade: 'Reads as an exchange between two people, which suits passing a list around; busiest of the five up close.',
-    fills: (() => { const T = 16, R = 22, x = 14, y = 14; const b = plainB({ x, y, T, R });
+    fills: (() => { const T = 16, R = 22, x = 28, y = 12; const b = plainB({ x, y, T, R });
       return [b, { d: b, tf: `rotate(180 ${x + (T + R) / 2 + 17} ${y + 2 * R + 8})` }]; })(),
-    cuts: [{ d: two({ cx: 52, cy: 48, r: 21, fx: 31, fy: 100, fw: 44 }), w: 14 }],
+    cuts: [{ d: two({ cx: 66, cy: 46, r: 21, fx: 45, fy: 98, fw: 44 }), w: 14 }],
   },
   {
     id: 'monoline', n: '05', name: 'Monoline',
     idea: 'Both B’s drawn in one even stroke and overlapped like a knot, with the 2 opened out of the shared white.',
     trade: 'By far the clearest as two B’s, and the weakest as a 2 — the lightest, most editorial register of the set.',
-    strokes: [{ d: monoB({ x: 34, y: 12, w: 32, R: 22 }), w: 11 }, { d: monoB({ x: 62, y: 36, w: 32, R: 22 }), w: 11 }],
+    strokes: [{ d: monoB({ x: 34, y: 12, w: 32, R: 22 }), w: 11 }, { d: monoB({ x: 62, y: 34, w: 32, R: 22 }), w: 11 }],
     cuts: [{ d: two({ cx: 64, cy: 46, r: 22, fx: 44, fy: 100, fw: 42 }), w: 14 }],
   },
 ];
 
 /* Render one mark as a standalone <svg>. Colour comes from `currentColor`. */
-export function glyph(mark, uid, px) {
+export function glyph(mark, uid, px, { label = false } = {}) {
   const asList = a => (a || []).map(p => (typeof p === 'string' ? { d: p } : p));
   const fills = asList(mark.fills)
     .map(p => `<path fill="#fff" d="${p.d}"${p.tf ? ` transform="${p.tf}"` : ''}/>`).join('');
@@ -89,7 +89,8 @@ export function glyph(mark, uid, px) {
     .map(p => `<path fill="none" stroke="#000" stroke-width="${p.w}" stroke-linecap="round" stroke-linejoin="round" d="${p.d}"/>`).join('');
   const notches = (mark.notches || [])
     .map(([cx, cy, r]) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#000"/>`).join('');
-  return `<svg width="${px}" height="${px}" viewBox="0 0 ${S} ${S}" role="img" aria-label="${mark.name} mark">`
+  const a11y = label ? ` role="img" aria-label="${mark.name} mark"` : ' aria-hidden="true"';
+  return `<svg width="${px}" height="${px}" viewBox="0 0 ${S} ${S}"${a11y}>`
     + `<mask id="${uid}" maskUnits="userSpaceOnUse" x="0" y="0" width="${S}" height="${S}">`
     + `<rect width="${S}" height="${S}" fill="#000"/>${fills}${strokes}${cuts}${notches}</mask>`
     + `<rect width="${S}" height="${S}" fill="currentColor" mask="url(#${uid})"/></svg>`;
