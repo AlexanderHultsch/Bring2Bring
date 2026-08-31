@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128"
+     color="#2e7d32" role="img">
+  <title>Bring2Bring!</title>
+  <!-- Two identical capital B's, the second turned a half turn about the centre of the
+       grid, overlapped into one form. The channel they leave between them is cut as the
+       number 2, so the digit exists only as the letters' shared negative space.
+       Paints with currentColor; the color attribute above is only a default that any CSS
+       rule beats. No style element on purpose, since the app's CSP sets style-src self.
+       See docs/design/logo/README.md. -->
+  <mask id="b2b-logo-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128">
+    <rect width="128" height="128" fill="#000"/>
+    <!-- B: stem, upper bowl, lower bowl -->
+    <path fill="#fff" d="M28,12h16v88h-16ZM44,12A22,22 0 0 1 44,56ZM44,56A22,22 0 0 1 44,100Z"/>
+    <!-- the same B, rotated a half turn -->
+    <path fill="#fff" d="M28,12h16v88h-16ZM44,12A22,22 0 0 1 44,56ZM44,56A22,22 0 0 1 44,100Z"
+          transform="rotate(180 64 64)"/>
+    <!-- the 2, cut back out of both letters -->
+    <path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"
+          d="M45.4,42A21,21 0 1 1 81.1,60.6L45,98H89"/>
+  </mask>
+  <rect width="128" height="128" fill="currentColor" mask="url(#b2b-logo-mask)"/>
+</svg>
