@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #fafaf8; color: #0d0f11; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    a { color: #2e7d32; text-decoration: none; }
+    a:hover { color: #1f5c24; text-decoration: underline; }
+    .eyebrow { font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: 0.16em;
+               text-transform: uppercase; color: #8a9199; }
+    .rule { height: 1px; background: #e3e6ea; }
+    
+  </style>
+</helmet>
+<div style="width: 600px; height: 1060px; background: #fafaf8; padding: 44px; display: flex;
+            flex-direction: column; gap: 26px; box-sizing: border-box;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <span class="eyebrow">Direction 05</span>
+    <h1 style="margin: 0; font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; font-weight: 700; font-size: 38px;
+               letter-spacing: -0.02em; line-height: 1.05; color: #0d0f11;">Monoline</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #4b535c;
+              max-width: 46ch; text-wrap: pretty;">Both B’s drawn in one even stroke and overlapped like a knot, with the 2 opened out of the shared white.</p>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e3e6ea; border-radius: 16px;
+              padding: 34px; display: flex; align-items: center; justify-content: center;
+              color: {{accent}};">
+    <svg width="232" height="232" viewBox="0 0 128 128" role="img" aria-label="Monoline mark"><mask id="monoline-hero" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M34,12V100M34,12A32,22 0 0 1 34,56M34,56A32,22 0 0 1 34,100"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M62,36V124M62,36A32,22 0 0 1 62,80M62,80A32,22 0 0 1 62,124"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M42.4,41.8A22,22 0 1 1 79.8,61.3L44,100H86"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#monoline-hero)"/></svg>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <span class="eyebrow">Legibility ladder</span>
+    <div style="background: #ffffff; border: 1px solid #e3e6ea; border-radius: 14px;
+                padding: 20px 24px; display: flex; align-items: flex-end; justify-content: space-between;
+                color: {{accent}};">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="height: 48px; display: flex; align-items: center;"><svg width="48" height="48" viewBox="0 0 128 128" role="img" aria-label="Monoline mark"><mask id="monoline-l0" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M34,12V100M34,12A32,22 0 0 1 34,56M34,56A32,22 0 0 1 34,100"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M62,36V124M62,36A32,22 0 0 1 62,80M62,80A32,22 0 0 1 62,124"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M42.4,41.8A22,22 0 1 1 79.8,61.3L44,100H86"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#monoline-l0)"/></svg></div>
+          <span style="font-size: 11px; color: #8a9199; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">48</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="height: 48px; display: flex; align-items: center;"><svg width="32" height="32" viewBox="0 0 128 128" role="img" aria-label="Monoline mark"><mask id="monoline-l1" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M34,12V100M34,12A32,22 0 0 1 34,56M34,56A32,22 0 0 1 34,100"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M62,36V124M62,36A32,22 0 0 1 62,80M62,80A32,22 0 0 1 62,124"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M42.4,41.8A22,22 0 1 1 79.8,61.3L44,100H86"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#monoline-l1)"/></svg></div>
+          <span style="font-size: 11px; color: #8a9199; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">32</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="height: 48px; display: flex; align-items: center;"><svg width="24" height="24" viewBox="0 0 128 128" role="img" aria-label="Monoline mark"><mask id="monoline-l2" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M34,12V100M34,12A32,22 0 0 1 34,56M34,56A32,22 0 0 1 34,100"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M62,36V124M62,36A32,22 0 0 1 62,80M62,80A32,22 0 0 1 62,124"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M42.4,41.8A22,22 0 1 1 79.8,61.3L44,100H86"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#monoline-l2)"/></svg></div>
+          <span style="font-size: 11px; color: #8a9199; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">24</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="height: 48px; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 128 128" role="img" aria-label="Monoline mark"><mask id="monoline-l3" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M34,12V100M34,12A32,22 0 0 1 34,56M34,56A32,22 0 0 1 34,100"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M62,36V124M62,36A32,22 0 0 1 62,80M62,80A32,22 0 0 1 62,124"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M42.4,41.8A22,22 0 1 1 79.8,61.3L44,100H86"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#monoline-l3)"/></svg></div>
+          <span style="font-size: 11px; color: #8a9199; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">20</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="height: 48px; display: flex; align-items: center;"><svg width="16" height="16" viewBox="0 0 128 128" role="img" aria-label="Monoline mark"><mask id="monoline-l4" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M34,12V100M34,12A32,22 0 0 1 34,56M34,56A32,22 0 0 1 34,100"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M62,36V124M62,36A32,22 0 0 1 62,80M62,80A32,22 0 0 1 62,124"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M42.4,41.8A22,22 0 1 1 79.8,61.3L44,100H86"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#monoline-l4)"/></svg></div>
+          <span style="font-size: 11px; color: #8a9199; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">16</span>
+        </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 16px;">
+    <div style="flex-grow: 1; background: #0f1113; border-radius: 14px; padding: 20px 24px;
+                display: flex; align-items: center; gap: 20px; color: #6bcb77;">
+      <svg width="44" height="44" viewBox="0 0 128 128" role="img" aria-label="Monoline mark"><mask id="monoline-d1" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M34,12V100M34,12A32,22 0 0 1 34,56M34,56A32,22 0 0 1 34,100"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M62,36V124M62,36A32,22 0 0 1 62,80M62,80A32,22 0 0 1 62,124"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M42.4,41.8A22,22 0 1 1 79.8,61.3L44,100H86"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#monoline-d1)"/></svg><svg width="22" height="22" viewBox="0 0 128 128" role="img" aria-label="Monoline mark"><mask id="monoline-d2" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M34,12V100M34,12A32,22 0 0 1 34,56M34,56A32,22 0 0 1 34,100"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M62,36V124M62,36A32,22 0 0 1 62,80M62,80A32,22 0 0 1 62,124"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M42.4,41.8A22,22 0 1 1 79.8,61.3L44,100H86"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#monoline-d2)"/></svg>
+      <span style="font-size: 11px; color: #7f878f; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin-left: auto;">Dark UI</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <span class="eyebrow">Lockup</span>
+    <div style="background: #ffffff; border: 1px solid #e3e6ea; border-radius: 14px;
+                padding: 20px 24px; display: flex; align-items: center; gap: 16px;">
+      <span style="display: flex; color: {{accent}};"><svg width="40" height="40" viewBox="0 0 128 128" role="img" aria-label="Monoline mark"><mask id="monoline-lock" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M34,12V100M34,12A32,22 0 0 1 34,56M34,56A32,22 0 0 1 34,100"/><path fill="none" stroke="#fff" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" d="M62,36V124M62,36A32,22 0 0 1 62,80M62,80A32,22 0 0 1 62,124"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M42.4,41.8A22,22 0 1 1 79.8,61.3L44,100H86"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#monoline-lock)"/></svg></span>
+      <span style="font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; font-weight: 700; font-size: 26px; letter-spacing: -0.02em;
+                   color: #0d0f11;">Bring2Bring!</span>
+    </div>
+  </div>
+
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;
+              border-top: 1px solid #e3e6ea; padding-top: 18px;">
+    <span class="eyebrow">Trade-off</span>
+    <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #4b535c;
+              max-width: 50ch; text-wrap: pretty;">By far the clearest as two B’s, and the weakest as a 2 — the lightest, most editorial register of the set.</p>
+  </div>
+</div></x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#2e7d32","options":["#2e7d32","#0d0f11","#b4531f","#1f5f6b"]},"$preview":{"width":600,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#2e7d32' };
+  }
+}
+</script>
+</body>
+</html>

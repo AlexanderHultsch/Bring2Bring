@@ -1,0 +1,99 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
+  <style>
+    body { margin: 0; background: #fafaf8; color: #0d0f11; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    a { color: #2e7d32; text-decoration: none; }
+    a:hover { color: #1f5c24; text-decoration: underline; }
+    .eyebrow { font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; font-weight: 600; font-size: 12px; letter-spacing: 0.16em;
+               text-transform: uppercase; color: #8a9199; }
+    .rule { height: 1px; background: #e3e6ea; }
+    
+  </style>
+</helmet>
+<div style="width: 600px; height: 1060px; background: #fafaf8; padding: 44px; display: flex;
+            flex-direction: column; gap: 26px; box-sizing: border-box;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <span class="eyebrow">Direction 01</span>
+    <h1 style="margin: 0; font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; font-weight: 700; font-size: 38px;
+               letter-spacing: -0.02em; line-height: 1.05; color: #0d0f11;">Spine</h1>
+    <p style="margin: 0; font-size: 15px; line-height: 1.55; color: #4b535c;
+              max-width: 46ch; text-wrap: pretty;">Both B’s share one central stem and turn their bowls outward, so the whole interior is free for the 2.</p>
+  </div>
+
+  <div style="background: #ffffff; border: 1px solid #e3e6ea; border-radius: 16px;
+              padding: 34px; display: flex; align-items: center; justify-content: center;
+              color: {{accent}};">
+    <svg width="232" height="232" viewBox="0 0 128 128" role="img" aria-label="Spine mark"><mask id="spine-hero" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="#fff" d="M54,10h20v108h-20ZM54,10A27,27 0 0 0 54,64ZM54,64A27,27 0 0 0 54,118ZM74,10A27,27 0 0 1 74,64ZM74,64A27,27 0 0 1 74,118Z"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M41.4,37.6A23,23 0 1 1 80.5,58.0L42,100H88"/><circle cx="25" cy="64" r="12" fill="#000"/><circle cx="103" cy="64" r="12" fill="#000"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#spine-hero)"/></svg>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <span class="eyebrow">Legibility ladder</span>
+    <div style="background: #ffffff; border: 1px solid #e3e6ea; border-radius: 14px;
+                padding: 20px 24px; display: flex; align-items: flex-end; justify-content: space-between;
+                color: {{accent}};">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="height: 48px; display: flex; align-items: center;"><svg width="48" height="48" viewBox="0 0 128 128" role="img" aria-label="Spine mark"><mask id="spine-l0" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="#fff" d="M54,10h20v108h-20ZM54,10A27,27 0 0 0 54,64ZM54,64A27,27 0 0 0 54,118ZM74,10A27,27 0 0 1 74,64ZM74,64A27,27 0 0 1 74,118Z"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M41.4,37.6A23,23 0 1 1 80.5,58.0L42,100H88"/><circle cx="25" cy="64" r="12" fill="#000"/><circle cx="103" cy="64" r="12" fill="#000"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#spine-l0)"/></svg></div>
+          <span style="font-size: 11px; color: #8a9199; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">48</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="height: 48px; display: flex; align-items: center;"><svg width="32" height="32" viewBox="0 0 128 128" role="img" aria-label="Spine mark"><mask id="spine-l1" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="#fff" d="M54,10h20v108h-20ZM54,10A27,27 0 0 0 54,64ZM54,64A27,27 0 0 0 54,118ZM74,10A27,27 0 0 1 74,64ZM74,64A27,27 0 0 1 74,118Z"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M41.4,37.6A23,23 0 1 1 80.5,58.0L42,100H88"/><circle cx="25" cy="64" r="12" fill="#000"/><circle cx="103" cy="64" r="12" fill="#000"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#spine-l1)"/></svg></div>
+          <span style="font-size: 11px; color: #8a9199; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">32</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="height: 48px; display: flex; align-items: center;"><svg width="24" height="24" viewBox="0 0 128 128" role="img" aria-label="Spine mark"><mask id="spine-l2" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="#fff" d="M54,10h20v108h-20ZM54,10A27,27 0 0 0 54,64ZM54,64A27,27 0 0 0 54,118ZM74,10A27,27 0 0 1 74,64ZM74,64A27,27 0 0 1 74,118Z"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M41.4,37.6A23,23 0 1 1 80.5,58.0L42,100H88"/><circle cx="25" cy="64" r="12" fill="#000"/><circle cx="103" cy="64" r="12" fill="#000"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#spine-l2)"/></svg></div>
+          <span style="font-size: 11px; color: #8a9199; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">24</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="height: 48px; display: flex; align-items: center;"><svg width="20" height="20" viewBox="0 0 128 128" role="img" aria-label="Spine mark"><mask id="spine-l3" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="#fff" d="M54,10h20v108h-20ZM54,10A27,27 0 0 0 54,64ZM54,64A27,27 0 0 0 54,118ZM74,10A27,27 0 0 1 74,64ZM74,64A27,27 0 0 1 74,118Z"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M41.4,37.6A23,23 0 1 1 80.5,58.0L42,100H88"/><circle cx="25" cy="64" r="12" fill="#000"/><circle cx="103" cy="64" r="12" fill="#000"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#spine-l3)"/></svg></div>
+          <span style="font-size: 11px; color: #8a9199; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">20</span>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+          <div style="height: 48px; display: flex; align-items: center;"><svg width="16" height="16" viewBox="0 0 128 128" role="img" aria-label="Spine mark"><mask id="spine-l4" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="#fff" d="M54,10h20v108h-20ZM54,10A27,27 0 0 0 54,64ZM54,64A27,27 0 0 0 54,118ZM74,10A27,27 0 0 1 74,64ZM74,64A27,27 0 0 1 74,118Z"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M41.4,37.6A23,23 0 1 1 80.5,58.0L42,100H88"/><circle cx="25" cy="64" r="12" fill="#000"/><circle cx="103" cy="64" r="12" fill="#000"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#spine-l4)"/></svg></div>
+          <span style="font-size: 11px; color: #8a9199; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">16</span>
+        </div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 16px;">
+    <div style="flex-grow: 1; background: #0f1113; border-radius: 14px; padding: 20px 24px;
+                display: flex; align-items: center; gap: 20px; color: #6bcb77;">
+      <svg width="44" height="44" viewBox="0 0 128 128" role="img" aria-label="Spine mark"><mask id="spine-d1" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="#fff" d="M54,10h20v108h-20ZM54,10A27,27 0 0 0 54,64ZM54,64A27,27 0 0 0 54,118ZM74,10A27,27 0 0 1 74,64ZM74,64A27,27 0 0 1 74,118Z"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M41.4,37.6A23,23 0 1 1 80.5,58.0L42,100H88"/><circle cx="25" cy="64" r="12" fill="#000"/><circle cx="103" cy="64" r="12" fill="#000"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#spine-d1)"/></svg><svg width="22" height="22" viewBox="0 0 128 128" role="img" aria-label="Spine mark"><mask id="spine-d2" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="#fff" d="M54,10h20v108h-20ZM54,10A27,27 0 0 0 54,64ZM54,64A27,27 0 0 0 54,118ZM74,10A27,27 0 0 1 74,64ZM74,64A27,27 0 0 1 74,118Z"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M41.4,37.6A23,23 0 1 1 80.5,58.0L42,100H88"/><circle cx="25" cy="64" r="12" fill="#000"/><circle cx="103" cy="64" r="12" fill="#000"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#spine-d2)"/></svg>
+      <span style="font-size: 11px; color: #7f878f; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; margin-left: auto;">Dark UI</span>
+    </div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <span class="eyebrow">Lockup</span>
+    <div style="background: #ffffff; border: 1px solid #e3e6ea; border-radius: 14px;
+                padding: 20px 24px; display: flex; align-items: center; gap: 16px;">
+      <span style="display: flex; color: {{accent}};"><svg width="40" height="40" viewBox="0 0 128 128" role="img" aria-label="Spine mark"><mask id="spine-lock" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128"><rect width="128" height="128" fill="#000"/><path fill="#fff" d="M54,10h20v108h-20ZM54,10A27,27 0 0 0 54,64ZM54,64A27,27 0 0 0 54,118ZM74,10A27,27 0 0 1 74,64ZM74,64A27,27 0 0 1 74,118Z"/><path fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M41.4,37.6A23,23 0 1 1 80.5,58.0L42,100H88"/><circle cx="25" cy="64" r="12" fill="#000"/><circle cx="103" cy="64" r="12" fill="#000"/></mask><rect width="128" height="128" fill="currentColor" mask="url(#spine-lock)"/></svg></span>
+      <span style="font-family: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif; font-weight: 700; font-size: 26px; letter-spacing: -0.02em;
+                   color: #0d0f11;">Bring2Bring!</span>
+    </div>
+  </div>
+
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 8px;
+              border-top: 1px solid #e3e6ea; padding-top: 18px;">
+    <span class="eyebrow">Trade-off</span>
+    <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #4b535c;
+              max-width: 50ch; text-wrap: pretty;">The most compact and the most legible small — but it reads as a 2 first and resolves into two B’s second.</p>
+  </div>
+</div></x-dc>
+<script data-dc-script data-props='{"accent":{"editor":"color","default":"#2e7d32","options":["#2e7d32","#0d0f11","#b4531f","#1f5f6b"]},"$preview":{"width":600,"height":1060}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { accent: this.props.accent ?? '#2e7d32' };
+  }
+}
+</script>
+</body>
+</html>
