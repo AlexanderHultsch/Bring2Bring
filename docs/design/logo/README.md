@@ -43,6 +43,31 @@ There is deliberately no `<style>` element in the file: the app's CSP sets
 `style-src 'self'` with no nonces (see `src/app.js`), so an internal stylesheet
 would be blocked wherever the mark is inlined into a page.
 
+## Favicon / app icon assets
+
+`generate-icons.mjs`, next to this README, rebuilds the raster icons in
+`public/img/` (`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`,
+`icon-maskable-512.png`) and `public/favicon.ico` from `logo.svg`. It inlines
+the SVG markup into a throwaway HTML page, sets `color` on the `<svg>` element
+itself (a CSS rule beats the file's `color="#2e7d32"` presentation attribute
+only when it targets the element directly — an inherited value from an
+ancestor loses to it), and screenshots it at exact pixel sizes with Chromium.
+
+This is a design-time tool, not a project dependency: it needs Playwright and
+a Chromium binary, neither of which is in `package.json`, and it is never run
+by `npm test` or the app itself. Run it by hand whenever the logo changes:
+
+```sh
+PLAYWRIGHT_MODULE=/path/to/playwright \
+CHROMIUM_EXECUTABLE=/path/to/chrome \
+node docs/design/logo/generate-icons.mjs
+```
+
+It prints a self-check for each file it writes (rendered dimensions, corner
+pixel against the expected background, an ink-sample pixel against the
+expected mark colour) and parses the ICO it wrote back to confirm each
+embedded PNG's offset lands on a valid PNG signature.
+
 ## Other directions
 
 Four other directions were explored — Spine, Slab, Interlock and Monoline. They live
